@@ -1,0 +1,7 @@
+{
+  "ignore": [
+    "data/**",
+    "src/bot/data/**"
+  ],
+  "legacyWatch": true
+}

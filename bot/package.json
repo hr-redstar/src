@@ -1,0 +1,28 @@
+{
+  "name": "sougeisha-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "送迎者bot (Discord.js v14)",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "deploy:guild": "node script/deployGuildCommands.js",
+    "deploy:global": "node script/deployGlobalCommands.js",
+    "deploy": "node script/deploy.js",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "discord.js": "^14.17.3",
+    "dotenv": "^16.4.5",
+    "@google-cloud/storage": "^7.12.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7",
+    "eslint": "^9.17.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

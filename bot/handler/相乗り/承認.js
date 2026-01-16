@@ -1,0 +1,135 @@
+// handler/相乗り/承認.js
+const { PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+const store = require('../../utils/ストレージ/ストア共通');
+const paths = require('../../utils/ストレージ/ストレージパス');
+const { updateCarpoolMessage } = require('../../utils/配車/相乗りマネージャ.js'); // updateCarpoolはpostRecruitment内で処理するかも要検討だが一旦作る
+const { postCarpoolRecruitment } = require('../../utils/配車/相乗りマネージャ.js');
+
+const interactionTemplate = require("../共通/interactionTemplate");
+const { ACK } = interactionTemplate;
+
+module.exports = {
+    execute: async function (interaction) {
+        // carpool:approve:{rideId}:{userId}:{count}
+        const parts = interaction.customId.split(':');
+        const rideId = parts[2];
+        const userId = parts[3]; // 相乗り希望者
+        const count = parseInt(parts[4]) || 1;
+        const guild = interaction.guild;
+
+        return interactionTemplate(interaction, {
+            ack: ACK.UPDATE, // メッセージ更新
+            async run(interaction) {
+                const activePath = `${paths.activeDispatchDir(guild.id)}/${rideId}.json`;
+                const rideData = await store.readJson(activePath).catch(() => null);
+
+                if (!rideData) return interaction.editReply({ content: "❌ データが見つかりません。", embeds: [], components: [] });
+
+                // リクエスト情報の取得 (Locationなど)
+                const pendingReq = rideData.pendingRequests?.[userId];
+                const location = pendingReq?.location || '相乗り場所';
+
+                // 相乗りユーザー追加
+                if (!rideData.carpoolUsers) rideData.carpoolUsers = [];
+                // 重複チェック
+                if (rideData.carpoolUsers.some(u => u.userId === userId)) {
+                    return interaction.followUp({ content: "⚠️ 既に承認済みです。", ephemeral: true });
+                }
+
+                rideData.carpoolUsers.push({
+                    userId,
+                    count,
+                    location, // 場所情報を保存
+                    approvedAt: new Date().toISOString()
+                });
+
+                // pendingから削除
+                if (rideData.pendingRequests?.[userId]) {
+                    delete rideData.pendingRequests[userId];
+                }
+
+                await store.writeJson(activePath, rideData);
+
+                // 利用中一覧に追加
+                try {
+                    const userInUsePath = paths.userInUseListJson(guild.id);
+                    const usersInUse = await store.readJson(userInUsePath, []).catch(() => []);
+                    if (!usersInUse.includes(userId)) {
+                        usersInUse.push(userId);
+                        await store.writeJson(userInUsePath, usersInUse);
+                    }
+                } catch (err) {
+                    console.error('利用中一覧更新エラー (承認時):', err);
+                }
+
+                // プライベートVCへの追加
+                if (rideData.vcId) {
+                    const channel = guild.channels.cache.get(rideData.vcId);
+                    if (channel) {
+                        try {
+                            await channel.permissionOverwrites.edit(userId, {
+                                ViewChannel: true,
+                                Connect: true,
+                                Speak: true,
+                            });
+                        } catch (e) {
+                            console.error("VC権限追加失敗", e);
+                        }
+                    }
+                }
+
+                // 相乗りメッセージ更新 (人数減)
+                await postCarpoolRecruitment(guild, rideData, interaction.client).catch(() => null);
+
+                // ユーザーへ通知
+                const requester = await guild.members.fetch(userId).catch(() => null);
+                if (requester) {
+                    const embed = new EmbedBuilder()
+                        .setTitle('✅ 相乗り承認')
+                        .setDescription(`ドライバーが相乗りリクエストを承認しました！\nプライベートVCに参加して合流してください。`)
+                        .addFields(
+                            { name: 'VCリンク', value: rideData.vcId ? `[こちらから参加](https://discord.com/channels/${guild.id}/${rideData.vcId})` : 'リンク不明' }
+                        )
+                        .setColor(0x00FF00);
+                    await requester.send({ embeds: [embed] }).catch(() => null);
+                }
+
+                // 運営者ログ送信 (Task 18 & 22)
+                // 相乗り成立ログは運営者ログに送る
+                const { postOperatorLog } = require('../../utils/ログ/運営者ログ');
+                const { loadConfig } = require('../../utils/設定/設定マネージャ'); // config読み込み追加
+                const config = await loadConfig(guild.id);
+
+                let msgLink = "";
+                if (rideData.carpoolMessageId && config.channels?.carpool) {
+                    msgLink = `[募集メッセージ](https://discord.com/channels/${guild.id}/${config.channels.carpool}/${rideData.carpoolMessageId})`;
+                }
+
+                const logEmbed = new EmbedBuilder()
+                    .setTitle('🤝 相乗り成立')
+                    .setDescription(`以下の相乗りリクエストが承認されました。`)
+                    .addFields(
+                        { name: 'ドライバー', value: `<@${rideData.driverId}>`, inline: true },
+                        { name: '相乗り利用者', value: `<@${userId}>`, inline: true },
+                        { name: '人数', value: `${count}名`, inline: true },
+                        { name: 'リンク', value: msgLink || '不明', inline: false }
+                    )
+                    .setColor(0x00FF00)
+                    .setTimestamp();
+
+                await postOperatorLog({
+                    guild,
+                    embeds: [logEmbed]
+                }).catch(() => null);
+
+                // ボタン無効化orメッセージ変更
+                const embed = EmbedBuilder.from(interaction.message.embeds[0]);
+                embed.setTitle("✅ 承認済み");
+                embed.setColor(0x00FF00);
+                embed.setFooter({ text: "相乗りが成立しました" });
+
+                await interaction.editReply({ embeds: [embed], components: [] });
+            }
+        });
+    }
+};

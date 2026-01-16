@@ -1,0 +1,79 @@
+{
+  "panels": {
+    "panelSetup": {
+      "channelId": "1455249760913985626",
+      "messageId": "1461661547037458444"
+    },
+    "admin": {
+      "messageId": "1458888627726843972",
+      "channelId": "1455341700221374685"
+    },
+    "guide": {
+      "messageId": "1460903184943026341",
+      "channelId": "1460898277825188046"
+    },
+    "driverRegister": {
+      "messageId": "1458818508149489716",
+      "channelId": "1455358855671185448"
+    },
+    "userRegister": {
+      "messageId": "1458818510594637945",
+      "channelId": "1452730887983726642"
+    },
+    "userPanel": {
+      "messageId": null,
+      "channelId": null
+    },
+    "driverPanel": {
+      "messageId": "1458818502751158313",
+      "channelId": "1452730545757884599"
+    },
+    "userCheckPanel": {
+      "messageId": null,
+      "channelId": null
+    },
+    "rideList": {
+      "messageId": null,
+      "channelId": null
+    },
+    "ratingRank": {
+      "messageId": null,
+      "channelId": null
+    },
+    "carpoolPanel": {
+      "messageId": null,
+      "channelId": null
+    },
+    "globalLog": {
+      "messageId": null,
+      "channelId": null
+    },
+    "operatorLog": {
+      "messageId": null,
+      "channelId": null
+    }
+  },
+  "roles": {
+    "drivers": [],
+    "driverMention": null,
+    "users": [],
+    "userMention": null,
+    "priorityDrivers": [],
+    "priorityMention": null,
+    "driver": null,
+    "user": null
+  },
+  "categories": {
+    "privateVc": "1458303474973544622",
+    "userMemo": "1460534555248169066",
+    "dispatch": null
+  },
+  "logs": {
+    "globalChannel": null,
+    "operatorChannel": "1456180405307838484",
+    "adminLogThread": "1459061063042596929",
+    "adminLogThreadIndex": 1,
+    "guideChannel": null
+  },
+  "rideShareChannel": "1452733905957552270"
+}

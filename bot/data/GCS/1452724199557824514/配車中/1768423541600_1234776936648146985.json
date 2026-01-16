@@ -1,0 +1,13 @@
+{
+  "rideId": "1768423541600_1234776936648146985",
+  "userId": "1234776936648146985",
+  "driverId": "1234776936648146985",
+  "driverPlace": "難波",
+  "from": "大阪test市test町1-2-3",
+  "mark": "ローソンの近く",
+  "destination": "口頭で伝える",
+  "status": "dispatching",
+  "vcId": "1461098988425052212",
+  "startedAt": "2026-01-14T20:45:41.600Z",
+  "guest": false
+}
