@@ -30,11 +30,11 @@ async function sendDriverCarpoolRequestDM({
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-            .setCustomId(`carpool:approve:${rideId}:${requester.id}:${pickup}:${passengerCount}`)
+            .setCustomId(`carpool|approve|rid=${rideId}&uid=${requester.id}&cnt=${passengerCount}`)
             .setLabel('承認')
             .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
-            .setCustomId(`carpool:reject:${rideId}:${requester.id}:${pickup}:${passengerCount}`)
+            .setCustomId(`carpool|reject|rid=${rideId}&uid=${requester.id}&cnt=${passengerCount}`)
             .setLabel('却下')
             .setStyle(ButtonStyle.Danger)
     );

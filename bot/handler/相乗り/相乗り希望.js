@@ -4,15 +4,15 @@ const autoInteractionTemplate = require("../共通/autoInteractionTemplate");
 const { ACK } = autoInteractionTemplate;
 
 module.exports = {
-    execute: async function (interaction) {
-        // carpool:join:{rideId}
-        const rideId = interaction.customId.split(':')[2];
+    execute: async function (interaction, parsed) {
+        // carpool|join|rid={rideId}
+        const rideId = parsed?.params?.rid;
 
         return autoInteractionTemplate(interaction, {
             ack: ACK.NONE,
             async run(interaction) {
                 const modal = new ModalBuilder()
-                    .setCustomId(`carpool:join:modal:${rideId}`)
+                    .setCustomId(`carpool|join|sub=modal&rid=${rideId}`)
                     .setTitle('相乗り希望');
 
                 const locationInp = new TextInputBuilder()

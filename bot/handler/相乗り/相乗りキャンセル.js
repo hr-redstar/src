@@ -10,15 +10,12 @@ const { postOperatorLog } = require('../../utils/ログ/運営者ログ');
  */
 module.exports = {
     customIdPrefix: 'carpool:cancel:',
-    async execute(interaction) {
+    async execute(interaction, parsed) {
         return interactionTemplate(interaction, {
             ack: ACK.REPLY,
             async run(interaction) {
-                const parts = interaction.customId.split(':');
-                const paths = require('../../utils/ストレージ/ストレージパス');
-                // carpool:cancel:rideId:type
-                const rideId = parts[2];
-                const type = parts[3]; // 'requester' or 'driver'
+                const rideId = parsed?.params?.rid;
+                const type = parsed?.params?.role; // 'requester' or 'driver'
 
                 const guildId = interaction.guildId;
                 const ridePath = `${paths.carpoolDir(guildId)}/${rideId}.json`;

@@ -4,16 +4,15 @@ const interactionTemplate = require("../共通/interactionTemplate");
 const { ACK } = interactionTemplate;
 
 module.exports = {
-    execute: async function (interaction) {
-        // carpool:reject_reason:{rideId}:{userId}
-        const parts = interaction.customId.split(':');
-        const rideId = parts[2];
-        const userId = parts[3];
+    execute: async function (interaction, parsed) {
+        // carpool|reject_reason|rid={rideId}&uid={userId}
+        const rideId = parsed?.params?.rid;
+        const userId = parsed?.params?.uid;
         const reason = interaction.values[0];
 
         if (reason === 'message_input') {
             const modal = new ModalBuilder()
-                .setCustomId(`carpool:reject_modal:${rideId}:${userId}`)
+                .setCustomId(`carpool|reject|sub=modal&rid=${rideId}&uid=${userId}`)
                 .setTitle('却下理由入力');
 
             const reasonInp = new TextInputBuilder()

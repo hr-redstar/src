@@ -4,12 +4,14 @@ const interactionTemplate = require("../共通/interactionTemplate");
 const { ACK } = interactionTemplate;
 
 module.exports = {
-    execute: async function (interaction) {
-        // carpool:reject:{rideId}:{userId}
-        const parts = interaction.customId.split(':');
+    execute: async function (interaction, parsed) {
+        // carpool|reject|rid={rideId}&uid={userId}
+        const rideId = parsed?.params?.rid;
+        const userId = parsed?.params?.uid;
+
         // セレクトメニューのIDに情報を埋め込む
-        // select:reject_reason:{rideId}:{userId}
-        const customId = `carpool:reject_reason:${parts[2]}:${parts[3]}`;
+        // carpool|reject_reason|rid={rideId}&uid={userId}
+        const customId = `carpool|reject_reason|rid=${rideId}&uid=${userId}`;
 
         return interactionTemplate(interaction, {
             ack: ACK.REPLY, // エフェメラルでメニューを出す

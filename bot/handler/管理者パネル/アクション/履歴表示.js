@@ -7,25 +7,28 @@ const { ACK } = autoInteractionTemplate;
 /**
  * 履歴・評価表示ハンドラー
  */
-module.exports = async function (interaction, client) {
-    const { customId } = interaction;
+module.exports = {
+    async execute(interaction, parsed) {
+        const sub = parsed?.params?.sub || 'start';
 
-    if (customId === 'admin:btn:history_recent') return showRecentHistory(interaction);
-    if (customId === 'admin:btn:history_detail') return showHistoryMonthSelect(interaction);
-    if (customId.startsWith('admin:select:history_month')) return showHistoryDaySelect(interaction);
-    if (customId.startsWith('admin:select:history_day')) return showHistoryResult(interaction);
+        if (sub === 'recent') return showRecentHistory(interaction);
+        if (sub === 'detail') return showHistoryMonthSelect(interaction);
+        if (sub === 'month_sel') return showHistoryDaySelect(interaction);
+        if (sub === 'day_sel') return showHistoryResult(interaction);
 
-    return autoInteractionTemplate(interaction, {
-        adminOnly: true,
-        ack: ACK.REPLY,
-        async run(interaction) {
-            if (customId.includes('rating')) {
-                return showRatingList(interaction);
+        return autoInteractionTemplate(interaction, {
+            adminOnly: true,
+            ack: ACK.REPLY,
+            async run(interaction) {
+                const { ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('adm|history|sub=recent').setLabel('🕒 直近10件').setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder().setCustomId('adm|history|sub=detail').setLabel('📅 月別履歴').setStyle(ButtonStyle.Secondary)
+                );
+                await interaction.editReply({ content: '表示したい履歴の種類を選択してください。', components: [row] });
             }
-            // 互換性のため古い ID も recent へ
-            return showRecentHistory(interaction);
-        }
-    });
+        });
+    }
 };
 
 /**
@@ -79,7 +82,7 @@ async function showHistoryMonthSelect(interaction) {
     }
 
     const select = new StringSelectMenuBuilder()
-        .setCustomId('admin:select:history_month')
+        .setCustomId('adm|history|sub=month_sel')
         .setPlaceholder('年月を選択してください')
         .addOptions(options);
 
@@ -107,7 +110,7 @@ async function showHistoryDaySelect(interaction) {
             }
 
             const select = new StringSelectMenuBuilder()
-                .setCustomId('admin:select:history_day')
+                .setCustomId('adm|history|sub=day_sel')
                 .setPlaceholder('日付を選択してください')
                 .addOptions(options.slice(0, 25)); // Discord制限
 

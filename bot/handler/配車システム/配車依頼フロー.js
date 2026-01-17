@@ -7,16 +7,14 @@ const { ACK } = autoInteractionTemplate;
  * 配車依頼フロー（ボタンのみの対話型）
  */
 module.exports = {
-    execute: async function (interaction) {
-        const parts = interaction.customId.split(':');
-        // dispatch:order:{step}:{type}:{direction}:{count}
-        const step = parts[2] || 'type';
-        const type = parts[3] || '';
-        const direction = parts[4] || '';
-        const count = parts[5] || '';
+    execute: async function (interaction, parsed) {
+        const step = parsed?.params?.sub || 'type';
+        const type = parsed?.params?.type || '';
+        const direction = parsed?.params?.dir || '';
+        const count = parsed?.params?.cnt || '';
 
         return autoInteractionTemplate(interaction, {
-            ack: (parts[2] || 'type') === 'type' ? ACK.REPLY : ACK.AUTO,
+            ack: (parsed?.params?.sub || 'type') === 'type' ? ACK.REPLY : ACK.AUTO,
             async run(interaction) {
                 if (step === 'type') {
                     return showTypeSelection(interaction);
@@ -34,17 +32,16 @@ module.exports = {
                     return executeDispatch(interaction, type, direction, count);
                 }
                 if (step === 'depart') {
-                    return handleDepart(interaction, type); // type はここでは dispatchId
+                    return handleDepart(interaction, parsed?.params?.did);
                 }
                 if (step === 'complete') {
-                    return handleComplete(interaction, type); // type はここでは dispatchId
+                    return handleComplete(interaction, parsed?.params?.did);
                 }
-                if (step === 'carpool') {
-                    // dispatch:carpool:{action}:{rideId}
-                    const action = parts[3];
-                    const rideId = parts[4];
-                    if (action === 'join') return handleCarpoolJoin(interaction, rideId);
-                    if (action === 'modal') return handleCarpoolModal(interaction, rideId);
+                if (step === 'carpool_join') {
+                    return handleCarpoolJoin(interaction, parsed?.params?.rid);
+                }
+                if (step === 'carpool_modal') {
+                    return handleCarpoolModal(interaction, parsed?.params?.rid);
                 }
             }
         });
@@ -61,8 +58,8 @@ async function showTypeSelection(interaction) {
         .setColor(0x0099ff);
 
     const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`dispatch:order:direction:cast`).setLabel("キャスト").setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId(`dispatch:order:direction:guest`).setLabel("ゲスト(お客様)").setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId(`dispatch|order|sub=direction&type=cast`).setLabel("キャスト").setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId(`dispatch|order|sub=direction&type=guest`).setLabel("ゲスト(お客様)").setStyle(ButtonStyle.Secondary)
     );
 
     await interaction.editReply({ embeds: [embed], components: [row] });
@@ -91,7 +88,7 @@ async function showDirectionSelection(interaction, type) {
         }
         currentRow.addComponents(
             new ButtonBuilder()
-                .setCustomId(`dispatch:order:count:${type}:${dir}`)
+                .setCustomId(`dispatch|order|sub=count&type=${type}&dir=${dir}`)
                 .setLabel(dir)
                 .setStyle(ButtonStyle.Success)
         );
@@ -100,7 +97,7 @@ async function showDirectionSelection(interaction, type) {
 
     // 戻るボタン
     const navRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`dispatch:order:type`).setLabel("← 戻る").setStyle(ButtonStyle.Danger)
+        new ButtonBuilder().setCustomId(`dispatch|order|sub=type`).setLabel("← 戻る").setStyle(ButtonStyle.Danger)
     );
     rows.push(navRow);
 
@@ -118,12 +115,12 @@ async function showCountSelection(interaction, type, direction) {
 
     const row = new ActionRowBuilder().addComponents(
         [1, 2, 3, 4, 5].map(n =>
-            new ButtonBuilder().setCustomId(`dispatch:order:confirm:${type}:${direction}:${n}`).setLabel(`${n}人`).setStyle(ButtonStyle.Primary)
+            new ButtonBuilder().setCustomId(`dispatch|order|sub=confirm&type=${type}&dir=${direction}&cnt=${n}`).setLabel(`${n}人`).setStyle(ButtonStyle.Primary)
         )
     );
 
     const navRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`dispatch:order:direction:${type}`).setLabel("← 戻る").setStyle(ButtonStyle.Danger)
+        new ButtonBuilder().setCustomId(`dispatch|order|sub=direction&type=${type}`).setLabel("← 戻る").setStyle(ButtonStyle.Danger)
     );
 
     await interaction.editReply({ embeds: [embed], components: [row, navRow] });
@@ -139,8 +136,8 @@ async function showConfirmation(interaction, type, direction, count) {
         .setColor(0xffff00);
 
     const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`dispatch:order:execute:${type}:${direction}:${count}`).setLabel("配車を確定する").setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId(`dispatch:order:count:${type}:${direction}`).setLabel("やり直す").setStyle(ButtonStyle.Danger)
+        new ButtonBuilder().setCustomId(`dispatch|order|sub=execute&type=${type}&dir=${direction}&cnt=${count}`).setLabel("配車を確定する").setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId(`dispatch|order|sub=count&type=${type}&dir=${direction}`).setLabel("やり直す").setStyle(ButtonStyle.Danger)
     );
 
     await interaction.editReply({ embeds: [embed], components: [row] });
@@ -302,7 +299,7 @@ async function handleComplete(interaction, dispatchId) {
 async function handleCarpoolJoin(interaction, rideId) {
     const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
     const modal = new ModalBuilder()
-        .setCustomId(`dispatch:carpool:modal:${rideId}`)
+        .setCustomId(`dispatch|order|sub=carpool_modal&rid=${rideId}`)
         .setTitle('相乗り人数入力');
 
     const countInp = new TextInputBuilder()

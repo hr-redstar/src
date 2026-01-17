@@ -6,16 +6,16 @@ const { loadDriver } = require('../../../utils/driversStore');
 const { loadUser } = require('../../../utils/usersStore');
 
 module.exports = {
-    customId: 'admin:btn:set_rank_start',
+    customId: 'adm|rank_set|sub=start',
     type: 'button',
-    async execute(interaction) {
+    async execute(interaction, parsed) {
         return interactionTemplate(interaction, {
             ack: ACK.REPLY,
             adminOnly: true,
             async run(interaction) {
                 // ユーザー選択メニュー
                 const select = new UserSelectMenuBuilder()
-                    .setCustomId('admin:rank_set:user_select')
+                    .setCustomId('adm|rank_set|sub=user_sel')
                     .setPlaceholder('ランクを設定するユーザーを選択')
                     .setMaxValues(1);
 
@@ -29,7 +29,7 @@ module.exports = {
 /**
  * ユーザー選択時の処理 -> ランク選択メニュー表示
  */
-module.exports.handleUserSelect = async function (interaction) {
+module.exports.handleUserSelect = async function (interaction, parsed) {
     return interactionTemplate(interaction, {
         ack: ACK.UPDATE,
         adminOnly: true,
@@ -65,7 +65,7 @@ module.exports.handleUserSelect = async function (interaction) {
             options.push(new StringSelectMenuOptionBuilder().setLabel('ランクなし（解除）').setValue('none').setDescription('現在のランクを削除します'));
 
             const select = new StringSelectMenuBuilder()
-                .setCustomId(`admin:rank_set:tier_select:${role}:${userId}`)
+                .setCustomId(`adm|rank_set|sub=tier_sel&role=${role}&uid=${userId}`)
                 .setPlaceholder('設定するランクを選択')
                 .addOptions(options);
 
@@ -83,11 +83,13 @@ module.exports.handleUserSelect = async function (interaction) {
 /**
  * ランク選択時の処理 -> 保存
  */
-module.exports.handleRankSelect = async function (interaction, role, userId) {
+module.exports.handleRankSelect = async function (interaction, parsed) {
     return interactionTemplate(interaction, {
         ack: ACK.UPDATE,
         adminOnly: true,
         async run(interaction) {
+            const role = parsed.params.role;
+            const userId = parsed.params.uid;
             const rank = interaction.values[0];
             const rankToSave = rank === 'none' ? null : rank;
 

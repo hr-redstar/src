@@ -4,12 +4,12 @@ const { ACK } = interactionTemplate;
 const { saveRanks } = require('../../../utils/ranksStore');
 
 module.exports = {
-    customId: 'admin:btn:register_rank_tiers_start', // パネルのボタンID
+    customId: 'adm|rank_tiers|sub=start', // パネルのボタンID
     type: 'button',
-    async execute(interaction) {
+    async execute(interaction, parsed) {
         // モーダルを表示
         const modal = new ModalBuilder()
-            .setCustomId('admin:modal:register_rank_tiers')
+            .setCustomId('adm|rank_tiers|sub=modal')
             .setTitle('ランク階級登録');
 
         const input = new TextInputBuilder()
@@ -29,7 +29,7 @@ module.exports = {
 /**
  * モーダル送信時の処理 (handler.js等からルーティングされる想定)
  */
-module.exports.handleModal = async function (interaction) {
+module.exports.handleModal = async function (interaction, parsed) {
     return interactionTemplate(interaction, {
         ack: ACK.REPLY,
         adminOnly: true,

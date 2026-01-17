@@ -34,9 +34,8 @@ async function updateDriverPanel(guild, client) {
 }
 
 // ===== Handler =====
-async function execute(interaction) {
-  const parts = interaction.customId.split(':');
-  const action = parts[1];
+async function execute(interaction, parsed) {
+  const action = parsed?.action;
 
   try {
     if (action === 'on') return require('./アクション/出勤')(interaction);

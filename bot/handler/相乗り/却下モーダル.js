@@ -4,12 +4,11 @@ const interactionTemplate = require("../共通/interactionTemplate");
 const { ACK } = interactionTemplate;
 
 module.exports = {
-    execute: async function (interaction) {
+    execute: async function (interaction, parsed) {
         return interactionTemplate(interaction, {
             ack: ACK.REPLY,
             async run(interaction) {
-                const parts = interaction.customId.split(':');
-                const userId = parts[3]; // carpool:reject_modal:{rideId}:{userId}
+                const userId = parsed?.params?.uid; // carpool|reject|sub=modal&rid={rideId}&uid={userId}
                 const reason = interaction.fields.getTextInputValue('input:reason');
 
                 const requester = await interaction.guild.members.fetch(userId).catch(() => null);

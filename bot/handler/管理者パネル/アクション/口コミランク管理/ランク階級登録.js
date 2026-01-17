@@ -4,8 +4,8 @@ const autoInteractionTemplate = require('../../../共通/autoInteractionTemplate
 const { ACK } = autoInteractionTemplate;
 
 const CID = {
-    BTN_RANK_TIERS: 'admin:btn:register_rank_tiers_start',
-    MODAL_RANK_TIERS: 'admin:modal:register_rank_tiers'
+    BTN_RANK_TIERS: 'adm|rank_tiers|sub=start',
+    MODAL_RANK_TIERS: 'adm|rank_tiers|sub=modal'
 };
 
 module.exports = {
@@ -13,7 +13,7 @@ module.exports = {
     /**
      * ボタン押下時：モーダルを表示
      */
-    async showModal(interaction) {
+    async showModal(interaction, parsed) {
         const config = await loadConfig(interaction.guildId);
         const modal = new ModalBuilder()
             .setCustomId(CID.MODAL_RANK_TIERS)
@@ -34,7 +34,7 @@ module.exports = {
     /**
      * モーダル送信時：保存
      */
-    async handleModal(interaction) {
+    async handleModal(interaction, parsed) {
         return autoInteractionTemplate(interaction, {
             adminOnly: true,
             ack: ACK.REPLY,

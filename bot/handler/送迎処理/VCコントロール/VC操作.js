@@ -9,19 +9,18 @@ const paths = require('../../utils/ストレージ/ストレージパス');
  * VC操作ルーター
  * カスタムID形式: vc:btn:action:rideId
  */
-module.exports = async function (interaction) {
-    const parts = interaction.customId.split(':');
-    const action = parts[2];
-    const rideId = parts[3]; // might be undefined for 'extend'
+module.exports = async function (interaction, parsed) {
+    const action = parsed?.action;
+    const rid = parsed?.params?.rid;
 
     if (action === 'approach') {
-        return handleApproach(interaction, rideId);
+        return handleApproach(interaction, rid);
     }
     if (action === 'start') {
-        return handleStart(interaction, rideId);
+        return handleStart(interaction, rid);
     }
     if (action === 'end') {
-        return handleEnd(interaction, rideId);
+        return handleEnd(interaction, rid);
     }
 
     if (action === 'extend') {

@@ -8,15 +8,15 @@ function buildRatingRankPanelMessage(guild) {
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-            .setCustomId('admin:btn:rating_check_start')
+            .setCustomId('adm|rating_check|sub=start')
             .setLabel('📊 口コミ確認')
             .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
-            .setCustomId('admin:btn:register_rank_tiers_start')
+            .setCustomId('adm|rank_tiers|sub=start')
             .setLabel('🏷️ ランク階級登録')
             .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
-            .setCustomId('admin:btn:set_rank_start')
+            .setCustomId('adm|rank_set|sub=start')
             .setLabel('⚙️ ランク設定')
             .setStyle(ButtonStyle.Success)
     );

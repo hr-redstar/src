@@ -23,9 +23,9 @@ function buildDriverPanelEmbed(guild, driverCount = 0, client) {
  */
 function buildDriverPanelComponents() {
     const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId("driver:on").setLabel("今から行けます").setStyle(ButtonStyle.Success),
-        new ButtonBuilder().setCustomId("driver:off").setLabel("退勤します").setStyle(ButtonStyle.Danger),
-        new ButtonBuilder().setCustomId("driver:location").setLabel("現在地更新").setStyle(ButtonStyle.Primary)
+        new ButtonBuilder().setCustomId("driver|on").setLabel("今から行けます").setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId("driver|off").setLabel("退勤します").setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId("driver|location").setLabel("現在地更新").setStyle(ButtonStyle.Primary)
     );
     return [row];
 }

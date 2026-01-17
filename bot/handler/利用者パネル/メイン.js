@@ -43,10 +43,9 @@ async function updateUserPanel(guild, client) {
 }
 
 // ===== Handler =====
-async function execute(interaction) {
-  const parts = interaction.customId.split(':');
-  const action = parts[1];
-  const sub = parts[2];
+async function execute(interaction, parsed) {
+  const action = parsed?.action;
+  const sub = parsed?.params?.sub;
 
   try {
     if (action === 'ride') {

@@ -19,13 +19,13 @@ const { ACK } = interactionTemplate;
 
 // ===== Custom IDs =====
 const CID = {
-  BTN_REGISTER: "driver:btn:register",
-  MODAL_REGISTER: "driver:modal:register",
-  INP_AREA: "driver:input:area",
-  INP_STOP: "driver:input:stop",
-  INP_NICKNAME: "driver:input:nickname",
-  INP_CAR: "driver:input:car",
-  INP_CAPACITY: "driver:input:capacity",
+  BTN_REGISTER: "reg|driver|sub=button",
+  MODAL_REGISTER: "reg|driver|sub=modal",
+  INP_AREA: "reg|driver|input=area",
+  INP_STOP: "reg|driver|input=stop",
+  INP_NICKNAME: "reg|driver|input=nickname",
+  INP_CAR: "reg|driver|input=car",
+  INP_CAPACITY: "reg|driver|input=capacity",
 };
 
 // ===== Paths =====
@@ -61,7 +61,7 @@ function buildDriverRegPanelMessage(guild, client) {
       .setLabel("送迎者登録")
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
-      .setCustomId("ps:check")
+      .setCustomId("ps|check")
       .setLabel("登録状態確認")
       .setStyle(ButtonStyle.Secondary)
   );
@@ -72,11 +72,13 @@ function buildDriverRegPanelMessage(guild, client) {
 /**
  * ハンドラー実行
  */
-async function execute(interaction) {
+async function execute(interaction, parsed) {
   if (!interaction.guildId) return;
 
+  const sub = parsed?.params?.sub;
+
   // ボタン → モーダル
-  if (interaction.isButton() && interaction.customId === CID.BTN_REGISTER) {
+  if (interaction.isButton() && sub === 'button') {
     const modal = new ModalBuilder()
       .setCustomId(CID.MODAL_REGISTER)
       .setTitle("送迎者登録");
@@ -128,7 +130,7 @@ async function execute(interaction) {
   }
 
   // モーダル → 保存
-  if (interaction.isModalSubmit() && interaction.customId === CID.MODAL_REGISTER) {
+  if (interaction.isModalSubmit() && sub === 'modal') {
     return interactionTemplate(interaction, {
       ack: ACK.REPLY,
       async run(interaction) {
@@ -176,28 +178,64 @@ async function execute(interaction) {
         }
 
         // ログ出力 (運営者ログ)
-        const logChId = config.logs?.operatorChannel;
-        if (logChId) {
-          const ch = await interaction.guild.channels.fetch(logChId).catch(() => null);
-          if (ch) {
-            const logEmbed = new EmbedBuilder()
-              .setTitle("🚗 送迎者登録")
-              .setColor(0x2ecc71)
-              .addFields(
-                { name: "ユーザー", value: `<@${userId}>`, inline: true },
-                { name: "区域", value: area, inline: true },
-                { name: "停留場所", value: stop, inline: true },
-                { name: "車種", value: car || "未設定", inline: true },
-                { name: "乗車人数", value: `${capacity}人`, inline: true },
-                { name: "ニックネーム", value: nickname || "未設定", inline: true }
-              )
-              .setTimestamp();
-            await ch.send({ embeds: [logEmbed] }).catch(err => logger.debug("ログ送信失敗", err.message));
+        const { postOperatorLog } = require("../../utils/ログ/運営者ログ");
+        const logEmbed = new EmbedBuilder()
+          .setTitle("🚗 送迎者登録")
+          .setColor(0x2ecc71)
+          .addFields(
+            { name: "ユーザー", value: `<@${userId}>`, inline: true },
+            { name: "区域", value: area, inline: true },
+            { name: "停留場所", value: stop, inline: true },
+            { name: "車種", value: car || "未設定", inline: true },
+            { name: "乗車人数", value: `${capacity}人`, inline: true },
+            { name: "ニックネーム", value: nickname || "未設定", inline: true }
+          )
+          .setTimestamp();
+
+        await postOperatorLog({
+          guild: interaction.guild,
+          embeds: [logEmbed]
+        });
+
+        // チャンネル作成 or 検出 (メモチャンネル)
+        if (config.categories?.userMemo) {
+          const { createUserMemoChannel } = require("../../utils/createUserMemoChannel");
+          const { findUserMemoChannel } = require("../../utils/findUserMemoChannel");
+          const { loadDriverFull } = require("../../utils/driversStore");
+          const { getRegistrationMessageId, saveRegistrationMessageId } = require("../../utils/registrationMessageStore");
+          const { updateRegistrationInfoMessage } = require("../../utils/updateRegistrationInfoMessage");
+          const { buildDriverRegistrationEmbed } = require("../../utils/buildRegistrationInfoEmbed");
+
+          let memoChannel = await findUserMemoChannel({
+            guild: interaction.guild,
+            userId: interaction.user.id,
+            categoryId: config.categories.userMemo,
+            role: 'driver',
+          }).catch(() => null);
+
+          if (memoChannel) {
+            const fullJson = await loadDriverFull(interaction.guildId, userId);
+            const messageId = await getRegistrationMessageId(interaction.guildId, userId, 'driver');
+            if (messageId) {
+              await updateRegistrationInfoMessage(memoChannel, messageId, fullJson, 'driver', interaction.user).catch(() => null);
+            } else {
+              const embed = buildDriverRegistrationEmbed(fullJson, interaction.user);
+              const sentMessage = await memoChannel.send({ embeds: [embed] }).catch(() => null);
+              if (sentMessage) await saveRegistrationMessageId(interaction.guildId, userId, sentMessage.id, 'driver').catch(() => null);
+            }
+          } else {
+            await createUserMemoChannel({
+              guild: interaction.guild,
+              user: interaction.user,
+              categoryId: config.categories.userMemo,
+              role: 'driver',
+            }).catch(() => null);
           }
         }
 
-        // パネル更新 (ユーザー確認パネルなどがあれば)
-        // 必要に応じて処理を追加
+        // ユーザー確認パネルを更新
+        const { updateUserCheckPanel } = require("./ユーザー確認パネル");
+        await updateUserCheckPanel(interaction.guild, interaction.client).catch(() => null);
 
         await interaction.editReply({ content: "✅ 送迎者登録が完了しました！" });
       }

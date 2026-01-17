@@ -11,12 +11,11 @@ const interactionTemplate = require("../共通/interactionTemplate");
 const { ACK } = interactionTemplate;
 
 module.exports = {
-    execute: async function (interaction) {
-        // carpool:approve:{rideId}:{userId}:{count}
-        const parts = interaction.customId.split(':');
-        const rideId = parts[2];
-        const userId = parts[3]; // 相乗り希望者
-        const count = parseInt(parts[4]) || 1;
+    execute: async function (interaction, parsed) {
+        // carpool|approve|rid={rideId}&uid={userId}&cnt={count}
+        const rideId = parsed?.params?.rid;
+        const userId = parsed?.params?.uid; // 相乗り希望者
+        const count = parseInt(parsed?.params?.cnt) || 1;
         const guild = interaction.guild;
 
         return interactionTemplate(interaction, {

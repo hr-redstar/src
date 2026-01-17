@@ -94,15 +94,15 @@ module.exports.createPrivateVc = async ({
     // ボタン作成
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-            .setCustomId(`vc:btn:approach:${rideId}`)
+            .setCustomId(`ride|approach|rid=${rideId}`)
             .setLabel("向かっています")
             .setStyle(ButtonStyle.Primary), // 送迎者のみ
         new ButtonBuilder()
-            .setCustomId(`vc:btn:start:${rideId}`)
+            .setCustomId(`ride|start|rid=${rideId}`)
             .setLabel("送迎開始")
             .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
-            .setCustomId(`vc:btn:end:${rideId}`)
+            .setCustomId(`ride|end|rid=${rideId}`)
             .setLabel("送迎終了")
             .setStyle(ButtonStyle.Danger)
     );

@@ -41,11 +41,15 @@ async function routeToPanelHandler(interaction, client) {
 
   switch (parsed.namespace) {
     case "admin":
+    case "adm":
       handler = require("./管理者パネル/メイン");
       break;
     case "ps":
       if (parsed.action === 'setup' || (parsed.legacy && parsed.action === 'send')) {
         handler = require('./パネル設置/アクション/パネル設置フロー');
+      }
+      if (parsed.action === 'check') {
+        handler = require('./パネル設置/アクション/状態確認');
       }
       break;
     case "driver":
@@ -54,14 +58,36 @@ async function routeToPanelHandler(interaction, client) {
     case "user":
       handler = require("./利用者パネル/メイン");
       break;
-    case "regdriver":
-      handler = require("./登録処理/送迎者登録");
+    case "reg":
+      if (parsed.action === 'driver') handler = require("./登録処理/送迎者登録");
+      if (parsed.action === 'user') handler = require("./登録処理/利用者登録");
       break;
-    case "reguser":
-      handler = require("./登録処理/利用者登録");
+    case "ride":
+      // VC操作(approach, start, end, extend)
+      handler = require("./送迎処理/VCコントロール/VC操作");
+      break;
+    case "carpool":
+      // 相乗り系 (join, approve, reject, cancel)
+      const action = parsed.action;
+      if (action === 'join') {
+        if (parsed.params?.sub === 'modal') handler = require("./相乗り/相乗り希望モーダル");
+        else handler = require("./相乗り/相乗り希望");
+      }
+      if (action === 'approve') handler = require("./相乗り/承認");
+      if (action === 'reject') {
+        if (parsed.params?.sub === 'modal') handler = require("./相乗り/却下モーダル");
+        else handler = require("./相乗り/却下理由選択");
+      }
+      if (action === 'reject_reason') handler = require("./相乗り/却下理由処理");
+      if (action === 'cancel') handler = require("./相乗り/相乗りキャンセル");
       break;
     case "dispatch":
-      handler = require("./配車システム/配車依頼フロー");
+      if (parsed.action === 'rating') {
+        if (parsed.params?.sub === 'modal') handler = require("./配車システム/評価システム").handleModalSubmit;
+        else handler = require("./配車システム/評価システム").execute;
+      } else {
+        handler = require("./配車システム/配車依頼フロー");
+      }
       break;
     default:
       handler = null;
@@ -98,144 +124,9 @@ async function handleInteraction(interaction, client) {
       return await cmd.execute(interaction, client);
     }
 
-    // 管理者パネル・他（自動ルーティングへ移行中）
-    // 従来の個別 if ブロックを整理し、可能な限り routeToPanelHandler に集約
-
-    // Send Driver Registration Button/Modal (New Modular)
-    if (interaction.isButton() && interaction.customId === "driver:btn:register") {
-      return require("./送迎者/registerButton")(interaction);
-    }
-    if (interaction.isModalSubmit() && interaction.customId === "driver:modal:register") {
-      return require("./送迎者/registerModal")(interaction);
-    }
-
-    // 送迎者登録（ボタン/モーダル）
-    if (interaction.customId === "driver:register" || interaction.customId === "driver:register:modal" ||
-      interaction.customId === "btn:regdriver:register" || interaction.customId === "modal:regdriver:register") {
-      return require("./登録処理/送迎者登録").execute(interaction);
-    }
-
-    // 利用者登録（ボタン/モーダル）
-    if (interaction.customId === 'user:register' || interaction.customId === 'user:register:modal' ||
-      interaction.customId === 'btn:reguser:register' || interaction.customId === 'modal:reguser:register') {
-      return require('./登録処理/利用者登録').execute(interaction);
-    }
-
-    // 出勤/退勤/現在地更新
-    if (interaction.isButton()) {
-      if (interaction.customId === 'admin:ride:force_end_menu') {
-        return require('./送迎処理/送迎強制終了').handleMenu(interaction, client);
-      }
-      if (interaction.customId === 'driver:on') {
-        return require('./送迎パネル/アクション/出勤')(interaction);
-      }
-      if (interaction.customId === 'driver:off') {
-        return require('./送迎パネル/アクション/退勤')(interaction);
-      }
-      if (interaction.customId === 'driver:location') {
-        return require('./送迎パネル/アクション/現在地更新')(interaction);
-      }
-    }
-    if (interaction.isModalSubmit()) {
-      if (interaction.customId === 'driver:on:modal') {
-        return require('./送迎パネル/アクション/出勤モーダル')(interaction);
-      }
-      if (interaction.customId === 'driver:location:modal') {
-        return require('./送迎パネル/アクション/現在地更新モーダル')(interaction);
-      }
-    }
-
-    // 送迎依頼
-    if (interaction.isButton()) {
-      if (interaction.customId === 'user:ride:request') {
-        return require('./利用者パネル/アクション/送迎依頼')(interaction);
-      }
-      if (interaction.customId === 'user:ride:guest') {
-        return require('./利用者パネル/アクション/ゲスト送迎依頼')(interaction);
-      }
-    }
-    if (interaction.isModalSubmit()) {
-      if (interaction.customId === 'user:ride:request:modal' || interaction.customId === 'user:ride:guest:modal') {
-        return require('./利用者パネル/アクション/送迎依頼モーダル')(interaction);
-      }
-    }
-
-    // 送迎開始/終了
-    if (interaction.isButton()) {
-      if (interaction.customId.startsWith('ride:start:')) {
-        const id = interaction.customId.split(':')[2];
-        return require('./送迎処理/送迎開始')(interaction, id);
-      }
-      if (interaction.customId.startsWith('ride:end:')) {
-        const id = interaction.customId.split(':')[2];
-        return require('./送迎処理/送迎終了')(interaction, id);
-      }
-    }
-
-    // 評価システム
-    if (interaction.customId?.startsWith('dispatch:rating:')) {
-      const ratingHandler = require('./配車システム/評価システム');
-      const parsed = parseCustomId(interaction.customId);
-      if (interaction.isModalSubmit()) {
-        return ratingHandler.handleModalSubmit(interaction, parsed);
-      }
-      return ratingHandler.execute(interaction, client, parsed);
-    }
-
-    // 相乗り系
-    if (interaction.customId?.startsWith('carpool:')) {
-      const parts = interaction.customId.split(':');
-      const action = parts[1];
-
-      if (interaction.isButton()) {
-        if (action === 'join') return require('./相乗り/相乗り希望').execute(interaction);
-        if (action === 'approve') return require('./相乗り/承認').execute(interaction);
-        if (action === 'reject') return require('./相乗り/却下理由選択').execute(interaction);
-        if (action === 'cancel') return require('./相乗り/相乗りキャンセル').execute(interaction);
-      }
-      if (interaction.isModalSubmit()) {
-        if (action === 'join' && parts[2] === 'modal') return require('./相乗り/相乗り希望モーダル').execute(interaction);
-        if (action === 'reject_modal') return require('./相乗り/却下モーダル').execute(interaction);
-      }
-      if (interaction.isStringSelectMenu()) {
-        if (action === 'reject_reason') return require('./相乗り/却下理由処理').execute(interaction);
-      }
-    }
-
-    // VCコントロールパネル (送迎開始・キャンセル・終了)
-    if (interaction.isButton() && interaction.customId?.startsWith('ride:')) {
-      const parts = interaction.customId.split(':');
-      const action = parts[1];
-      const rideId = parts[2];
-
-      if (action === 'enroute') return require('./送迎処理/VCコントロール/向かっています')(interaction, rideId);
-      if (action === 'start') return require('./送迎処理/VCコントロール/送迎開始')(interaction, rideId);
-      if (action === 'cancel') return require('./送迎処理/VCコントロール/送迎キャンセル')(interaction, rideId);
-      if (action === 'complete') return require('./送迎処理/VCコントロール/送迎終了')(interaction, rideId);
-    }
-
-    // Send End Extension
-    if (interaction.isButton() && interaction.customId === "ride:extend") {
-      return require("./送迎処理/保存期間延長")(interaction);
-    }
-    if (interaction.isButton() && interaction.customId === "ride:delete") {
-      return require("./送迎処理/即時削除")(interaction);
-    }
-
     // Thread Policy Select Menu
-    if (interaction.isStringSelectMenu() && interaction.customId === "memo:threadpolicy:select") {
+    if (interaction.isStringSelectMenu() && (interaction.customId === "memo:threadpolicy:select" || interaction.customId === "memo|threadpolicy|sub=select")) {
       return require("./メモ管理/スレッドポリシー設定")(interaction);
-    }
-    if (interaction.isStringSelectMenu() && interaction.customId === "admin:ride:force_end_execute") {
-      return require("./送迎処理/送迎強制終了").handleExecute(interaction, client);
-    }
-
-    // パネル設置 (案内パネル)
-    if (interaction.isModalSubmit() && interaction.customId === 'ps:modal:guideInitial') {
-      return require('./パネル設置/アクション/案内パネル初期入力').execute(interaction);
-    }
-    if (interaction.isAnySelectMenu() && interaction.customId.startsWith('ps:select:guidePanelChannel')) {
-      return require('./パネル設置/アクション/案内パネル送信先選択').execute(interaction);
     }
 
     // ユーザー確認パネル

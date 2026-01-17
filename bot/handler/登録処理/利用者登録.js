@@ -19,11 +19,11 @@ const { ACK } = interactionTemplate;
 
 // ===== Custom IDs =====
 const CID = {
-  BTN_REGISTER: "btn:reguser:register",
-  MODAL_REGISTER: "modal:reguser:register",
-  INP_NAME: "input:reguser:name", // 店舗名 または ニックネーム
-  INP_ADDRESS: "input:reguser:address", // 店舗住所
-  INP_MARK: "input:reguser:mark", // 駐車目印
+  BTN_REGISTER: "reg|user|sub=button",
+  MODAL_REGISTER: "reg|user|sub=modal",
+  INP_NAME: "reg|user|input=name",
+  INP_ADDRESS: "reg|user|input=address",
+  INP_MARK: "reg|user|input=mark",
 };
 
 // ===== Paths =====
@@ -66,7 +66,7 @@ function buildUserRegPanelMessage(guild, client) {
       .setLabel("利用者登録")
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
-      .setCustomId("ps:check")
+      .setCustomId("ps|check")
       .setLabel("登録状態確認")
       .setStyle(ButtonStyle.Secondary)
   );
@@ -77,11 +77,13 @@ function buildUserRegPanelMessage(guild, client) {
 /**
  * ハンドラー実行
  */
-async function execute(interaction) {
+async function execute(interaction, parsed) {
   if (!interaction.guildId) return;
 
+  const sub = parsed?.params?.sub;
+
   // ボタン → モーダル (ACKなしでshowModal)
-  if (interaction.isButton() && interaction.customId === CID.BTN_REGISTER) {
+  if (interaction.isButton() && sub === 'button') {
     const modal = new ModalBuilder()
       .setCustomId(CID.MODAL_REGISTER)
       .setTitle("利用者登録");
@@ -117,7 +119,7 @@ async function execute(interaction) {
   }
 
   // モーダル → 保存 (interactionTemplate で ACK 制御)
-  if (interaction.isModalSubmit() && interaction.customId === CID.MODAL_REGISTER) {
+  if (interaction.isModalSubmit() && sub === 'modal') {
     return interactionTemplate(interaction, {
       ack: ACK.REPLY,
       async run(interaction) {

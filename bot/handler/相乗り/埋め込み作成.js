@@ -55,7 +55,7 @@ function buildCarpoolAnnouncementComponents(isFull, rideId) {
     if (!isFull) {
         row.addComponents(
             new ButtonBuilder()
-                .setCustomId(`carpool:join:${rideId}`)
+                .setCustomId(`carpool|join|rid=${rideId}`)
                 .setLabel('相乗り希望')
                 .setEmoji('🙋')
                 .setStyle(ButtonStyle.Primary)
@@ -64,7 +64,7 @@ function buildCarpoolAnnouncementComponents(isFull, rideId) {
 
     row.addComponents(
         new ButtonBuilder()
-            .setCustomId(`carpool:cancel:${rideId}:requester`)
+            .setCustomId(`carpool|cancel|rid=${rideId}&role=requester`)
             .setLabel('キャンセル')
             .setStyle(ButtonStyle.Danger)
     );

@@ -219,7 +219,7 @@ module.exports = async function handleRideComplete(interaction, rideId) {
 
         const completionRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-                .setCustomId('vc:btn:extend') // rideId不要 (VC依存)
+                .setCustomId('ride|extend') // rideId不要 (VC依存)
                 .setLabel('削除延長')
                 .setStyle(ButtonStyle.Danger)
         );

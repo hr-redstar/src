@@ -71,18 +71,18 @@ async function sendRatingDM(guild, dispatchData) {
 function buildRatingButtons(targetType, dispatchId) {
     // 1行目: ⭐5, ⭐4 (Primary)
     const row1 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`dispatch:rating:${targetType}:${dispatchId}:5`).setLabel("⭐⭐⭐⭐⭐").setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId(`dispatch:rating:${targetType}:${dispatchId}:4`).setLabel("⭐⭐⭐⭐").setStyle(ButtonStyle.Primary)
+        new ButtonBuilder().setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=5`).setLabel("⭐⭐⭐⭐⭐").setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=4`).setLabel("⭐⭐⭐⭐").setStyle(ButtonStyle.Primary)
     );
     // 2行目: ⭐3, ⭐2, ⭐1 (Secondary)
     const row2 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`dispatch:rating:${targetType}:${dispatchId}:3`).setLabel("⭐⭐⭐").setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId(`dispatch:rating:${targetType}:${dispatchId}:2`).setLabel("⭐⭐").setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId(`dispatch:rating:${targetType}:${dispatchId}:1`).setLabel("⭐").setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=3`).setLabel("⭐⭐⭐").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=2`).setLabel("⭐⭐").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=1`).setLabel("⭐").setStyle(ButtonStyle.Secondary)
     );
     // 3行目: コメント (Success)
     const row3 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`dispatch:rating:${targetType}:${dispatchId}:comment`).setLabel("コメントも書きたい").setStyle(ButtonStyle.Success)
+        new ButtonBuilder().setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=comment`).setLabel("コメントも書きたい").setStyle(ButtonStyle.Success)
     );
 
     return [row1, row2, row3];
@@ -92,17 +92,16 @@ function buildRatingButtons(targetType, dispatchId) {
  * インタラクションハンドラー
  */
 async function execute(interaction, client, parsed) {
-    const { action, rest } = parsed;
-    const targetType = rest[0]; // 'driver' or 'user'
-    const dispatchId = rest[1];
-    const value = rest[2];
+    const targetType = parsed?.params?.type;
+    const dispatchId = parsed?.params?.did;
+    const value = parsed?.params?.val;
 
     const guildId = interaction.guildId || await findGuildIdByDispatchId(dispatchId);
     if (!guildId) return;
 
     if (value === 'comment') {
         const modal = new ModalBuilder()
-            .setCustomId(`dispatch:rating:${targetType}:${dispatchId}:modal`)
+            .setCustomId(`dispatch|rating|sub=modal&type=${targetType}&did=${dispatchId}`)
             .setTitle("評価コメント入力");
 
         const input = new TextInputBuilder()
@@ -137,9 +136,8 @@ async function execute(interaction, client, parsed) {
  * モーダル送信時の処理
  */
 async function handleModalSubmit(interaction, parsed) {
-    const { rest } = parsed;
-    const targetType = rest[0];
-    const dispatchId = rest[1];
+    const targetType = parsed?.params?.type;
+    const dispatchId = parsed?.params?.did;
     const comment = interaction.fields.getTextInputValue('comment');
 
     const guildId = interaction.guildId || await findGuildIdByDispatchId(dispatchId);

@@ -6,12 +6,11 @@ const interactionTemplate = require("../共通/interactionTemplate");
 const { ACK } = interactionTemplate;
 
 module.exports = {
-    execute: async function (interaction) {
+    execute: async function (interaction, parsed) {
         return interactionTemplate(interaction, {
             ack: ACK.REPLY,
             async run(interaction) {
-                const parts = interaction.customId.split(':');
-                const rideId = parts[3];
+                const rideId = parsed?.params?.rid;
                 const userId = interaction.user.id; // 相乗り希望者
                 const guildId = interaction.guildId;
 
@@ -51,11 +50,11 @@ module.exports = {
 
                 const row = new ActionRowBuilder().addComponents(
                     new ButtonBuilder()
-                        .setCustomId(`carpool:approve:${rideId}:${userId}:${count}`) // 人数も含める
+                        .setCustomId(`carpool|approve|rid=${rideId}&uid=${userId}&cnt=${count}`) // 人数も含める
                         .setLabel('承認')
                         .setStyle(ButtonStyle.Success),
                     new ButtonBuilder()
-                        .setCustomId(`carpool:reject:${rideId}:${userId}`)
+                        .setCustomId(`carpool|reject|rid=${rideId}&uid=${userId}`)
                         .setLabel('却下')
                         .setStyle(ButtonStyle.Danger)
                 );

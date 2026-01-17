@@ -6,16 +6,16 @@ const { loadDriver } = require('../../../utils/driversStore');
 const { loadUser } = require('../../../utils/usersStore');
 
 module.exports = {
-    customId: 'admin:btn:rating_check_start',
+    customId: 'adm|rating_check|sub=start',
     type: 'button',
-    async execute(interaction) {
+    async execute(interaction, parsed) {
         return interactionTemplate(interaction, {
             ack: ACK.REPLY,
             adminOnly: true,
             async run(interaction) {
                 // ユーザー選択メニューを表示
                 const select = new UserSelectMenuBuilder()
-                    .setCustomId('admin:rating_check:user_select')
+                    .setCustomId('adm|rating_check|sub=user_sel')
                     .setPlaceholder('口コミを確認したいユーザーを選択')
                     .setMaxValues(1);
 
@@ -33,7 +33,7 @@ module.exports = {
 /**
  * ユーザー選択時の処理
  */
-module.exports.handleUserSelect = async function (interaction) {
+module.exports.handleUserSelect = async function (interaction, parsed) {
     return interactionTemplate(interaction, {
         ack: ACK.UPDATE,
         adminOnly: true,
@@ -67,7 +67,7 @@ module.exports.handleUserSelect = async function (interaction) {
             // コメント確認ボタン
             const btnRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
-                    .setCustomId(`admin:rating_check:comments:${role}:${userId}`)
+                    .setCustomId(`adm|rating_check|sub=comments&role=${role}&uid=${userId}`)
                     .setLabel('💬 最新コメントを確認')
                     .setStyle(ButtonStyle.Secondary)
                     .setDisabled(!summary || summary.count === 0)
@@ -85,11 +85,13 @@ module.exports.handleUserSelect = async function (interaction) {
 /**
  * コメント確認ボタンの処理
  */
-module.exports.handleCommentCheck = async function (interaction, role, userId) {
+module.exports.handleCommentCheck = async function (interaction, parsed) {
     return interactionTemplate(interaction, {
         ack: ACK.REPLY, // 新しいメッセージで表示（ephemeral）
         adminOnly: true,
         async run(interaction) {
+            const role = parsed.params.role;
+            const userId = parsed.params.uid;
             const summary = await getRatingSummary(interaction.guildId, userId, role);
             if (!summary || !summary.comments || summary.comments.length === 0) {
                 return interaction.editReply({ content: 'コメントはありません。' });

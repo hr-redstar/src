@@ -22,9 +22,9 @@ function buildUserPanelEmbed(guild, rideCount = 0, client) {
  */
 function buildUserPanelComponents() {
     const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId("user:ride:request").setLabel("配車依頼").setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId("user:ride:guest").setLabel("ゲスト送迎依頼").setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId("user:check").setLabel("登録状態確認").setStyle(ButtonStyle.Success)
+        new ButtonBuilder().setCustomId("user|ride|sub=request").setLabel("配車依頼").setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId("user|ride|sub=guest").setLabel("ゲスト送迎依頼").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("user|check").setLabel("登録状態確認").setStyle(ButtonStyle.Success)
     );
     return [row];
 }

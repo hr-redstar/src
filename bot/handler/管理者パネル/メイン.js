@@ -16,34 +16,34 @@ const { ACK } = autoInteractionTemplate;
 
 // ===== Custom IDs =====
 const CID = {
-  // Main Buttons
-  BTN_DRIVER_ROLE: "admin:btn:driver_role",
-  BTN_USER_ROLE: "admin:btn:user_role",
-  BTN_PRIORITY_ROLE: "admin:btn:priority_role",
-  BTN_PV_CATEGORY: "admin:btn:pv_category",
-  BTN_MEMO_CATEGORY: "admin:btn:memo_category",
-  BTN_GLOBAL_LOG: "admin:btn:global_log",
-  BTN_STAFF_LOG: "admin:btn:staff_log",
-  BTN_ADMIN_THREAD: "admin:btn:admin_thread",
-  BTN_CARPOOL_CH: "admin:btn:carpool_ch",
-  BTN_EDIT_DIRECTIONS: "admin:btn:edit_directions",
+  // Main Buttons (ns: adm)
+  BTN_DRIVER_ROLE: "adm|role|type=driver",
+  BTN_USER_ROLE: "adm|role|type=user",
+  BTN_PRIORITY_ROLE: "adm|role|type=priority",
+  BTN_PV_CATEGORY: "adm|cat|type=pv",
+  BTN_MEMO_CATEGORY: "adm|cat|type=memo",
+  BTN_GLOBAL_LOG: "adm|log|type=global",
+  BTN_STAFF_LOG: "adm|log|type=operator",
+  BTN_ADMIN_THREAD: "adm|log|type=thread",
+  BTN_CARPOOL_CH: "adm|carpool|type=ch",
+  BTN_EDIT_DIRECTIONS: "adm|directions|sub=button",
 
   // Secondary Interactions
-  SEL_DRIVER_ROLE: "admin:sel:driver_role",
-  SEL_USER_ROLE: "admin:sel:user_role",
-  SEL_PRIORITY_ROLE: "admin:sel:priority_role",
-  SEL_DRIVER_MENTION: "admin:sel:driver_mention",
-  SEL_USER_MENTION: "admin:sel:user_mention",
-  SEL_PRIORITY_MENTION: "admin:sel:priority_mention",
+  SEL_DRIVER_ROLE: "adm|role|type=driver_sel",
+  SEL_USER_ROLE: "adm|role|type=user_sel",
+  SEL_PRIORITY_ROLE: "adm|role|type=priority_sel",
+  SEL_DRIVER_MENTION: "adm|role|type=driver_mtn",
+  SEL_USER_MENTION: "adm|role|type=user_mtn",
+  SEL_PRIORITY_MENTION: "adm|role|type=priority_mtn",
 
-  SEL_PV_CATEGORY: "admin:sel:pv_category",
-  SEL_MEMO_CATEGORY: "admin:sel:memo_category",
+  SEL_PV_CATEGORY: "adm|cat|type=pv_sel",
+  SEL_MEMO_CATEGORY: "adm|cat|type=memo_sel",
 
-  SEL_GLOBAL_LOG: "admin:sel:global_log",
-  SEL_STAFF_LOG: "admin:sel:staff_log",
+  SEL_GLOBAL_LOG: "adm|log|type=global_sel",
+  SEL_STAFF_LOG: "adm|log|type=operator_sel",
 
-  SEL_CARPOOL_CH: "admin:sel:carpool_ch",
-  MODAL_EDIT_DIRECTIONS: "admin:modal:edit_directions",
+  SEL_CARPOOL_CH: "adm|carpool|type=ch_sel",
+  MODAL_EDIT_DIRECTIONS: "adm|directions|sub=modal",
 };
 
 // ===== Display helpers =====
@@ -160,7 +160,8 @@ function buildAdminPanelComponents() {
   );
   const row4 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(CID.BTN_CARPOOL_CH).setLabel("相乗りチャンネル設定").setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId(CID.BTN_EDIT_DIRECTIONS).setLabel("方面リスト編集").setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId(CID.BTN_EDIT_DIRECTIONS).setLabel("方面リスト編集").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("adm|history|sub=start").setLabel("📜 履歴表示").setStyle(ButtonStyle.Secondary)
   );
 
   return [row1, row2, row3, row4];
@@ -194,27 +195,28 @@ async function updateAdminPanelMessage(guild, cfg, client) {
   return true;
 }
 
-async function execute(interaction, client) {
+async function execute(interaction, client, parsed) {
   const { customId } = interaction;
 
   // --- 外部委譲・特殊ボタン ---
+  // legacy: admin:btn:rating_check_start
+  // v2: adm|rating_check|sub=start
   if (interaction.isButton()) {
-    if (customId === 'admin:btn:rating_check_start') return require('./アクション/評価確認').execute(interaction);
-    if (customId.startsWith('admin:rating_check:comments')) {
-      const parts = customId.split(':');
-      return require('./アクション/評価確認').handleCommentCheck(interaction, parts[3], parts[4]);
+    if (customId === 'adm|rating_check|sub=start') return require('./アクション/評価確認').execute(interaction, parsed);
+    if (parsed.action === 'rating_check' && parsed.params?.sub === 'comments') {
+      return require('./アクション/評価確認').handleCommentCheck(interaction, parsed);
     }
-    if (customId === 'admin:btn:register_rank_tiers_start') return require('./アクション/ランク階級登録').execute(interaction);
-    if (customId === 'admin:btn:set_rank_start') return require('./アクション/ランク設定').execute(interaction);
+    if (customId === 'adm|rank_tiers|sub=start') return require('./アクション/ランク階級登録').execute(interaction, parsed);
+    if (customId === 'adm|rank_set|sub=start') return require('./アクション/ランク設定').execute(interaction, parsed);
+    if (customId === 'adm|history|sub=start') return require('./アクション/履歴表示').execute(interaction, parsed);
   }
 
   // --- セレクトメニュー委譲 ---
   if (interaction.isAnySelectMenu()) {
-    if (customId === 'admin:rating_check:user_select') return require('./アクション/評価確認').handleUserSelect(interaction);
-    if (customId === 'admin:rank_set:user_select') return require('./アクション/ランク設定').handleUserSelect(interaction);
-    if (customId.startsWith('admin:rank_set:tier_select')) {
-      const parts = customId.split(':');
-      return require('./アクション/ランク設定').handleRankSelect(interaction, parts[3], parts[4]);
+    if (parsed.action === 'rating_check' && parsed.params?.sub === 'user_sel') return require('./アクション/評価確認').handleUserSelect(interaction, parsed);
+    if (parsed.action === 'rank_set' && parsed.params?.sub === 'user_sel') return require('./アクション/ランク設定').handleUserSelect(interaction, parsed);
+    if (parsed.action === 'rank_set' && parsed.params?.sub === 'tier_sel') {
+      return require('./アクション/ランク設定').handleRankSelect(interaction, parsed);
     }
   }
 
@@ -366,8 +368,8 @@ async function execute(interaction, client) {
 
   // --- モーダル送信時 ---
   if (interaction.isModalSubmit()) {
-    if (customId === 'admin:modal:register_rank_tiers') {
-      return require('./アクション/口コミランク管理/ランク階級登録').handleModal(interaction);
+    if (parsed.action === 'rank_tiers' && parsed.params?.sub === 'modal') {
+      return require('./アクション/口コミランク管理/ランク階級登録').handleModal(interaction, parsed);
     }
     return autoInteractionTemplate(interaction, {
       adminOnly: true,

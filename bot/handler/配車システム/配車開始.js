@@ -79,8 +79,8 @@ async function startDispatch({ guild, driver, passenger, type, direction, count 
         .setColor(0x00ff00);
 
     const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`dispatch:depart:${dispatchId}`).setLabel("出発する").setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId(`dispatch:complete:${dispatchId}`).setLabel("配送完了・帰庫").setStyle(ButtonStyle.Success).setDisabled(true)
+        new ButtonBuilder().setCustomId(`dispatch|order|sub=depart&did=${dispatchId}`).setLabel("出発する").setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId(`dispatch|order|sub=complete&did=${dispatchId}`).setLabel("配送完了・帰庫").setStyle(ButtonStyle.Success).setDisabled(true)
     );
 
     await channel.send({
