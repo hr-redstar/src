@@ -65,17 +65,62 @@ function formatError(err) {
   return `${name}: ${msg}${cause}${stack ? `\n${stack}` : ''}`;
 }
 
+/**
+ * ログの2系統出力
+ * - Human-log: console.log/error (開発者向け)
+ * - Audit-log: 構造化JSON (監査・監視向け)
+ */
 function createLogger(options = {}) {
-  const current = LEVELS[options.level || process.env.LOG_LEVEL || 'debug'] ?? 10;
+  const currentLevel = LEVELS[options.level || process.env.LOG_LEVEL || 'debug'] ?? 10;
+  const isProd = process.env.NODE_ENV === 'production';
 
-  function log(level, message, meta) {
-    if ((LEVELS[level] ?? 999) < current) return;
+  function log(level, message, meta = {}) {
+    const levelVal = LEVELS[level] ?? 999;
+    if (levelVal < currentLevel) return;
 
-    const line = `[${now()}] ${ICON[level] || ''} [${LABEL_JP[level] || level}] ${message}${formatMeta(meta)}`;
-    // error は console.error に
-    if (level === 'error') console.error(line);
-    else if (level === 'warn') console.warn(line);
-    else console.log(line);
+    const timestamp = now();
+    const tag = meta.tag || 'SYSTEM';
+    const actor = meta.actor || null;
+    const guildId = meta.guildId || null;
+
+    // 1. Human-log (Text)
+    const icon = ICON[level] || '';
+    const label = LABEL_JP[level] || level;
+    const metaStr = formatMeta(meta);
+    const humanLine = `[${timestamp}] ${icon} [${label}][${tag}] ${message}${metaStr}`;
+
+    if (level === 'error') console.error(humanLine);
+    else if (level === 'warn') console.warn(humanLine);
+    else console.log(humanLine);
+
+    // 2. Audit-log (JSON)
+    const auditData = {
+      severity: level.toUpperCase(),
+      time: new Date().toISOString(),
+      tag,
+      message,
+      actor,
+      guildId,
+      ...meta,
+    };
+
+    try {
+      const json = JSON.stringify(auditData);
+      // a. stderr/stdout (Cloud Logging用)
+      if (isProd || process.env.ENABLE_AUDIT_LOG === '1') {
+        if (level === 'error') process.stderr.write(`${json}\n`);
+        else process.stdout.write(`${json}\n`);
+      }
+
+      // b. Storage (Bot内部閲覧用)
+      if (guildId && (isProd || process.env.ENABLE_STORAGE_LOG === '1')) {
+        // 非同期で保存 (awaitしない)
+        const { saveAuditLog } = require('./ストレージ/監査ログストア');
+        saveAuditLog(guildId, auditData).catch(() => { });
+      }
+    } catch (e) {
+      // JSON 化や保存に失敗した場合は無視
+    }
   }
 
   return {
@@ -89,3 +134,4 @@ function createLogger(options = {}) {
 
 module.exports = createLogger();
 module.exports.createLogger = createLogger;
+

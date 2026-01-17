@@ -23,7 +23,7 @@ async function safeReply(interaction, payload) {
   try {
     if (interaction.deferred || interaction.replied) return await interaction.editReply(payload);
     return await interaction.reply(payload);
-  } catch (_) {}
+  } catch (_) { }
 }
 
 async function routeToPanelHandler(interaction, client) {
@@ -88,6 +88,7 @@ async function routeToPanelHandler(interaction, client) {
     },
     memo: () => {
       if (parsed.action === 'threadpolicy') return require('./メモ管理/スレッドポリシー設定');
+      if (parsed.action === 'thread') return require('./メモ管理/スレッド作成');
       return null;
     },
   };

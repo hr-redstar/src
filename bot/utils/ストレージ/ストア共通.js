@@ -10,14 +10,31 @@ const USE_LOCAL = process.env.LOCAL_DATA === '1' || !process.env.GCS_BUCKET;
 // バックエンドのインスタンス化
 const backend = USE_LOCAL ? new LocalBackend(DATA_DIR) : new GCSBackend(process.env.GCS_BUCKET);
 
+// インメモリキャッシュ (TTL付き)
+const cache = new Map(); // key -> { data, expiresAt }
+const DEFAULT_TTL = 10000; // 10秒
+
+function invalidateCache(key) {
+  cache.delete(key);
+}
+
 /**
  * 基本的な JSON 操作 (ファサード)
  */
 async function readJson(key, defaultValue = null) {
-  return await backend.readJson(key, defaultValue);
+  const now = Date.now();
+  const entry = cache.get(key);
+  if (entry && entry.expiresAt > now) {
+    return entry.data;
+  }
+
+  const data = await backend.readJson(key, defaultValue);
+  cache.set(key, { data, expiresAt: now + DEFAULT_TTL });
+  return data;
 }
 
 async function writeJson(key, data) {
+  invalidateCache(key);
   return await backend.writeJson(key, data);
 }
 
@@ -26,6 +43,7 @@ async function exists(key) {
 }
 
 async function deleteFile(key) {
+  invalidateCache(key);
   return await backend.deleteFile(key);
 }
 
@@ -34,6 +52,7 @@ async function listKeys(prefix) {
 }
 
 async function updateJson(key, defaultValue, updaterFn) {
+  invalidateCache(key);
   const cur = await readJson(key, defaultValue);
   const next = await updaterFn(cur);
   await writeJson(key, next);

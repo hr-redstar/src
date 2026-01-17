@@ -97,6 +97,10 @@ function carpoolDir(guildId) {
   return `${guildRoot(guildId)}/相乗り`;
 }
 
+function auditLogsDir(guildId) {
+  return `${guildRoot(guildId)}/logs/監査`;
+}
+
 module.exports = {
   configJson,
   guildDriverIndexJson,
@@ -122,4 +126,5 @@ module.exports = {
   activeDispatchDir,
   carpoolDir,
   ratingLogsDir,
+  auditLogsDir,
 };

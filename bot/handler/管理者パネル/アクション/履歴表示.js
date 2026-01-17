@@ -8,10 +8,11 @@ const { ACK } = autoInteractionTemplate;
  * 履歴・評価表示ハンドラー
  */
 module.exports = {
-  async execute(interaction, parsed) {
+  async execute(interaction, client, parsed) {
     const sub = parsed?.params?.sub || 'start';
 
     if (sub === 'recent') return showRecentHistory(interaction);
+    if (sub === 'audit') return showAuditLogs(interaction);
     if (sub === 'detail') return showHistoryMonthSelect(interaction);
     if (sub === 'month_sel') return showHistoryDaySelect(interaction);
     if (sub === 'day_sel') return showHistoryResult(interaction);
@@ -24,20 +25,25 @@ module.exports = {
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setCustomId('adm|history|sub=recent')
-            .setLabel('🕒 直近10件')
+            .setLabel('🕒 配車履歴 (最近10件)')
             .setStyle(ButtonStyle.Primary),
           new ButtonBuilder()
+            .setCustomId('adm|history|sub=audit')
+            .setLabel('📜 システムログ')
+            .setStyle(ButtonStyle.Success),
+          new ButtonBuilder()
             .setCustomId('adm|history|sub=detail')
-            .setLabel('📅 月別履歴')
+            .setLabel('📅 配車履歴 (月別)')
             .setStyle(ButtonStyle.Secondary)
         );
         await interaction.editReply({
-          content: '表示したい履歴の種類を選択してください。',
+          content: '表示したい履歴・ログの種類を選択してください。',
           components: [row],
         });
       },
     });
   },
+  showAuditLogs,
 };
 
 /**
@@ -245,4 +251,46 @@ async function showRatingList(interaction) {
     embed.setDescription(lines.join('\n'));
   }
   return interaction.editReply({ embeds: [embed] });
+}
+
+/**
+ * システム監査ログの表示
+ */
+async function showAuditLogs(interaction) {
+  return autoInteractionTemplate(interaction, {
+    adminOnly: true,
+    ack: ACK.REPLY,
+    async run(interaction) {
+      const { findAuditLogs } = require('../../../utils/ストレージ/監査ログストア');
+      const guildId = interaction.guildId;
+
+      const options = {
+        limit: 10,
+      };
+
+      const logs = await findAuditLogs(guildId, options).catch(() => []);
+
+      const embed = new EmbedBuilder().setTitle('📜 システム監査ログ (最新10件)').setColor(0x2ecc71);
+
+      if (logs.length === 0) {
+        embed.setDescription('監査ログは見つかりませんでした。');
+      } else {
+        const lines = logs.map((log) => {
+          const time = new Date(log.time).toLocaleTimeString('ja-JP', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          });
+          const severity =
+            log.severity === 'ERROR' ? '❌' : log.severity === 'WARN' ? '⚠️' : 'ℹ️';
+          const tag = `[${log.tag}]`;
+          const actor = log.actor ? ` (by <@${log.actor}>)` : '';
+          return `\`${time}\` ${severity}${tag} ${log.message}${actor}`;
+        });
+        embed.setDescription(lines.join('\n'));
+      }
+
+      return interaction.editReply({ embeds: [embed] });
+    },
+  });
 }
