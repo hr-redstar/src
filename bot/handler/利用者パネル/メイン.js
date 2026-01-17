@@ -1,5 +1,5 @@
 ﻿// handler/利用者パネル/メイン.js
-const logger = require("../../utils/ログ/ロガー");
+const logger = require("../../utils/logger");
 const store = require("../../utils/ストレージ/ストア共通");
 const paths = require("../../utils/ストレージ/ストレージパス");
 const { sendOrUpdatePanel } = require("../共通/パネル送信");

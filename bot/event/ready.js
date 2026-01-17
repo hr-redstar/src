@@ -1,5 +1,5 @@
 const { Events, ActivityType } = require("discord.js");
-const logger = require("../utils/ログ/ロガー");
+const logger = require("../utils/logger");
 const { loadConfig, saveConfig } = require('../utils/設定/設定マネージャ');
 const { sendOrUpdatePanel } = require('../handler/共通/パネル送信');
 const store = require('../utils/ストレージ/ストア共通');
@@ -15,6 +15,8 @@ const { buildGuidePanelMessage } = require('../handler/送迎パネル/案内パ
 const { ensureGuideChannel } = require('../handler/共通/ガイドチャンネル作成');
 const { buildPrivateVcGuide } = require('../handler/ガイド/プライベートVC');
 const { buildUserMemoGuide } = require('../handler/ガイド/個人メモ');
+
+const { buildRatingRankPanelMessage } = require('../handler/管理者パネル/口コミランクパネル構築');
 
 
 module.exports = {
@@ -108,6 +110,7 @@ module.exports = {
                   case 'userRegister': return buildUserRegPanelMessage(guild, client);
                   case 'userCheckPanel': return buildUserCheckPanelMessage(guild, client);
                   case 'rideList': return buildRideListPanelMessage(guild, client);
+                  case 'ratingRank': return buildRatingRankPanelMessage(guild);
                   case 'guide': return buildGuidePanelMessage(guild, config, client);
                   default: return null;
                 }

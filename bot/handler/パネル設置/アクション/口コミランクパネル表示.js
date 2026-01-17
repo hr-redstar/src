@@ -1,52 +1,48 @@
-const { installPanel } = require('../共通/設置テンプレ');
-const { updatePanelSetupPanel } = require('../メイン');
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
-const interactionTemplate = require("../../共通/interactionTemplate");
-const { ACK } = interactionTemplate;
+const {
+    ChannelSelectMenuBuilder,
+    ActionRowBuilder,
+    ChannelType,
+} = require('discord.js');
+
+const {
+    CUSTOM_ID,
+    requireAdmin,
+    MessageFlags,
+} = require('../共通/_panelSetupCommon');
 
 module.exports = {
-    customId: 'ps:send:Panel_ratingRank',
+    customId: CUSTOM_ID.SEND_RATING_RANK_PANEL,
     type: 'button',
     async execute(interaction) {
-        return interactionTemplate(interaction, {
-            ack: ACK.REPLY,
-            adminOnly: true,
-            async run(interaction) {
-                const { loadConfig } = require('../../../utils/設定/設定マネージャ');
-                const config = await loadConfig(interaction.guildId);
+        // ① 管理者チェック
+        if (!(await requireAdmin(interaction))) return;
 
-                await installPanel({
-                    interaction,
-                    panelKey: 'ratingRank',
-                    panelName: '口コミランクパネル',
-                    channel: interaction.channel,
-                    buildMessage: async () => {
-                        const embed = new EmbedBuilder()
-                            .setTitle('🏆 口コミランクパネル')
-                            .setDescription('送迎者・利用者の口コミ評価を確認し、ランク階級の登録・設定を行う管理用パネルです。')
-                            .setColor(0xffd700);
+        // ② チャンネル選択メニュー作成
+        const select = new ChannelSelectMenuBuilder()
+            .setCustomId(CUSTOM_ID.SEL_RATING_RANK_PANEL)
+            .setPlaceholder('送信先のテキストチャンネルを選択してください')
+            .setChannelTypes(
+                ChannelType.GuildText,
+                ChannelType.GuildAnnouncement
+            )
+            .setMinValues(1)
+            .setMaxValues(1);
 
-                        const row = new ActionRowBuilder().addComponents(
-                            new ButtonBuilder()
-                                .setCustomId('admin:btn:rating_check_start')
-                                .setLabel('📊 口コミ確認')
-                                .setStyle(ButtonStyle.Primary),
-                            new ButtonBuilder()
-                                .setCustomId('admin:btn:register_rank_tiers_start')
-                                .setLabel('🏷️ ランク階級登録')
-                                .setStyle(ButtonStyle.Secondary),
-                            new ButtonBuilder()
-                                .setCustomId('admin:btn:set_rank_start')
-                                .setLabel('⚙️ ランク設定')
-                                .setStyle(ButtonStyle.Success)
-                        );
+        const row = new ActionRowBuilder().addComponents(select);
 
-                        return { embeds: [embed], components: [row] };
-                    }
-                });
+        // ③ 本人にしか見えないメッセージで送信
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-                await updatePanelSetupPanel(interaction.guild);
-            }
+        const { loadConfig } = require('../../../utils/設定/設定マネージャ');
+        const config = await loadConfig(interaction.guildId);
+        let content = 'どのチャンネルに口コミランクパネルを送信しますか？';
+        if (config.panels?.ratingRank?.channelId) {
+            content = `⚠️ すでに <#${config.panels.ratingRank.channelId}> に設置されています。\n新しく設置すると、旧パネルメッセージは自動的に削除されます。\n\n設置先を選択してください：`;
+        }
+
+        await interaction.editReply({
+            content,
+            components: [row]
         });
-    }
+    },
 };

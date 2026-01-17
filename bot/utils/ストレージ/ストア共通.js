@@ -5,7 +5,7 @@ const fsp = require("fs/promises");
 const path = require("path");
 
 let Storage; // 遅延require
-const logger = require("../ログ/ロガー");
+const logger = require("../logger");
 
 const DATA_DIR = process.env.LOCAL_DATA_DIR || path.resolve(__dirname, "../../data");
 const USE_LOCAL = process.env.LOCAL_DATA === "1" || !process.env.GCS_BUCKET;
@@ -181,7 +181,7 @@ function getBackendName() {
  * ギルドの送迎者一覧（詳細情報付き）を取得
  */
 async function loadDrivers(guildId) {
-    const root = `${guildId}/送迎者`;
+    const root = `GCS/${guildId}/送迎者`;
     const rel = normalizeKey(root);
     const dirPath = path.join(DATA_DIR, rel);
 
@@ -198,7 +198,8 @@ async function loadDrivers(guildId) {
 
         for (const file of files) {
             if (!file.name.endsWith(".json")) continue;
-            if (file.name.endsWith("送迎者.json") || file.name.includes("出勤中.json")) continue;
+            // 名前の末尾が "送迎者.json", "一覧.json", "出勤中.json" などはスキップ
+            if (file.name.endsWith("送迎者.json") || file.name.endsWith("一覧.json") || file.name.includes("出勤中.json")) continue;
 
             const buf = await file.download().catch(() => null);
             if (buf) {
@@ -218,7 +219,7 @@ async function loadDrivers(guildId) {
                 json = await readJson(profilePath).catch(() => null);
             } else if (entry.isFile() && entry.name.endsWith(".json")) {
                 // 旧形式/互換: 送迎者/ID.json (ただしインデックスやメタは除く)
-                if (entry.name === "送迎者.json" || entry.name === "index.json" || entry.name.includes("出勤中")) continue;
+                if (entry.name === "送迎者.json" || entry.name.includes("一覧.json") || entry.name === "index.json" || entry.name.includes("出勤中")) continue;
                 const profilePath = `${root}/${entry.name}`;
                 json = await readJson(profilePath).catch(() => null);
             }
@@ -235,7 +236,7 @@ async function loadDrivers(guildId) {
  * ギルドの利用者一覧（詳細情報付き）を取得
  */
 async function loadUsers(guildId) {
-    const root = `${guildId}/利用者`;
+    const root = `GCS/${guildId}/利用者`;
     const rel = normalizeKey(root);
     const dirPath = path.join(DATA_DIR, rel);
 
@@ -250,7 +251,7 @@ async function loadUsers(guildId) {
 
         for (const file of files) {
             if (!file.name.endsWith(".json")) continue;
-            if (file.name.endsWith("利用者.json")) continue;
+            if (file.name.endsWith("利用者.json") || file.name.endsWith("一覧.json")) continue;
 
             const buf = await file.download().catch(() => null);
             if (buf) {
@@ -270,7 +271,7 @@ async function loadUsers(guildId) {
                 json = await readJson(profilePath).catch(() => null);
             } else if (entry.isFile() && entry.name.endsWith(".json")) {
                 // 旧形式/互換: 利用者/ID.json
-                if (entry.name === "利用者.json" || entry.name === "index.json") continue;
+                if (entry.name === "利用者.json" || entry.name.includes("一覧.json") || entry.name === "index.json") continue;
                 const profilePath = `${root}/${entry.name}`;
                 json = await readJson(profilePath).catch(() => null);
             }

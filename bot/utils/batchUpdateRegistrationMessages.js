@@ -1,4 +1,4 @@
-const logger = require('./ログ/ロガー');
+const logger = require('./logger');
 const store = require('./ストレージ/ストア共通');
 const paths = require('./ストレージ/ストレージパス');
 const { loadConfig } = require('./設定/設定マネージャ');

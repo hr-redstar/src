@@ -172,8 +172,8 @@ async function showHistoryResult(interaction) {
  */
 async function showRatingList(interaction) {
     const guildId = interaction.guildId;
-    const driverRatingDir = `${guildId}/logs/評価/送迎者`;
-    const userRatingDir = `${guildId}/logs/評価/利用者`;
+    const driverRatingDir = `${paths.ratingLogsDir(guildId)}/送迎者`;
+    const userRatingDir = `${paths.ratingLogsDir(guildId)}/利用者`;
 
     const [driverFiles, userFiles] = await Promise.all([
         store.listKeys(driverRatingDir).catch(() => []),

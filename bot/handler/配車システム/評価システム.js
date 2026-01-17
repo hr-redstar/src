@@ -3,6 +3,7 @@ const store = require('../../utils/ストレージ/ストア共通');
 const paths = require('../../utils/ストレージ/ストレージパス');
 const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
+const { formatDateShort } = require('../../utils/共通/日付フォーマット');
 
 /**
  * 評価システム - 送迎終了後の相互評価フロー
@@ -12,16 +13,36 @@ const { ACK } = autoInteractionTemplate;
  * 送迎終了時に相互に評価依頼DMを送付
  */
 async function sendRatingDM(guild, dispatchData) {
-    const { dispatchId, driverId, passengerId, direction, route, createdAt } = dispatchData;
-    const dateStr = new Date(createdAt).toLocaleDateString('ja-JP');
+    const { dispatchId, driverId, passengerId, direction, route, createdAt, driverStartTime, driverEndTime, userStartTime, userEndTime, completedAt } = dispatchData;
+
+    // 日時フォーマット: MM/DD (HH:mm~HH:mm)
+    const dateObj = new Date(completedAt || createdAt || Date.now());
+    const dateStr = formatDateShort(dateObj); // MM/DD
+
+    // 時間帯（ドライバー基準、なければ利用者基準、なければ不明）
+    const startT = driverStartTime || userStartTime || '--:--';
+    const endT = driverEndTime || userEndTime || '--:--';
+    const timeRange = `(${startT}~${endT})`;
+
+    // ルート表示
     const routeDisplay = route || direction || "不明なルート";
 
-    // 利用者へのDM（ドライバーを評価）
+    // ユーザー情報の取得
+    const driver = await guild.client.users.fetch(driverId).catch(() => null);
     const passenger = await guild.client.users.fetch(passengerId).catch(() => null);
+
+    const commonDesc = [
+        `${dateStr} ${timeRange}`,
+        routeDisplay,
+        `送迎者：${driver ? `<@${driver.id}>` : '不明'}`,
+        `利用者：${passenger ? `<@${passenger.id}>` : '不明'}`
+    ].join('\n');
+
+    // 利用者へのDM（ドライバーを評価）
     if (passenger) {
         const embed = new EmbedBuilder()
             .setTitle("送迎者・利用者口コミ評価")
-            .setDescription(`${routeDisplay} ${dateStr}\n\n今回の送迎はいかがでしたか？`)
+            .setDescription(`${commonDesc}\n\n今回の送迎はいかがでしたか？`)
             .setColor(0xffd700);
 
         await passenger.send({
@@ -31,11 +52,10 @@ async function sendRatingDM(guild, dispatchData) {
     }
 
     // ドライバーへのDM（利用者を評価）
-    const driver = await guild.client.users.fetch(driverId).catch(() => null);
     if (driver) {
         const embed = new EmbedBuilder()
             .setTitle("送迎者・利用者口コミ評価")
-            .setDescription(`${routeDisplay} ${dateStr}\n\n今回の利用者様はいかがでしたか？`)
+            .setDescription(`${commonDesc}\n\n今回の利用者様はいかがでしたか？`)
             .setColor(0xffd700);
 
         await driver.send({
@@ -49,15 +69,18 @@ async function sendRatingDM(guild, dispatchData) {
  * 評価用ボタンの構築
  */
 function buildRatingButtons(targetType, dispatchId) {
+    // 1行目: ⭐5, ⭐4 (Primary)
     const row1 = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`dispatch:rating:${targetType}:${dispatchId}:5`).setLabel("⭐⭐⭐⭐⭐").setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId(`dispatch:rating:${targetType}:${dispatchId}:4`).setLabel("⭐⭐⭐⭐").setStyle(ButtonStyle.Primary)
     );
+    // 2行目: ⭐3, ⭐2, ⭐1 (Secondary)
     const row2 = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`dispatch:rating:${targetType}:${dispatchId}:3`).setLabel("⭐⭐⭐").setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId(`dispatch:rating:${targetType}:${dispatchId}:2`).setLabel("⭐⭐").setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId(`dispatch:rating:${targetType}:${dispatchId}:1`).setLabel("⭐").setStyle(ButtonStyle.Secondary)
     );
+    // 3行目: コメント (Success)
     const row3 = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`dispatch:rating:${targetType}:${dispatchId}:comment`).setLabel("コメントも書きたい").setStyle(ButtonStyle.Success)
     );
@@ -172,7 +195,7 @@ async function saveRating(guildId, targetType, dispatchId, raterId, data) {
 
     // 2-B. グローバルログ (管理者向け: 全体把握用)
     const typeDir = targetType === 'driver' ? '送迎者' : '利用者';
-    const globalRatingPath = `${guildId}/logs/評価/${typeDir}/${dispatchId}.json`;
+    const globalRatingPath = `${paths.ratingLogsDir(guildId)}/${typeDir}/${dispatchId}.json`;
     await store.writeJson(globalRatingPath, { ...data, raterId, updatedAt: now.toISOString(), targetUserId });
 
     // 3. データの更新保存 (配列形式で追記)

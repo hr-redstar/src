@@ -30,10 +30,11 @@ async function buildUserCheckPanelMessage(guild, client) {
         ? users.map(u => `• <@${u.userId}> (${u.storeName || '未設定'})`).join('\n')
         : '登録なし';
 
+    const botClient = client || guild.client;
     const embed = buildPanelEmbed({
         title: "ユーザー確認パネル",
         description: `現在の登録状況を確認・管理します。`,
-        client
+        client: botClient
     });
 
     embed.addFields(

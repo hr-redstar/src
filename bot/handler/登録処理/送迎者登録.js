@@ -10,7 +10,7 @@ const {
   MessageFlags,
 } = require("discord.js");
 
-const logger = require("../../utils/ログ/ロガー");
+const logger = require("../../utils/logger");
 const { readJson, writeJson } = require("../../utils/ストレージ/ストア共通");
 const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 const buildPanelMessage_ = require('../../utils/embed/panelMessageTemplate');
@@ -37,6 +37,7 @@ const nowIso = () => new Date().toISOString();
  * 送迎者登録パネルのメッセージペイロードを生成
  */
 function buildDriverRegPanelMessage(guild, client) {
+  const botClient = client || guild.client;
   const embed = buildPanelEmbed({
     title: "送迎者登録パネル",
     description: `
@@ -49,7 +50,7 @@ function buildDriverRegPanelMessage(guild, client) {
 **その他の情報**
 ニックネーム、車種、最大乗車人数などを入力します。
     `,
-    client
+    client: botClient
   });
 
   if (guild?.iconURL()) embed.setThumbnail(guild.iconURL());
@@ -58,7 +59,11 @@ function buildDriverRegPanelMessage(guild, client) {
     new ButtonBuilder()
       .setCustomId(CID.BTN_REGISTER)
       .setLabel("送迎者登録")
-      .setStyle(ButtonStyle.Success)
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId("ps:check")
+      .setLabel("登録状態確認")
+      .setStyle(ButtonStyle.Secondary)
   );
 
   return buildPanelMessage_({ embed, components: [row] });

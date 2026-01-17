@@ -1,7 +1,8 @@
 ﻿// src/bot/handler/handler.js
 // interaction を種類ごとに振り分け → customId なら各パネルの index.js に委譲
 const { MessageFlags } = require("discord.js");
-const logger = require("../utils/ログ/ロガー");
+const logger = require("../utils/logger");
+const { parseCustomId } = require("../utils/parseCustomId");
 
 // パネル設置のハンドラー群を一括読み込み
 const panelSetup = require("./パネル設置");
@@ -20,35 +21,6 @@ function buildButtonMap() {
 }
 const buttonMap = buildButtonMap();
 
-function parseCustomId(customId) {
-  const raw = String(customId || "");
-  const parts = raw.split(":");
-
-  // これからの命名（button:xxx:yyy / modal:xxx:yyy）にも対応
-  const typed = ["button", "modal", "select"].includes(parts[0]);
-
-  if (typed) {
-    return {
-      raw,
-      type: parts[0],            // button / modal / select
-      ns: parts[1] || "",        // 例: ps / admin / driver / user
-      action: parts[2] || "",    // 例: send / open / ...
-      rest: parts.slice(3),      // 残り
-      parts,
-    };
-  }
-
-  // 従来形式（ps:send:Panel_admin など）
-  return {
-    raw,
-    type: "",                   // なし
-    ns: parts[0] || "",         // ps / admin / driver / user
-    action: parts[1] || "",
-    rest: parts.slice(2),
-    parts,
-  };
-}
-
 async function safeReply(interaction, payload) {
   try {
     if (interaction.deferred || interaction.replied) return await interaction.editReply(payload);
@@ -58,6 +30,7 @@ async function safeReply(interaction, payload) {
 
 async function routeToPanelHandler(interaction, client) {
   const parsed = parseCustomId(interaction.customId);
+  if (!parsed) return;
 
   // ns（先頭識別子）でルーティング
   // - ps:...        → パネル設置パネル
@@ -66,9 +39,14 @@ async function routeToPanelHandler(interaction, client) {
   // - user:...      → 利用者パネル
   let handler;
 
-  switch (parsed.ns) {
+  switch (parsed.namespace) {
     case "admin":
       handler = require("./管理者パネル/メイン");
+      break;
+    case "ps":
+      if (parsed.action === 'setup' || (parsed.legacy && parsed.action === 'send')) {
+        handler = require('./パネル設置/アクション/パネル設置フロー');
+      }
       break;
     case "driver":
       handler = require("./送迎パネル/メイン");
@@ -145,6 +123,9 @@ async function handleInteraction(interaction, client) {
 
     // 出勤/退勤/現在地更新
     if (interaction.isButton()) {
+      if (interaction.customId === 'admin:ride:force_end_menu') {
+        return require('./送迎処理/送迎強制終了').handleMenu(interaction, client);
+      }
       if (interaction.customId === 'driver:on') {
         return require('./送迎パネル/アクション/出勤')(interaction);
       }
@@ -244,6 +225,9 @@ async function handleInteraction(interaction, client) {
     // Thread Policy Select Menu
     if (interaction.isStringSelectMenu() && interaction.customId === "memo:threadpolicy:select") {
       return require("./メモ管理/スレッドポリシー設定")(interaction);
+    }
+    if (interaction.isStringSelectMenu() && interaction.customId === "admin:ride:force_end_execute") {
+      return require("./送迎処理/送迎強制終了").handleExecute(interaction, client);
     }
 
     // パネル設置 (案内パネル)

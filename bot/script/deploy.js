@@ -6,7 +6,7 @@
  *  node scripts/deploy.js all
  */
 
-const logger = require('../utils/ログ/ロガー').createLogger('Deploy');
+const logger = require('../utils/logger').createLogger('Deploy');
 
 const mode = (process.argv[2] || '').toLowerCase();
 

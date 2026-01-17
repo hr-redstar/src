@@ -132,6 +132,11 @@ ${mentionChannel(logs.adminLogThread)}
 
 **相乗りチャンネル**
 ${mentionChannel(cfg.rideShareChannel)}
+
+**方面リスト**
+\`\`\`
+${(cfg.directions || []).join('\n') || "未登録"}
+\`\`\`
     `,
     client,
     color: 0x3498db
@@ -261,9 +266,8 @@ async function execute(interaction, client) {
             row = buildChannelSelect(CID.SEL_STAFF_LOG, "チャンネルを選択", [ChannelType.GuildText], [cfg.logs.operatorChannel]);
             break;
           case CID.BTN_ADMIN_THREAD:
-            if (!cfg.logs.operatorChannel) return interaction.editReply({ content: "⚠️ 先に **運営者ログチャンネル** を登録してください。" });
             try {
-              const opCh = await interaction.guild.channels.fetch(cfg.logs.operatorChannel);
+              const opCh = interaction.channel; // パネル設置チャンネルにスレッド作成
               const index = cfg.logs.adminLogThreadIndex || 1;
               const threadName = `管理者ログ ${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${index}`;
               const thread = await opCh.threads.create({ name: threadName, autoArchiveDuration: 60 });
@@ -287,8 +291,8 @@ async function execute(interaction, client) {
             const { ModalBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
             const modal = new ModalBuilder().setCustomId(CID.MODAL_EDIT_DIRECTIONS).setTitle("方面リスト編集");
             modal.addComponents(new ActionRowBuilder().addComponents(
-              new TextInputBuilder().setCustomId("directions").setLabel("方面（カンマ区切り）").setStyle(TextInputStyle.Paragraph)
-                .setPlaceholder("立川方面,八王子市内,相模原方面,その他").setValue(cfg.directions?.join(",") || "").setRequired(true)
+              new TextInputBuilder().setCustomId("directions").setLabel("方面（改行区切り）").setStyle(TextInputStyle.Paragraph)
+                .setPlaceholder("立川方面\n八王子市内\n相模原方面\nその他").setValue(cfg.directions?.join("\n") || "").setRequired(true)
             ));
             return await interaction.showModal(modal);
           }
@@ -371,7 +375,7 @@ async function execute(interaction, client) {
         const cfg = await loadConfig(interaction.guildId);
         if (customId === CID.MODAL_EDIT_DIRECTIONS) {
           const raw = interaction.fields.getTextInputValue("directions");
-          cfg.directions = raw.split(",").map(d => d.trim()).filter(Boolean);
+          cfg.directions = raw.split("\n").map(d => d.trim()).filter(Boolean);
           await saveConfig(interaction.guildId, cfg);
           await updateAdminPanelMessage(interaction.guild, cfg, client);
           return interaction.editReply({ content: "✅ 方面リストを更新しました。" });

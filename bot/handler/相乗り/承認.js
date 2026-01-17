@@ -4,6 +4,8 @@ const store = require('../../utils/ストレージ/ストア共通');
 const paths = require('../../utils/ストレージ/ストレージパス');
 const { updateCarpoolMessage } = require('../../utils/配車/相乗りマネージャ.js'); // updateCarpoolはpostRecruitment内で処理するかも要検討だが一旦作る
 const { postCarpoolRecruitment } = require('../../utils/配車/相乗りマネージャ.js');
+const { onDutyDriversJson, globalRideHistoryJson } = require('../../utils/ストレージ/ストレージパス');
+const { loadUser } = require('../../utils/usersStore');
 
 const interactionTemplate = require("../共通/interactionTemplate");
 const { ACK } = interactionTemplate;
@@ -61,6 +63,72 @@ module.exports = {
                 } catch (err) {
                     console.error('利用中一覧更新エラー (承認時):', err);
                 }
+
+                // --- NEW: 送迎中一覧 & 送迎履歴への反映 ---
+                const carpoolUser = await loadUser(guild.id, userId);
+                const carpoolEntry = {
+                    matchTime: new Date().toISOString(),
+                    userId: userId,
+                    userName: carpoolUser?.name || '不明', // carpoolUser might be null if not loaded, fallback
+                    location: location, // Request location
+                    pickupTime: null // 乗車時間は現時点ではnull (or current time?) -> ユーザー要望では「乗車時間」あり。マッチング時=乗車時なら現在時刻。
+                };
+                carpoolEntry.pickupTime = carpoolEntry.matchTime;
+
+                // 1. 送迎中一覧 (Active List) 更新
+                try {
+                    const onDutyPath = onDutyDriversJson(guild.id);
+                    const onDutyList = await store.readJson(onDutyPath).catch(() => ({}));
+                    if (onDutyList && onDutyList[rideData.driverId]) {
+                        if (!onDutyList[rideData.driverId].carpool) onDutyList[rideData.driverId].carpool = [];
+                        onDutyList[rideData.driverId].carpool.push(carpoolEntry);
+                        await store.writeJson(onDutyPath, onDutyList);
+                    }
+                } catch (e) {
+                    console.error("送迎中一覧更新エラー(相乗り)", e);
+                }
+
+                // 2. 送迎履歴 (Global History) 更新
+                try {
+                    // マッチング時のタイムスタンプからファイル特定
+                    const rideDate = new Date(rideData.timestamp);
+                    const y = rideDate.getFullYear();
+                    const m = rideDate.getMonth() + 1;
+                    const d = rideDate.getDate();
+                    const historyPath = globalRideHistoryJson(guild.id, y, m, d);
+
+                    const historyList = await store.readJson(historyPath).catch(() => ({}));
+                    if (historyList) {
+                        // HistoryIdをどう探すか？ -> driverId と timestamp から推測 or driverIdで検索して startTime match?
+                        // Simple approach: find entry with same driverId and startTime ~= rideData.timestamp
+                        // historyList values
+                        const entries = Object.values(historyList);
+                        const targetEntry = entries.find(e => {
+                            // rideData.timestamp (number) vs e.matchTime (ISO string)
+                            // diff < 5000ms ? or just match rideId if we stored it?
+                            // In StartRide, I stored `rideEntry` which has `matchTime`.
+                            // Let's use driverId. If multiple active? Driver can only be in one active.
+                            return e.driverId === rideData.driverId && !e.endTime;
+                        });
+
+                        if (targetEntry) {
+                            if (!targetEntry.carpool) targetEntry.carpool = [];
+                            targetEntry.carpool.push(carpoolEntry);
+                            // id = targetEntry.historyId;
+                            // historyList[id] = targetEntry;
+                            // Since targetEntry is a reference to the object inside historyList (if Object.values returns refs? No, Object.values returns array of values. BUT if I modify the object, I need to put it back into the MAP if I don't have the key.)
+                            // I need the KEY.
+                            const targetKey = Object.keys(historyList).find(key => historyList[key] === targetEntry);
+                            if (targetKey) {
+                                historyList[targetKey] = targetEntry;
+                                await store.writeJson(historyPath, historyList);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error("送迎履歴更新エラー(相乗り)", e);
+                }
+                // ------------------------------------------
 
                 // プライベートVCへの追加
                 if (rideData.vcId) {

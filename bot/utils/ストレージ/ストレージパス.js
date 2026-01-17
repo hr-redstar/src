@@ -57,6 +57,10 @@ function driverRatingJson(guildId, userId, y, m, d) {
   return `${driverRoot(guildId)}/${userId}/口コミ/${ymd}_口コミ.json`;
 }
 
+function ratingLogsDir(guildId) {
+  return `${guildRoot(guildId)}/logs/評価`;
+}
+
 // 利用者 (個別)
 function userRoot(guildId) {
   return `${guildRoot(guildId)}/利用者`;
@@ -80,6 +84,9 @@ function userRatingJson(guildId, userId, y, m, d) {
 // 配車システム（FIFO / 進行中）
 function waitingDriversDir(guildId) {
   return `${guildRoot(guildId)}/待機中の送迎者`;
+}
+function waitingUsersDir(guildId) {
+  return `${guildRoot(guildId)}/待機中の利用者`;
 }
 function activeDispatchDir(guildId) {
   return `${guildRoot(guildId)}/配車中`;
@@ -111,6 +118,8 @@ module.exports = {
   userRatingJson,
 
   waitingDriversDir,
+  waitingUsersDir,
   activeDispatchDir,
   carpoolDir,
+  ratingLogsDir,
 };

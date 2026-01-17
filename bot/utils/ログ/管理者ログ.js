@@ -16,7 +16,10 @@ async function postAdminActionLog({ guild, user, title, description }) {
   const config = await store.readJson(configPath, {});
 
   // 管理者ログのベースとなるチャンネル
-  const targetChannelId = config.channels?.operatorLog || config.logs?.operatorChannel || config.panels?.admin?.channelId;
+  // 1. 管理者用ログスレッドを最優先
+  // 2. 運営者ログチャンネル
+  // 3. 管理者パネル設置チャンネル
+  const targetChannelId = config.logs?.adminLogThread || config.logs?.operatorChannel || config.panels?.admin?.channelId;
   if (!targetChannelId) return;
 
   const baseChannel = guild.channels.cache.get(targetChannelId) || await guild.channels.fetch(targetChannelId).catch(() => null);

@@ -15,6 +15,7 @@ module.exports = async function (interaction, targetId) {
       const driverId = interaction.user.id;
 
       const paths = require('../../utils/ストレージ/ストレージパス');
+      const { onDutyDriversJson, globalRideHistoryJson } = paths;
 
       // このドライバーが担当している「active」な相乗り募集があれば終了させる
       const carpoolDir = paths.carpoolDir(guildId);
@@ -60,6 +61,47 @@ module.exports = async function (interaction, targetId) {
         for (const fileKey of jsonFiles) {
           const rideData = await store.readJson(fileKey).catch(() => null);
           if (rideData && rideData.driverId === driverId && rideData.passengerId === targetId) {
+
+            // --- NEW: 送迎中一覧 & 送迎履歴への反映 ---
+            try {
+              // 1. 送迎中一覧 (Active List) 削除
+              const onDutyPath = onDutyDriversJson(guildId);
+              const onDutyList = await store.readJson(onDutyPath).catch(() => ({}));
+              if (onDutyList && onDutyList[driverId]) {
+                delete onDutyList[driverId];
+                await store.writeJson(onDutyPath, onDutyList);
+              }
+
+              // 2. 送迎履歴 (Global History) 完了化
+              const rideDate = new Date(rideData.timestamp); // マッチング時間
+              const y = rideDate.getFullYear();
+              const m = rideDate.getMonth() + 1;
+              const d = rideDate.getDate();
+              const historyPath = globalRideHistoryJson(guildId, y, m, d);
+
+              const historyList = await store.readJson(historyPath).catch(() => ({}));
+              if (historyList) {
+                // driverIdの一致かつ未完了のものを探す
+                const entries = Object.values(historyList);
+                const targetEntry = entries.find(e => e.driverId === driverId && !e.endTime);
+
+                if (targetEntry) {
+                  targetEntry.endTime = new Date().toISOString();
+
+                  // keyを探して更新
+                  const targetKey = Object.keys(historyList).find(key => historyList[key] === targetEntry);
+                  if (targetKey) {
+                    historyList[targetKey] = targetEntry;
+                    await store.writeJson(historyPath, historyList);
+                  }
+                }
+              }
+
+            } catch (e) {
+              console.error("送迎終了ログ更新エラー", e);
+            }
+            // ------------------------------------------
+
             await store.deleteFile(fileKey).catch(() => null);
             break;
           }

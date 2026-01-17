@@ -3,7 +3,7 @@
 
 const { Events } = require("discord.js");
 const handler = require("../handler/handler"); // Assuming this is the new handler entry point
-const logger = require("../utils/ログ/ロガー");
+const logger = require("../utils/logger");
 
 function oneLineError(err) {
   const fe = typeof logger.formatError === "function" ? logger.formatError(err) : String(err);

@@ -2,6 +2,8 @@
 const updateRideListPanel = require('./一覧パネル更新');
 const { updateDriverPanel } = require('../送迎パネル/メイン');
 const { loadDriver } = require('../../utils/driversStore'); // New Store
+const { loadUser } = require('../../utils/usersStore'); // (Added for user name/loc)
+const { globalRideHistoryJson, onDutyDriversJson } = require('../../utils/ストレージ/ストレージパス');
 const { loadConfig } = require('../../utils/設定/設定マネージャ'); // Config
 const { createPrivateVc } = require('../../utils/createPrivateVc'); // VC Utility
 const { updateVcState } = require('../../utils/vcStateStore'); // VC State
@@ -31,6 +33,54 @@ module.exports = async function (interaction, targetId) {
         return interaction.editReply({ content: '⚠️ 利用者データが見つかりません。' });
       }
 
+      // --- NEW: 送迎中一覧 & 送迎履歴への記録 ---
+      const now = new Date();
+      const matchTimeStr = now.toISOString();
+
+      // 1. 送迎中一覧 (Active List)
+      const onDutyPath = onDutyDriversJson(guildId);
+      let onDutyList = await store.readJson(onDutyPath).catch(() => ({}));
+      if (!onDutyList) onDutyList = {};
+
+      const rideEntry = {
+        driverId,
+        driverName: driverProfile?.name || '不明',
+        carInfo: driverProfile?.car || '不明',
+        waitStartTime: driverProfile?.lastWaitStart || matchTimeStr, // 待機開始が見つからなければ現在時刻
+        waitLocation: driverProfile?.stop || '不明', // 待機場所
+        matchTime: matchTimeStr,
+        passenger: {
+          id: passengerId,
+          name: userProfile?.name || '不明',
+          location: userProfile?.mark || '不明' // 住所・目印
+        },
+        carpool: [], // 初期は空
+        startTime: matchTimeStr, // 送迎開始時間（マッチング時とする）
+        vcId: null // 後で入れる
+      };
+
+      onDutyList[driverId] = rideEntry;
+      await store.writeJson(onDutyPath, onDutyList);
+
+      // 2. 送迎履歴 (Global History)
+      const y = now.getFullYear();
+      const m = now.getMonth() + 1;
+      const d = now.getDate();
+      const historyPath = globalRideHistoryJson(guildId, y, m, d);
+
+      let historyList = await store.readJson(historyPath).catch(() => ({}));
+      if (!historyList) historyList = {};
+
+      const historyId = `${now.getFullYear()}${String(m).padStart(2, '0')}${String(d).padStart(2, '0')}_${now.getHours()}${now.getMinutes()}${now.getSeconds()}_${driverId}`;
+
+      historyList[historyId] = {
+        ...rideEntry,
+        historyId,
+        driverId, // Explicitly keep driverId
+        endTime: null // 未完了
+      };
+      // -------------------------------------------
+
       const rideId = `${driverId}_${Date.now()}_${guildId}`;
       // Driver Location logic: Try active location, then registered stop, then unknown
       const driverLoc = driverProfile.currentLocation || driverProfile.stop || '不明';
@@ -40,8 +90,9 @@ module.exports = async function (interaction, targetId) {
       const route = `【${driverLoc}】→【${userLoc}】→【${dest}】`;
 
       // 待機中から削除 (通常・ゲスト両方試行)
-      await store.deleteFile(`${guildId}/待機中/${passengerId}.json`).catch(() => null);
-      await store.deleteFile(`${guildId}/待機中/${passengerId}_guest.json`).catch(() => null);
+      const userWaitingDir = paths.waitingUsersDir(guildId);
+      await store.deleteFile(`${userWaitingDir}/${passengerId}.json`).catch(() => null);
+      await store.deleteFile(`${userWaitingDir}/${passengerId}_guest.json`).catch(() => null);
 
       // 送迎中へ保存
       const ridingData = {
@@ -52,7 +103,8 @@ module.exports = async function (interaction, targetId) {
         timestamp: Date.now(),
         status: 'active'
       };
-      await store.writeJson(`${guildId}/送迎中/${rideId}.json`, ridingData);
+      const activePath = `${paths.activeDispatchDir(guildId)}/${rideId}.json`;
+      await store.writeJson(activePath, ridingData);
 
       // --- Private VC Creation ---
       const config = await loadConfig(guildId);
@@ -67,6 +119,10 @@ module.exports = async function (interaction, targetId) {
             driver: driverUser,
             user: passengerUser,
             categoryId: config.categories.privateVc,
+            rideId: rideId,
+            pickupLocation: userLoc,
+            destination: dest,
+            userMark: userLoc
           }).catch(err => console.error("VC作成失敗", err));
 
           if (vc) {
@@ -85,6 +141,13 @@ module.exports = async function (interaction, targetId) {
                 memoChannelId: memoCh.id,
                 endedAt: null
               });
+
+              // --- VC IDを一覧に反映 ---
+              if (onDutyList[driverId]) {
+                onDutyList[driverId].vcId = vc.id;
+                await store.writeJson(onDutyPath, onDutyList);
+              }
+              // -------------------------
 
               await memoCh.send({
                 content: [

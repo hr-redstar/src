@@ -27,7 +27,10 @@ const guidepanel = require('./アクション/案内パネル表示');
 const guidepanel_initial = require('./アクション/案内パネル初期入力');
 const guidepanel_select = require('./アクション/案内パネル送信先選択');
 
+const statusCheck = require('./アクション/状態確認');
+
 const ratingrankpanel = require('./アクション/口コミランクパネル表示');
+const ratingrankpanel_select = require('./アクション/口コミランクパネル送信先選択');
 const carpoolpanel = require('./アクション/相乗りパネル表示');
 const carpoolpanel_select = require('./アクション/相乗りパネル送信先選択');
 
@@ -35,6 +38,7 @@ const globallogpanel = require('./アクション/グローバルログパネル
 const globallogpanel_select = require('./アクション/グローバルログパネル送信先選択');
 const stafflogpanel = require('./アクション/運営者ログパネル表示');
 const stafflogpanel_select = require('./アクション/運営者ログパネル送信先選択');
+const flow = require('./アクション/パネル設置フロー');
 
 module.exports = {
   sendPanelSetupPanel,
@@ -56,12 +60,18 @@ module.exports = {
     guidepanel,
     guidepanel_initial,
     guidepanel_select,
+    statusCheck,
     ratingrankpanel,
+    ratingrankpanel_select,
     carpoolpanel,
     carpoolpanel_select,
     globallogpanel,
     globallogpanel_select,
     stafflogpanel,
+    stafflogpanel,
     stafflogpanel_select,
+    // Refined Flow
+    flow.startHandler,
+    flow.typeHandler
   ],
 };

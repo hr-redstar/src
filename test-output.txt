@@ -1,0 +1,20 @@
+const store = require("./bot/utils/ストレージ/ストア共通");
+const guildId = "1452724199557824514";
+
+async function test() {
+    try {
+        console.log("--- Testing loadDrivers ---");
+        const drivers = await store.loadDrivers(guildId);
+        console.log(`Drivers found: ${drivers.length}`);
+        drivers.forEach(d => console.log(` - ${d.userId}: ${d.nickname || d.name}`));
+
+        console.log("\n--- Testing loadUsers ---");
+        const users = await store.loadUsers(guildId);
+        console.log(`Users found: ${users.length}`);
+        users.forEach(u => console.log(` - ${u.userId}: ${u.storeName || u.name}`));
+    } catch (e) {
+        console.error("Test failed:", e);
+    }
+}
+
+test();

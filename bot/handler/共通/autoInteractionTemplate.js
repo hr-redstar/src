@@ -1,5 +1,5 @@
 const { PermissionFlagsBits, MessageFlags } = require("discord.js");
-const logger = require("../../utils/ログ/ロガー");
+const logger = require("../../utils/logger");
 
 const ACK = {
     AUTO: "auto",

@@ -6,6 +6,7 @@ const buildPanelMessage = require('../../utils/embed/panelMessageTemplate');
  * 送迎者パネルの埋め込みを生成
  */
 function buildDriverPanelEmbed(guild, driverCount = 0, client) {
+    const botClient = client || guild.client;
     return buildPanelEmbed({
         title: "送迎者パネル",
         description: `
@@ -13,7 +14,7 @@ function buildDriverPanelEmbed(guild, driverCount = 0, client) {
 
 現在の出勤中ドライバー: **${driverCount}** 名
     `,
-        client
+        client: botClient
     });
 }
 
@@ -33,7 +34,8 @@ function buildDriverPanelComponents() {
  * 送迎者パネルのメッセージペイロードを生成
  */
 function buildDriverPanelMessage(guild, activeCount = 0, client) {
-    const embed = buildDriverPanelEmbed(guild, activeCount, client);
+    const botClient = client || guild.client;
+    const embed = buildDriverPanelEmbed(guild, activeCount, botClient);
     const components = buildDriverPanelComponents();
     return buildPanelMessage({ embed, components });
 }
@@ -46,10 +48,11 @@ async function buildRideListPanelMessage(guild, client) {
     const store = require('../../utils/ストレージ/ストア共通');
     const paths = require('../../utils/ストレージ/ストレージパス');
 
+    const botClient = client || guild.client;
     const embed = buildPanelEmbed({
         title: "送迎一覧パネル",
         description: "現在の待機状況と送迎中のステータスを表示します。",
-        client
+        client: botClient
     });
 
     // 1. 待機中の送迎者の取得 (FIFO順)
@@ -138,7 +141,8 @@ ${ridingList}
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('admin:btn:history_recent').setLabel('送迎履歴直近10件').setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId('admin:btn:history_detail').setLabel('送迎履歴詳しく').setStyle(ButtonStyle.Primary)
+        new ButtonBuilder().setCustomId('admin:btn:history_detail').setLabel('送迎履歴詳しく').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('admin:ride:force_end_menu').setLabel('送迎強制終了').setStyle(ButtonStyle.Danger)
     );
 
     return buildPanelMessage({ embed, components: [row] });

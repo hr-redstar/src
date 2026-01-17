@@ -6,13 +6,14 @@ const buildPanelMessage = require('../../utils/embed/panelMessageTemplate');
  * 利用者パネルの埋め込みを生成
  */
 function buildUserPanelEmbed(guild, rideCount = 0, client) {
+    const botClient = client || guild.client;
     return buildPanelEmbed({
         title: "利用者パネル",
         description: `
 現在の送迎車： **${rideCount}** 台
 自分・ゲストの送迎依頼ができます
     `,
-        client
+        client: botClient
     });
 }
 
@@ -32,7 +33,8 @@ function buildUserPanelComponents() {
  * 利用者パネルのメッセージペイロードを生成
  */
 function buildUserPanelMessage(guild, rideCount = 0, client) {
-    const embed = buildUserPanelEmbed(guild, rideCount, client);
+    const botClient = client || guild.client;
+    const embed = buildUserPanelEmbed(guild, rideCount, botClient);
     const components = buildUserPanelComponents();
     return buildPanelMessage({ embed, components });
 }

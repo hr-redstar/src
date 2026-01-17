@@ -14,12 +14,15 @@ module.exports = function buildPanelEmbed({
     client,
     color,
 }) {
+    const username = client?.user?.username || 'Bot';
+    const avatarURL = client?.user?.displayAvatarURL?.() || null;
+
     const embed = new EmbedBuilder()
         .setTitle(`📋 ${title}`)
         .setDescription(description)
         .setFooter({
-            text: `${client.user.username}｜${new Date().toLocaleString('ja-JP')}`,
-            iconURL: client.user.displayAvatarURL(),
+            text: `${username}｜${new Date().toLocaleString('ja-JP')}`,
+            iconURL: avatarURL,
         });
 
     if (color) {

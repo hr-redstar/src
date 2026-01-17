@@ -10,7 +10,7 @@ const {
   MessageFlags,
 } = require("discord.js");
 
-const logger = require("../../utils/ログ/ロガー");
+const logger = require("../../utils/logger");
 const { readJson, writeJson } = require("../../utils/ストレージ/ストア共通");
 const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 const buildPanelMessage_ = require('../../utils/embed/panelMessageTemplate');
@@ -39,6 +39,7 @@ const nowIso = () => new Date().toISOString();
  * 利用者登録パネルのメッセージペイロードを生成
  */
 function buildUserRegPanelMessage(guild, client) {
+  const botClient = client || guild.client;
   const embed = buildPanelEmbed({
     title: "利用者登録パネル",
     description: `
@@ -54,7 +55,7 @@ function buildUserRegPanelMessage(guild, client) {
 **駐車目印**
 送迎車が停車する際の目印（看板、入口横など）を入力してください。
     `,
-    client
+    client: botClient
   });
 
   if (guild?.iconURL()) embed.setThumbnail(guild.iconURL());
@@ -63,7 +64,11 @@ function buildUserRegPanelMessage(guild, client) {
     new ButtonBuilder()
       .setCustomId(CID.BTN_REGISTER)
       .setLabel("利用者登録")
-      .setStyle(ButtonStyle.Primary)
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId("ps:check")
+      .setLabel("登録状態確認")
+      .setStyle(ButtonStyle.Secondary)
   );
 
   return buildPanelMessage_({ embed, components: [row] });

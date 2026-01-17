@@ -4,6 +4,8 @@ const interactionTemplate = require("../../共通/interactionTemplate");
 const { ACK } = interactionTemplate;
 
 module.exports = {
+  customId: 'ps:check',
+  type: 'button',
   async execute(interaction) {
     return interactionTemplate(interaction, {
       ack: ACK.REPLY,

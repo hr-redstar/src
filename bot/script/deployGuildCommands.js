@@ -7,7 +7,7 @@
 require('dotenv').config();
 const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v10');
-const { createLogger } = require('../utils/ログ/ロガー');
+const { createLogger } = require('../utils/logger');
 const { requireEnv } = require('../utils/env');
 const { loadCommands } = require('./commandLoader');
 

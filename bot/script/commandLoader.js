@@ -1,6 +1,6 @@
 const fs = require("node:fs");
 const path = require("node:path");
-const logger = require("../utils/ログ/ロガー");
+const logger = require("../utils/logger");
 
 const COMMANDS_DIR = process.env.COMMANDS_DIR || "src/bot/command";
 

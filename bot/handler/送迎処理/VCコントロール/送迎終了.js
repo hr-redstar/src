@@ -1,6 +1,10 @@
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const store = require('../../utils/ストレージ/ストア共通');
 const paths = require('../../utils/ストレージ/ストレージパス');
 const { loadDriver } = require('../../utils/driversStore');
+const { sendRatingDM } = require('../../配車システム/評価システム');
+const { updateVcState } = require('../../utils/vcStateStore');
+const { formatDateShort } = require('../../utils/共通/日付フォーマット');
 
 /**
  * 送迎終了ボタンハンドラー
@@ -44,27 +48,78 @@ module.exports = async function handleRideComplete(interaction, rideId) {
         // 両方が終了を押したか確認
         const isFinished = dispatchData.driverEndTime && dispatchData.userEndTime;
 
-        if (!isFinished) {
-            // 片方のみの場合はパネルの時刻のみ更新して保存
-            await store.writeJson(activePath, dispatchData);
+        // データを保存 (statusはまだ active のまま、完全に終わったら削除される)
+        if (isFinished) {
+            dispatchData.completedAt = now.toISOString();
+            dispatchData.status = 'completed';
+        }
+        await store.writeJson(activePath, dispatchData);
 
-            const { EmbedBuilder } = require('discord.js');
-            const currentEmbed = interaction.message.embeds[0];
-            const newEmbed = EmbedBuilder.from(currentEmbed)
-                .setDescription(
-                    `${currentEmbed.description.split('\n')[0]}\n` +
-                    `送迎者：送迎開始時間：${dispatchData.driverStartTime || '未'} ｜ 送迎終了時間：${dispatchData.driverEndTime || '未'}\n` +
-                    `利用者：送迎開始時間：${dispatchData.userStartTime || '未'} ｜ 送迎終了時間：${dispatchData.userEndTime || '未'}`
-                );
+        // Embed更新 (Fields)
+        const currentEmbed = interaction.message.embeds[0];
+        const newEmbed = EmbedBuilder.from(currentEmbed);
+        const fields = newEmbed.data.fields || [];
 
-            return await interaction.editReply({ embeds: [newEmbed] });
+        if (isDriver) {
+            if (fields[0]) fields[0].value = fields[0].value.replace(/送迎終了時間：--:--/, `送迎終了時間：${timeStr}`);
+        } else {
+            if (fields[1]) fields[1].value = fields[1].value.replace(/送迎終了時間：--:--/, `送迎終了時間：${timeStr}`);
         }
 
-        // --- 両方が押した場合の最終終了処理 ---
+        if (isFinished) {
+            // タイトル更新: "送迎終了" を追加したりする？ 仕様には明確なEmbed更新指示はないが
+            // "embed更新 タイトル：VC名 を" -> "VC名：...~終了時間..." に更新する指示がある
+            // ここではEmbed内のタイトルも更新しておく
+            // VC名更新ロジックは後述
+            newEmbed.setTitle(newEmbed.data.title.replace(/--:--$/, timeStr)); // タイトルがVC名と同じ前提
+            newEmbed.setDescription(newEmbed.data.description.replace('**向かっています**', '✅ **送迎終了しました**\n**向かっています**'));
+            newEmbed.setColor(0x95a5a6); // Gray
+        }
+        newEmbed.setFields(fields);
 
-        // 送迎終了時刻を記録
-        dispatchData.completedAt = now.toISOString();
-        dispatchData.status = 'completed';
+        // ボタン更新
+        const currentComponents = interaction.message.components;
+        let newComponents = currentComponents.map(row => {
+            const newRow = new ActionRowBuilder();
+            row.components.forEach(component => {
+                const btn = ButtonBuilder.from(component);
+                if (btn.data.custom_id === interaction.customId) {
+                    let label = btn.data.label;
+                    if (isDriver && !label.includes('送迎者済')) label += '(送迎者済)';
+                    if (isUser && !label.includes('利用者済')) label += '(利用者済)';
+                    btn.setLabel(label);
+
+                    if (label.includes('送迎者済') && label.includes('利用者済')) {
+                        btn.setDisabled(true);
+                        btn.setStyle(ButtonStyle.Secondary);
+                    }
+                }
+                // もし完了したら全ボタン無効化するか？ -> Start/Approachは既に無効化されているはずだが
+                // 安全のため完了時は全て無効化しても良いが、個別制御しているのでそのまま
+                newRow.addComponents(btn);
+            });
+            return newRow;
+        });
+
+        if (isFinished) {
+            // 完了時は全ボタン無効化
+            newComponents = newComponents.map(row => {
+                const newRow = new ActionRowBuilder();
+                row.components.forEach(component => {
+                    const btn = ButtonBuilder.from(component);
+                    btn.setDisabled(true);
+                    btn.setStyle(ButtonStyle.Secondary);
+                    newRow.addComponents(btn);
+                });
+                return newRow;
+            });
+        }
+
+        await interaction.editReply({ embeds: [newEmbed], components: newComponents });
+
+        if (!isFinished) return;
+
+        // --- 両方が押した場合の最終終了処理 ---
 
         // ドライバーの送迎件数を更新
         const driverData = await loadDriver(guildId, dispatchData.driverId);
@@ -108,13 +163,10 @@ module.exports = async function handleRideComplete(interaction, rideId) {
         try {
             const userInUsePath = paths.userInUseListJson(guildId);
             const usersInUse = await store.readJson(userInUsePath, []).catch(() => []);
-
-            // 削除対象IDリストを作成 (メイン利用者 + 相乗り利用者)
             const idsToRemove = [dispatchData.userId];
             if (dispatchData.carpoolUsers) {
                 dispatchData.carpoolUsers.forEach(u => idsToRemove.push(u.userId));
             }
-
             const updatedUsers = usersInUse.filter(id => !idsToRemove.includes(id));
             await store.writeJson(userInUsePath, updatedUsers);
         } catch (err) {
@@ -134,99 +186,58 @@ module.exports = async function handleRideComplete(interaction, rideId) {
             }
         }
 
-        // VCチャンネル名を更新してから削除
-        if (dispatchData.vcId) {
-            const vcChannel = guild.channels.cache.get(dispatchData.vcId);
-            if (vcChannel) {
-                // 終了時刻を取得
-                const endHours = String(now.getHours()).padStart(2, '0');
-                const endMinutes = String(now.getMinutes()).padStart(2, '0');
-                const endTimeStr = `${endHours}${endMinutes}`;
+        // VCチャンネル名を更新
+        const timeHHMM = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+        if (interaction.channel) {
+            // 現在の名前: MM/DD HH:mm~--:--...
+            // 更新後: MM/DD HH:mm~HH:mm...
+            // replace(/~--:--/, `~${timeStr}`) としたいが、VC名は記号が使えない場合もあるので置換ロジックに注意
+            // createPrivateVcでの生成: `${mm}/${dd} ${matchTime}~--:--`
+            // matchTimeは HH:mm.
+            // 終了時間は HHmm (コロンなし) のフォーマットにする指示があったような...
+            // "送迎終了時間 は未終了時は空欄" -> これはEmbedの話？
+            // "VC名：月日 マッチング時間~送迎終了時間..." -> コロンありかな
+            // 元コードの送迎終了処理では `${endHours}${endMinutes}` だった。
+            // 今回の createPrivateVc では `${matchTime}~--:--` (HH:mm).
+            // ここでは HH:mm に合わせるのが自然。
 
-                // 現在のチャンネル名を取得し、終了時刻を追加
-                const currentName = vcChannel.name;
-                const updatedName = currentName.replace(/-【/, `-${endTimeStr}【`);
-
-                // チャンネル名を更新
-                await vcChannel.setName(updatedName).catch(() => null);
-
-                // 少し待ってから削除
-                await new Promise(resolve => setTimeout(resolve, 1000));
-
-                await vcChannel.delete('送迎終了').catch(() => null);
-            }
+            const currentName = interaction.channel.name;
+            const updatedName = currentName.replace(/~--:--/, `~${timeStr}`); // HH:mm
+            await interaction.channel.setName(updatedName).catch(() => null);
         }
 
-        // --- ログ保持期間の設定 ---
-        const { updateVcState } = require('../../../utils/vcStateStore');
-        const { formatDateShort } = require('../../../utils/共通/日付フォーマット');
+        // --- 終了メッセージ送信 (削除延長ボタン付き) ---
+        const completionEmbed = new EmbedBuilder()
+            .setTitle('送迎終了しました')
+            .setDescription(
+                '落とし物などのトラブルが無ければ、\n' +
+                '1週間でこのvcチャンネルは削除されます。\n\n' +
+                '※トラブルがあった場合は、\n' +
+                '削除延長を押して下さい。'
+            )
+            .setColor(0xe74c3c); // Red
+
+        const completionRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('vc:btn:extend') // rideId不要 (VC依存)
+                .setLabel('削除延長')
+                .setStyle(ButtonStyle.Danger)
+        );
+
+        await interaction.channel.send({ embeds: [completionEmbed], components: [completionRow] });
+
+        // --- ログ保持期間の設定 (デフォルト7日後) ---
         const DAY = 1000 * 60 * 60 * 24;
         const expiresAt = new Date(now.getTime() + DAY * 7);
 
-        if (dispatchData.vcId) {
-            const vcStateData = await updateVcState(guildId, dispatchData.vcId, {
-                endedAt: now.toISOString(),
-                expiresAt: expiresAt.toISOString()
-            });
+        await updateVcState(guildId, interaction.channel.id, {
+            endedAt: now.toISOString(),
+            expiresAt: expiresAt.toISOString()
+        });
 
-            if (vcStateData && vcStateData.logThreadId) {
-                const thread = await guild.channels.fetch(vcStateData.logThreadId).catch(() => null);
-                if (thread) {
-                    const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+        // --- 口コミ評価DM送信 ---
+        await sendRatingDM(guild, dispatchData);
 
-                    const adminEmbed = new EmbedBuilder()
-                        .setTitle('📁 送迎ログ保存設定')
-                        .setDescription(
-                            'この送迎のログは **7日間** 保存されます。\n' +
-                            `削除予定：${formatDateShort(expiresAt)}\n\n` +
-                            '必要な場合は「保存期間延長」ボタンを押して無期限保存に変更できます。'
-                        )
-                        .setColor(0x95a5a6)
-                        .setTimestamp();
-
-                    const adminButtons = new ActionRowBuilder()
-                        .addComponents(
-                            new ButtonBuilder()
-                                .setCustomId('ride:extend')
-                                .setLabel('保存期間延長')
-                                .setStyle(ButtonStyle.Secondary)
-                                .setEmoji('⏳'),
-                            new ButtonBuilder()
-                                .setCustomId('ride:delete')
-                                .setLabel('即時削除 (管理者)')
-                                .setStyle(ButtonStyle.Danger)
-                                .setEmoji('🗑️')
-                        );
-
-                    await thread.send({ embeds: [adminEmbed], components: [adminButtons] }).catch(console.error);
-                }
-            }
-        }
-
-        // 利用者と相乗り利用者にDM通知
-        try {
-            const userMember = await guild.members.fetch(dispatchData.userId).catch(() => null);
-            if (userMember) {
-                await userMember.send({
-                    content: `✅ 送迎が完了しました。ご利用ありがとうございました！\n送迎者: <@${dispatchData.driverId}>`
-                });
-            }
-
-            if (dispatchData.carpoolUsers && dispatchData.carpoolUsers.length > 0) {
-                for (const carpoolUser of dispatchData.carpoolUsers) {
-                    const carpoolMember = await guild.members.fetch(carpoolUser.userId).catch(() => null);
-                    if (carpoolMember) {
-                        await carpoolMember.send({
-                            content: `✅ 送迎が完了しました。ご利用ありがとうございました！\n送迎者: <@${dispatchData.driverId}>`
-                        }).catch(() => null);
-                    }
-                }
-            }
-        } catch (e) {
-            console.log('利用者への完了通知失敗', e);
-        }
-
-        await interaction.followUp({ content: '✅ 送迎を終了しました。お疲れ様でした！', ephemeral: true });
     } catch (error) {
         console.error('送迎終了エラー:', error);
         await interaction.followUp({ content: '⚠️ エラーが発生しました。', ephemeral: true }).catch(() => null);

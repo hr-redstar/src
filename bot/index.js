@@ -1,13 +1,11 @@
-// index.js (project root: src/bot/index.js)
-require("dotenv").config();
-
-const fs = require("fs");
 const path = require("path");
+const fs = require("fs");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 const { Client, Collection, GatewayIntentBits, Partials } = require("discord.js");
 
-const logger = require("./utils/ログ/ロガー");
+const logger = require("./utils/logger");
 
-const token = process.env.DISCORD_TOKEN;
+const token = process.env.DISCORD_TOKEN?.trim();
 if (!token) {
   logger.error("❌ DISCORD_TOKEN が .env に設定されていません。");
   process.exit(1);
