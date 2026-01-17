@@ -59,6 +59,13 @@ module.exports = async function handleRideStart(interaction, rideId) {
       dispatchData.status = 'in-progress';
     }
 
+    // 運営者ログの同期 (更新: 青)
+    const { syncOperationLog } = require('../../../utils/ログ/operationLogHelper');
+    const opLogId = await syncOperationLog(interaction.guild, dispatchData);
+    if (opLogId) {
+      dispatchData.operationLogMessageId = opLogId;
+    }
+
     // データを保存
     await store.writeJson(activePath, dispatchData);
 

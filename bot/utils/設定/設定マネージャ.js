@@ -1,5 +1,6 @@
 const store = require('../ストレージ/ストア共通');
 const paths = require('../ストレージ/ストレージパス');
+const logger = require('../../utils/logger'); // Ensure logger is available
 
 /**
  * 設定オブジェクトを正規化し、ユーザー指定の最終スキーマに合わせる
@@ -106,6 +107,12 @@ function normalizeConfig(cfg = {}) {
   mapPanel('rideList', 'rideList');
   mapPanel('ratingRank', 'ratingRank');
 
+  // ... (omitted)
+
+  // 読み込み時に構造が変わっていた場合（移行が発生した場合）は自動保存
+  // これは normalizeConfig 内ではなく loadConfig で行うべき
+  // normalizeConfig は純粋関数であるべき
+
   return merged;
 }
 
@@ -119,7 +126,7 @@ async function loadConfig(guildId) {
 
   // 読み込み時に構造が変わっていた場合（移行が発生した場合）は自動保存
   if (JSON.stringify(raw) !== JSON.stringify(normalized)) {
-    console.log(`[Config] Auto-migrating config for guild: ${guildId}`);
+    logger.info(`[Config] Auto-migrating config for guild: ${guildId}`);
     await store.writeJson(path, normalized);
   }
 

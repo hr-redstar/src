@@ -240,6 +240,14 @@ module.exports = async function (interaction, client, parsed) {
         // 先程送信したメッセージを取得する必要があるが、vcChannel.send の戻り値を使う
         // run関数の構造上、メッセージ送信後にIDを取得して保存する
       }
+
+      // 運営者ログの同期 (新規作成: 赤)
+      const { syncOperationLog } = require('../../../utils/ログ/operationLogHelper');
+      const opLogId = await syncOperationLog(interaction.guild, dispatchData);
+      if (opLogId) {
+        dispatchData.operationLogMessageId = opLogId;
+      }
+
       await store.writeJson(activePath, dispatchData);
 
       // 相乗り募集開始 (非同期で実行)

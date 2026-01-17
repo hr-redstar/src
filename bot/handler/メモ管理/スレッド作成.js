@@ -15,8 +15,30 @@ module.exports = async (interaction, client, parsed) => {
 
   const label = periodLabels[period] || period;
 
-  // 設定を保存（将来的に実装）
-  // TODO: メモチャンネルのスレッド作成設定をGCSに保存
+  // 期間キーの正規化 (1week -> 1w)
+  const mapToStoreParams = {
+    '1week': '1w',
+    '2week': '2w',
+    '1month': '1m',
+    '6month': '6m',
+    'none': 'none'
+  };
+  const storeParam = mapToStoreParams[period] || period;
+
+  // 設定を保存
+  const { loadDriver, saveDriver } = require('../../utils/driversStore');
+  const driver = await loadDriver(interaction.guild.id, interaction.user.id);
+
+  if (driver) {
+    const threadPolicy = storeParam === 'none'
+      ? { enabled: false, range: null }
+      : { enabled: true, range: storeParam };
+
+    await saveDriver(interaction.guild.id, interaction.user.id, {
+      ...driver,
+      threadPolicy
+    });
+  }
 
   await interaction.update({
     content: `✅ スレッド作成設定を **${label}** に設定しました。`,

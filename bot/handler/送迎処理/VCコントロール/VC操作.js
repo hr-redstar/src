@@ -69,6 +69,21 @@ module.exports = async function (interaction, parsed) {
             });
           }
         }
+
+        // 運営者ログ同期 (赤)
+        // rid があれば dispatchData を更新して同期
+        if (rid) {
+          const store = require('../../utils/ストレージ/ストア共通');
+          const activePath = `${paths.activeDispatchDir(guildId)}/${rid}.json`;
+          const dispatchData = await store.readJson(activePath).catch(() => null);
+          if (dispatchData) {
+            dispatchData.isExtended = true;
+            await store.writeJson(activePath, dispatchData);
+
+            const { syncOperationLog } = require('../../utils/ログ/operationLogHelper');
+            await syncOperationLog(interaction.guild, dispatchData);
+          }
+        }
       } catch (error) {
         console.error('削除延長エラー:', error);
         await interaction

@@ -20,21 +20,22 @@ async function syncOperationLog(guild, dispatchData) {
         const baseEmbed = buildVcControlEmbed(dispatchData);
 
         // 2. カラーのオーバーライド (仕様に基づく)
-        // マッチング時：赤 (status=dispatching, approachTimeなし)
+        // マッチング時：黄 (status=dispatching, approachTimeなし)
         // 向かってます：青 (approachTimeあり)
         // 送迎開始：青
         // 相乗り開始：青
         // 送迎終了：まだ乗客が残っている際は青　いない場合　黒
+        // 期限延長：赤 (dispatchData.isExtended = true)
 
-        // デフォルトは赤(Start前、向かう前)
-        let color = 0xff0000; // Red
+        // デフォルトは黄(Start前、向かう前) => マッチング時
+        let color = 0xffff00; // Yellow
 
         // 向かっています (approachTimeがある)
         if (dispatchData.approachTime) {
             color = 0x3498db; // Blue
         }
 
-        // 誰か開始している (StartTimesがある)
+        // 誰か開始している
         const driverStarted = !!dispatchData.driverStartTime;
         const userStarted = !!dispatchData.userStartTime;
         const anyCarpoolStarted = (dispatchData.carpoolUsers || []).some(u => u.startTime);
@@ -43,22 +44,17 @@ async function syncOperationLog(guild, dispatchData) {
         }
 
         // 終了判定
-        // 全員終わっているか？
         const driverEnded = !!dispatchData.driverEndTime;
         const userEnded = !!dispatchData.userEndTime;
         const allCarpoolEnded = (dispatchData.carpoolUsers || []).every(u => u.endTime);
-        // 誰か一人でも終わっていない、かつ、誰か始まっている/向かっているなら青のまま
-        // 全員終わったら黒
         if (driverEnded && userEnded && allCarpoolEnded) {
             // 全員終了
-            color = 0x000000; // Black (Discordでは0x000000はデフォルト色になることがあるが、明示的な黒は 0x010101 とかにすべき？ Defaultは黒っぽいのでOK)
-            // embed.setColor(0) はデフォルト色に戻る挙動。
-            // 真っ黒にするなら 0x010101
-            color = 0x010101;
-        } else {
-            // まだ乗客がいる(完了していない)
-            // status completed かどうかでも判断できるが、個別の状態を見る
-            // 上記の Blue 条件に入っていれば Blue。
+            color = 0x010101; // Black
+        }
+
+        // 延長判定 (statusに関係なく赤)
+        if (dispatchData.isExtended) {
+            color = 0xff0000; // Red
         }
 
         baseEmbed.setColor(color);

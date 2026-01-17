@@ -64,6 +64,13 @@ module.exports = {
                     approvedAt: new Date().toISOString(),
                 });
 
+                // 運営者ログの同期 (更新: 青 - 相乗り追加更新)
+                const { syncOperationLog } = require('../../utils/ログ/operationLogHelper');
+                const opLogId = await syncOperationLog(guild, rideData);
+                if (opLogId) {
+                    rideData.operationLogMessageId = opLogId;
+                }
+
                 await store.writeJson(activePath, rideData);
 
                 // プライベートVCの埋め込み更新

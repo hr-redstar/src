@@ -33,6 +33,14 @@ module.exports = async function handleRideEnroute(interaction, rideId) {
     if (dispatchData.approachTime)
       return interaction.followUp({ content: '⚠️ 既に通知済みです。', ephemeral: true });
     dispatchData.approachTime = timeStr;
+
+    // 運営者ログの同期 (更新: 青)
+    const { syncOperationLog } = require('../../../utils/ログ/operationLogHelper');
+    const opLogId = await syncOperationLog(guild, dispatchData);
+    if (opLogId) {
+      dispatchData.operationLogMessageId = opLogId;
+    }
+
     await store.writeJson(activePath, dispatchData);
 
     // 通知メッセージを送信

@@ -61,6 +61,14 @@ module.exports = async function handleRideComplete(interaction, rideId) {
     const allCarpoolFinished = (dispatchData.carpoolUsers || []).every(u => u.endTime);
     const isFinished = dispatchData.driverEndTime && dispatchData.userEndTime && allCarpoolFinished;
 
+    // 運営者ログの同期 (更新: 青/黒)
+    const { syncOperationLog } = require('../../../utils/ログ/operationLogHelper');
+    // まだ完了していない場合は青、完了したら黒になるはず (helper側で判定)
+    const opLogId = await syncOperationLog(interaction.guild, dispatchData);
+    if (opLogId) {
+      dispatchData.operationLogMessageId = opLogId;
+    }
+
     // データを保存
     if (isFinished) {
       dispatchData.completedAt = now.toISOString();
