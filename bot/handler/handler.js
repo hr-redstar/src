@@ -23,7 +23,9 @@ async function safeReply(interaction, payload) {
   try {
     if (interaction.deferred || interaction.replied) return await interaction.editReply(payload);
     return await interaction.reply(payload);
-  } catch (_) { }
+  } catch (err) {
+    logger.error('safeReply 失敗', { error: err.message });
+  }
 }
 
 async function routeToPanelHandler(interaction, client) {

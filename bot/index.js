@@ -32,11 +32,13 @@ function loadCommands() {
 
   const files = fs.readdirSync(commandsDir).filter((f) => f.endsWith('.js'));
   for (const file of files) {
-    // 00_パネル設置パネル.js 以外を無視
-    if (file !== '00_パネル設置パネル.js') continue;
+    // 先頭が _ で始まるファイル、または特定のメタデータを持つものをスキップ可能にする
+    if (file.startsWith('_')) continue;
 
     const filePath = path.join(commandsDir, file);
     const cmd = require(filePath);
+
+    if (cmd.disabled) continue;
 
     if (!cmd?.data?.name || typeof cmd.execute !== 'function') {
       logger.warn(`⚠️ command 読み込みスキップ: ${file}`);

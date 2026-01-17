@@ -43,6 +43,22 @@ module.exports = {
 
       // 詳細はdebugへ（stack含む）
       logger.debug('例外詳細', fullError(err));
+
+      // 追加：管理・運営者へのアラート通知
+      if (interaction.guild) {
+        const { sendCriticalAlert } = require('../utils/ログ/アラート通知');
+        sendCriticalAlert({
+          guild: interaction.guild,
+          title: 'Interaction処理エラー',
+          message: `ユーザー <@${interaction.user.id}> の操作中にエラーが発生しました。`,
+          error: err,
+          meta: {
+            customId: interaction.customId ?? 'N/A',
+            user: `${interaction.user.tag} (${interaction.user.id})`,
+            type: interaction.isButton?.() ? 'Button' : interaction.isModalSubmit?.() ? 'Modal' : 'Other',
+          }
+        }).catch(() => { });
+      }
     }
   },
 };

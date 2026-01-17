@@ -35,34 +35,28 @@ async function sendRatingDM(guild, dispatchData) {
     completedAt,
   } = dispatchData;
 
-  // 日時フォーマット: MM/DD (HH:mm~HH:mm)
   const dateObj = new Date(completedAt || createdAt || Date.now());
-  const dateStr = formatDateShort(dateObj); // MM/DD
+  const dateStr = dateObj.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
 
-  // 時間帯（ドライバー基準、なければ利用者基準、なければ不明）
+  // ルート詳細 (仕様 #16 準拠)
+  // 実際には dispatchData に個別の項目がないため、route や direction から推測するか
+  // route が "出発点→目印→目的地" の形式であることを前提とする
+  const routeDisplay = route || `${direction} (直行)`;
+
+  // 時間経過 (向かってます時間～送迎開始時間～送迎終了時間)
+  const headingT = headingAt ? new Date(headingAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '--:--';
   const startT = driverStartTime || userStartTime || '--:--';
   const endT = driverEndTime || userEndTime || '--:--';
-  const timeRange = `(${startT}~${endT})`;
+  const timeline = `${headingT} ～ ${startT} ～ ${endT}`;
 
-  // ルート表示
-  const routeDisplay = route || direction || '不明なルート';
-
-  // ユーザー情報の取得
-  const driver = await guild.client.users.fetch(driverId).catch(() => null);
   const passenger = await guild.client.users.fetch(passengerId).catch(() => null);
+  const driver = await guild.client.users.fetch(driverId).catch(() => null);
 
-  const commonDesc = [
-    `${dateStr} ${timeRange}`,
-    routeDisplay,
-    `送迎者：${driver ? `<@${driver.id}>` : '不明'}`,
-    `利用者：${passenger ? `<@${passenger.id}>` : '不明'}`,
-  ].join('\n');
-
-  // 利用者へのDM（ドライバーを評価）
+  // 利用者へのDM（送迎者を評価）
   if (passenger) {
     const embed = new EmbedBuilder()
       .setTitle('送迎者・利用者口コミ評価')
-      .setDescription(`${commonDesc}\n\n今回の送迎はいかがでしたか？`)
+      .setDescription(`${dateStr}\n『${routeDisplay}』\n${timeline}\n\n今回の送迎員を評価してください。`)
       .setColor(0xffd700);
 
     await passenger
@@ -73,11 +67,11 @@ async function sendRatingDM(guild, dispatchData) {
       .catch(() => null);
   }
 
-  // ドライバーへのDM（利用者を評価）
+  // 送迎者へのDM（利用者を評価）
   if (driver) {
     const embed = new EmbedBuilder()
       .setTitle('送迎者・利用者口コミ評価')
-      .setDescription(`${commonDesc}\n\n今回の利用者様はいかがでしたか？`)
+      .setDescription(`${dateStr}\n『${routeDisplay}』\n${timeline}\n\n今回の利用者を評価してください。`)
       .setColor(0xffd700);
 
     await driver

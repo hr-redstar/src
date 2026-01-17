@@ -12,9 +12,9 @@ const autoInteractionTemplate = require('../../../共通/autoInteractionTemplate
 const { ACK } = autoInteractionTemplate;
 
 const CID = {
-  BTN_RATING_CHECK: 'admin:btn:rating_check_start',
-  SEL_USER: 'admin:select:rating_user',
-  BTN_COMMENT_VIEW: 'admin:btn:comment_check',
+  BTN_RATING_CHECK: 'adm|rating_check|sub=start',
+  SEL_USER: 'adm|rating_check|sub=user_sel',
+  BTN_COMMENT_VIEW: 'adm|rating_check|sub=comments', // did が続く想定
 };
 
 module.exports = {
@@ -32,7 +32,7 @@ module.exports = {
     return interaction.reply({
       content: '👤 評価を確認したいユーザーを選択してください。',
       components: [row],
-      flags: 64,
+      ephemeral: true,
     });
   },
 
@@ -83,7 +83,7 @@ module.exports = {
 
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
-            .setCustomId(`${CID.BTN_COMMENT_VIEW}:${targetUserId}`)
+            .setCustomId(`${CID.BTN_COMMENT_VIEW}&uid=${targetUserId}`)
             .setLabel('コメント確認')
             .setStyle(ButtonStyle.Primary)
             .setDisabled(stats.commentCount === 0)

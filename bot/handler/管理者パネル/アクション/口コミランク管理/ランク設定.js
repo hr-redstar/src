@@ -4,9 +4,9 @@ const autoInteractionTemplate = require('../../../共通/autoInteractionTemplate
 const { ACK } = autoInteractionTemplate;
 
 const CID = {
-  BTN_RANK_SET: 'admin:btn:set_rank_start',
-  SEL_USER: 'admin:select:rank_target_user',
-  SEL_TIER: 'admin:select:rank_tier_pick',
+  BTN_RANK_SET: 'adm|rank_set|sub=start',
+  SEL_USER: 'adm|rank_set|sub=user_sel',
+  SEL_TIER: 'adm|rank_set|sub=tier_sel', // uid が続く想定
 };
 
 module.exports = {
@@ -24,7 +24,7 @@ module.exports = {
     return interaction.reply({
       content: '👤 設定対象のユーザーを選択してください。',
       components: [row],
-      flags: 64,
+      ephemeral: true,
     });
   },
 
@@ -52,7 +52,7 @@ module.exports = {
         options.unshift({ label: '（ランクなし）', value: 'None' });
 
         const select = new StringSelectMenuBuilder()
-          .setCustomId(`${CID.SEL_TIER}:${targetUserId}`)
+          .setCustomId(`${CID.SEL_TIER}&uid=${targetUserId}`)
           .setPlaceholder('付与するランクを選択してください')
           .addOptions(options);
 

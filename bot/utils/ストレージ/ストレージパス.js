@@ -101,6 +101,10 @@ function auditLogsDir(guildId) {
   return `${guildRoot(guildId)}/logs/監査`;
 }
 
+function statsJson(guildId) {
+  return `${guildRoot(guildId)}/stats/stats.json`;
+}
+
 module.exports = {
   configJson,
   guildDriverIndexJson,
@@ -127,4 +131,5 @@ module.exports = {
   carpoolDir,
   ratingLogsDir,
   auditLogsDir,
+  statsJson,
 };

@@ -167,6 +167,10 @@ async function execute(interaction, parsed) {
 
         await saveDriver(guildId, userId, driverData);
 
+        // 統計更新
+        const { incrementStat } = require('../../utils/ストレージ/統計ストア');
+        await incrementStat(guildId, 'driver_registered').catch(() => null);
+
         // ロール付与
         const roleIds = config.roles?.drivers || [];
         if (roleIds.length > 0 && interaction.member) {

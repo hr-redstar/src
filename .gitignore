@@ -16,4 +16,13 @@ bot/brain/
 temp/
 tmp/
 dist/
-
+# Temporary / Output files
+*.txt
+!README.md
+!walkthrough.md
+!task.md
+!implementation_plan*.md
+lint_output.txt
+lint_utf8.txt
+bot/lint_output.txt
+bot/lint_utf8.txt

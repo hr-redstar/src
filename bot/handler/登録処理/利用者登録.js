@@ -139,6 +139,10 @@ async function execute(interaction, parsed) {
         };
         await saveUser(guildId, userId, registrationData);
 
+        // 統計更新
+        const { incrementStat } = require('../../utils/ストレージ/統計ストア');
+        await incrementStat(guildId, 'user_registered').catch(() => null);
+
         // メモチャンネル作成 or 検出
         const { loadConfig } = require('../../utils/設定/設定マネージャ');
         const config = await loadConfig(interaction.guild.id);
