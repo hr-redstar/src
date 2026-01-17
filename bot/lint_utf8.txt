@@ -1,0 +1,52 @@
+﻿node.exe : 
+発生場所 行:1 文字:1
++ & "C:\Program Files\
+nodejs/node.exe" "C:\P
+rogram Files\nodejs/no
+de_mo ...
++ ~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~
+    + CategoryInfo    
+          : NotSpeci  
+  fied: (:String) [   
+ ], RemoteExceptio    
+n
+    + FullyQualifiedE 
+   rrorId : NativeCo  
+  mmandError
+ 
+Oops! Something went w
+rong! :(
+
+ESLint: 9.39.2
+
+ESLint couldn't find a
+n eslint.config.(js|mj
+s|cjs) file.
+
+From ESLint v9.0.0, th
+e default configuratio
+n file is now eslint.c
+onfig.js.
+If you are using a .es
+lintrc.* file, please 
+follow the migration g
+uide
+to update your configu
+ration file to the new
+ format:
+
+https://eslint.org/doc
+s/latest/use/configure
+/migration-guide
+
+If you still have prob
+lems after following t
+he migration guide, pl
+ease stop by
+https://eslint.org/cha
+t/help to chat with th
+e team.
+
