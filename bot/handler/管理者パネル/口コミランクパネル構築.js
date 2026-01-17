@@ -8,22 +8,33 @@ function buildRatingRankPanelMessage(guild) {
     )
     .setColor(0xffd700);
 
-  const row = new ActionRowBuilder().addComponents(
+  const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('adm|rating_check|sub=start')
       .setLabel('📊 口コミ確認')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
+      .setCustomId('adm|history|sub=start')
+      .setLabel('📜 履歴表示')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId('adm|stats|sub=start')
+      .setLabel('📈 統計ダッシュボード')
+      .setStyle(ButtonStyle.Primary)
+  );
+
+  const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
       .setCustomId('adm|rank_tiers|sub=start')
-      .setLabel('🏷️ ランク階級登録')
+      .setLabel('🏷️ ランク階級設定')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId('adm|rank_set|sub=start')
-      .setLabel('⚙️ ランク設定')
-      .setStyle(ButtonStyle.Success)
+      .setLabel('⚙️ 個別ランク付与')
+      .setStyle(ButtonStyle.Secondary)
   );
 
-  return { embeds: [embed], components: [row] };
+  return { embeds: [embed], components: [row1, row2] };
 }
 
 module.exports = { buildRatingRankPanelMessage };

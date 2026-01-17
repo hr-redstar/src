@@ -260,10 +260,59 @@ async function execute(interaction, parsed) {
         const { updateUserCheckPanel } = require('./ユーザー確認パネル');
         await updateUserCheckPanel(interaction.guild, interaction.client).catch(() => null);
 
-        await interaction.editReply({ content: '✅ 送迎者登録が完了しました！' });
+        // --- NEW: 履歴まとめ期間の選択を促す ---
+        const { StringSelectMenuBuilder } = require('discord.js');
+        const policyMenu = new StringSelectMenuBuilder()
+          .setCustomId(`reg|driver|sub=policy&uid=${userId}`)
+          .setPlaceholder('履歴まとめ期間を選択（推奨: 1週間）')
+          .addOptions([
+            { label: '1週間ごとにまとめる (推奨)', value: '1w', description: '月曜〜日曜の1週間分を1つのスレッドにアーカイブ' },
+            { label: '2週間ごとにまとめる', value: '2w' },
+            { label: '1ヶ月ごとにまとめる', value: '1m' },
+            { label: '半年ごとにまとめる', value: '6m' },
+            { label: 'まとめない (毎回新規作成)', value: 'none' },
+          ]);
+
+        const policyRow = new ActionRowBuilder().addComponents(policyMenu);
+
+        await interaction.editReply({
+          content: '✅ 送迎者基本情報の登録が完了しました！\n最後に、**履歴（メモ）のまとめ期間**を選択してください。',
+          components: [policyRow],
+        });
       },
     });
   }
+
+  // --- NEW: 期間選択ハンドラ ---
+  if (sub === 'policy') {
+    return interactionTemplate(interaction, {
+      ack: ACK.UPDATE,
+      async run(interaction) {
+        const policy = interaction.values[0];
+        const userId = parsed?.params?.uid || interaction.user.id;
+        const { loadDriverFull, saveDriver } = require('../../utils/driversStore');
+
+        const driverData = await loadDriverFull(interaction.guildId, userId);
+        if (driverData) {
+          driverData.threadPolicy = {
+            enabled: policy !== 'none',
+            period: policy === 'none' ? null : policy,
+          };
+          await saveDriver(interaction.guildId, userId, driverData);
+        }
+
+        await interaction.editReply({
+          content: `✅ 設定を完了しました！\n期間設定: **${getPolicyLabel(policy)}**\nこれですべての登録が完了です。`,
+          components: [],
+        });
+      }
+    });
+  }
+}
+
+function getPolicyLabel(p) {
+  const labels = { '1w': '1週間', '2w': '2週間', '1m': '1ヶ月', '6m': '半年', 'none': 'なし' };
+  return labels[p] || p;
 }
 
 module.exports = { CID, buildDriverRegPanelMessage, execute };

@@ -23,6 +23,7 @@ const CID = {
   BTN_PV_CATEGORY: 'adm|cat|type=pv',
   BTN_MEMO_CATEGORY: 'adm|cat|type=memo',
   BTN_GLOBAL_LOG: 'adm|log|type=global',
+  BTN_GLOBAL_THREAD: 'adm|log|type=global_thread',
   BTN_STAFF_LOG: 'adm|log|type=operator',
   BTN_ADMIN_THREAD: 'adm|log|type=thread',
   BTN_CARPOOL_CH: 'adm|carpool|type=ch',
@@ -126,6 +127,8 @@ ${mentionCategory(cats.userMemo)}
 
 **グローバルログ**
 ${mentionChannel(logs.globalChannel)}
+**グローバルログスレッド**
+${mentionChannel(logs.globalLogThread)}
 
 **運営者ログチャンネル**
 ${mentionChannel(logs.operatorChannel)}
@@ -177,6 +180,10 @@ function buildAdminPanelComponents() {
       .setLabel('グローバルログ登録')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
+      .setCustomId(CID.BTN_GLOBAL_THREAD)
+      .setLabel('グローバル用スレッド作成')
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
       .setCustomId(CID.BTN_STAFF_LOG)
       .setLabel('運用者ログ登録')
       .setStyle(ButtonStyle.Success),
@@ -196,15 +203,7 @@ function buildAdminPanelComponents() {
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(CID.BTN_RANK_MANAGE)
-      .setLabel('🏆 口コミランク管理')
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId('adm|history|sub=start')
-      .setLabel('📜 履歴表示')
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId('adm|stats|sub=start')
-      .setLabel('📊 統計ダッシュボード')
+      .setLabel('🏆 評価・統計・履歴')
       .setStyle(ButtonStyle.Secondary)
   );
 
@@ -254,7 +253,7 @@ async function execute(interaction, client, parsed) {
     if (customId === 'adm|rating_check|sub=start')
       return require('./アクション/口コミランク管理/口コミ確認').startFlow(interaction);
     if (parsed.action === 'rating_check' && parsed.params?.sub === 'comments')
-      return require('./アクション/口コミランク管理/口コミ確認').showComments(interaction, parsed.params.uid);
+      return require('./アクション/口コミランク管理/口コミ確認').showComments(interaction, parsed.params.uid, parseInt(parsed.params.page) || 0);
 
     // ランク階級登録
     if (customId === 'adm|rank_tiers|sub=start')
@@ -338,11 +337,37 @@ async function execute(interaction, client, parsed) {
             content = '🛠️ **運営者ログ** の送信先チャンネルを選択してください。';
             row = buildChannelSelect(CID.SEL_STAFF_LOG, 'チャンネルを選択', [ChannelType.GuildText], [cfg.logs.operatorChannel]);
             break;
+          case CID.BTN_GLOBAL_THREAD:
+            try {
+              const gbChId = cfg.logs.globalChannel;
+              if (!gbChId) return interaction.editReply({ content: '❌ 先にグローバルログチャンネルを設定してください。' });
+              const gbCh = await interaction.guild.channels.fetch(gbChId).catch(() => null);
+              if (!gbCh) return interaction.editReply({ content: '❌ グローバルログチャンネルが見つかりません。' });
+
+              const thread = await gbCh.threads.create({
+                name: `グローバルログ ${new Date().getFullYear()}`,
+                autoArchiveDuration: 60,
+              });
+              cfg.logs.globalLogThread = thread.id;
+              await saveConfig(interaction.guildId, cfg);
+              await thread.send({
+                content: `✅ **グローバルログスレッド** が作成されました。\n作成者: <@${interaction.user.id}>`,
+              });
+              await updateAdminPanelMessage(interaction.guild, cfg, client);
+              return interaction.editReply({ content: `✅ スレッド <#${thread.id}> を作成しました。` });
+            } catch (err) {
+              return interaction.editReply({ content: `❌ スレッド作成失敗: ${err.message}` });
+            }
+
           case CID.BTN_ADMIN_THREAD:
             try {
-              const opCh = interaction.channel;
+              const opChId = cfg.logs.operatorChannel;
+              if (!opChId) return interaction.editReply({ content: '❌ 先に運用者ログチャンネルを設定してください。' });
+              const opCh = await interaction.guild.channels.fetch(opChId).catch(() => null);
+              if (!opCh) return interaction.editReply({ content: '❌ 運用者ログチャンネルが見つかりません。' });
+
               const index = cfg.logs.adminLogThreadIndex || 1;
-              const threadName = `管理者ログ ${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${index}`;
+              const threadName = `管理者ログ ${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${index}`;
               const thread = await opCh.threads.create({
                 name: threadName,
                 autoArchiveDuration: 60,

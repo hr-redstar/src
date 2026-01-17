@@ -1,5 +1,6 @@
 const { UserSelectMenuBuilder, StringSelectMenuBuilder, ActionRowBuilder } = require('discord.js');
 const { loadConfig, saveConfig } = require('../../../../utils/設定/設定マネージャ');
+const { postAdminActionLog } = require('../../../../utils/ログ/管理者ログ');
 const autoInteractionTemplate = require('../../../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 
@@ -92,6 +93,14 @@ module.exports = {
         const targetUser = await interaction.guild.members
           .fetch(targetUserId)
           .catch(() => ({ displayName: targetUserId }));
+
+        await postAdminActionLog({
+          guild: interaction.guild,
+          user: interaction.user,
+          title: 'ランク設定更新',
+          description: `ユーザー：<@${targetUserId}>\nランク：**${tierName === 'None' ? 'なし' : tierName}**`,
+        });
+
         await interaction.editReply({
           content: `✅ **${targetUser.displayName}** のランクを **${tierName === 'None' ? '未設定' : tierName}** に更新しました。`,
           components: [],

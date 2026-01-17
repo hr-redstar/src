@@ -47,6 +47,25 @@ async function routeToPanelHandler(interaction, client) {
       if (parsed.action === 'setup' || parsed.action === 'send') {
         return require('./パネル設置/アクション/パネル設置フロー');
       }
+      if (parsed.action === 'select') {
+        const panel = parsed.params?.panel;
+        const map = {
+          admin: './パネル設置/アクション/管理者パネル送信先選択',
+          driver: './パネル設置/アクション/送迎者パネル送信先選択',
+          user: './パネル設置/アクション/利用者パネル送信先選択',
+          driverRegister: './パネル設置/アクション/送迎者登録パネル送信先選択',
+          userRegister: './パネル設置/アクション/利用者登録パネル送信先選択',
+          userCheck: './パネル設置/アクション/ユーザー確認パネル送信先選択',
+          rideList: './パネル設置/アクション/送迎一覧パネル送信先選択',
+          guide: './パネル設置/アクション/案内パネル送信先選択',
+          ratingRank: './パネル設置/アクション/口コミランクパネル送信先選択',
+          carpool: './パネル設置/アクション/相乗りパネル送信先選択',
+          globalLog: './パネル設置/アクション/グローバルログパネル送信先選択',
+          operatorLog: './パネル設置/アクション/運営者ログパネル送信先選択',
+        };
+        const path = map[panel];
+        if (path) return require(path);
+      }
       if (parsed.action === 'check') {
         return require('./パネル設置/アクション/状態確認');
       }

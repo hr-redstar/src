@@ -83,7 +83,7 @@ module.exports = {
 
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
-            .setCustomId(`${CID.BTN_COMMENT_VIEW}&uid=${targetUserId}`)
+            .setCustomId(`${CID.BTN_COMMENT_VIEW}&uid=${targetUserId}&page=0`)
             .setLabel('コメント確認')
             .setStyle(ButtonStyle.Primary)
             .setDisabled(stats.commentCount === 0)
@@ -101,13 +101,18 @@ module.exports = {
   /**
    * コメント一覧を表示
    */
-  async showComments(interaction, targetUserId) {
+  async showComments(interaction, targetUserId, page = 0) {
     return autoInteractionTemplate(interaction, {
       adminOnly: true,
       ack: ACK.REPLY,
       async run(interaction) {
         const guildId = interaction.guildId;
         const stats = await aggregateUserRatings(guildId, targetUserId);
+        const pageSize = 5;
+        const start = page * pageSize;
+        const end = start + pageSize;
+        const comments = stats.comments.slice(start, end);
+        const totalPages = Math.ceil(stats.comments.length / pageSize);
 
         const targetUser = await interaction.guild.members
           .fetch(targetUserId)
@@ -115,23 +120,46 @@ module.exports = {
 
         const embed = new EmbedBuilder()
           .setTitle(`💬 口コミコメント履歴: ${targetUser.displayName}`)
+          .setDescription(`ページ: ${page + 1} / ${totalPages}`)
           .setColor(0x3498db);
 
-        if (stats.comments.length === 0) {
+        if (comments.length === 0) {
           embed.setDescription('寄せられたコメントはありません。');
         } else {
-          const lines = stats.comments.slice(0, 10).map((c) => {
+          const lines = comments.map((c) => {
             const stars = c.stars ? '⭐'.repeat(c.stars) : '💬';
-            const date = c.date.split('T')[0];
+            const date = c.date ? c.date.split('T')[0] : '不明';
             return `**${stars}** (by <@${c.raterId}>) \`${date}\`\n   ┗ "${c.text}"`;
           });
           embed.setDescription(lines.join('\n\n'));
-          if (stats.comments.length > 10) {
-            embed.setFooter({ text: `他 ${stats.comments.length - 10} 件のコメントがあります` });
-          }
         }
 
-        await interaction.editReply({ embeds: [embed] });
+        const buttons = new ActionRowBuilder();
+        if (page > 0) {
+          buttons.addComponents(
+            new ButtonBuilder()
+              .setCustomId(`${CID.BTN_COMMENT_VIEW}&uid=${targetUserId}&page=${page - 1}`)
+              .setLabel('◀️ 前へ')
+              .setStyle(ButtonStyle.Secondary)
+          );
+        }
+        if (end < stats.comments.length) {
+          buttons.addComponents(
+            new ButtonBuilder()
+              .setCustomId(`${CID.BTN_COMMENT_VIEW}&uid=${targetUserId}&page=${page + 1}`)
+              .setLabel('次へ ▶️')
+              .setStyle(ButtonStyle.Secondary)
+          );
+        }
+
+        const components = buttons.components.length > 0 ? [buttons] : [];
+
+        // 既に返信済み（ページ切り替え）なら editReply, 初回なら reply
+        if (interaction.replied || interaction.deferred) {
+          await interaction.editReply({ embeds: [embed], components });
+        } else {
+          await interaction.editReply({ embeds: [embed], components });
+        }
       },
     });
   },

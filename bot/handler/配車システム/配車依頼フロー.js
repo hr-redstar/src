@@ -28,14 +28,20 @@ module.exports = {
         if (step === 'direction') {
           return showDirectionSelection(interaction, type);
         }
+        if (step === 'dest_input') {
+          return showDestInput(interaction, type, direction);
+        }
+        if (step === 'dest_modal') {
+          return handleDestModal(interaction, type, direction);
+        }
         if (step === 'count') {
-          return showCountSelection(interaction, type, direction);
+          return showCountSelection(interaction, type, direction, parsed?.params?.dest);
         }
         if (step === 'confirm') {
-          return showConfirmation(interaction, type, direction, count);
+          return showConfirmation(interaction, type, direction, count, parsed?.params?.dest);
         }
         if (step === 'execute') {
-          return executeDispatch(interaction, type, direction, count);
+          return executeDispatch(interaction, type, direction, count, parsed?.params?.dest);
         }
         if (step === 'heading') {
           return handleHeading(interaction, parsed?.params?.did);
@@ -105,7 +111,7 @@ async function showDirectionSelection(interaction, type) {
     }
     currentRow.addComponents(
       new ButtonBuilder()
-        .setCustomId(`dispatch|order|sub=count&type=${type}&dir=${dir}`)
+        .setCustomId(`dispatch|order|sub=dest_input&type=${type}&dir=${dir}`)
         .setLabel(dir)
         .setStyle(ButtonStyle.Success)
     );
@@ -125,23 +131,25 @@ async function showDirectionSelection(interaction, type) {
 }
 
 /**
- * STEP 3: 人数選択
+ * STEP 2.5: 目的地ボタン表示
  */
-async function showCountSelection(interaction, type, direction) {
+async function showDestInput(interaction, type, direction) {
   const embed = new EmbedBuilder()
-    .setTitle('🚕 配車依頼 - 人数選択')
+    .setTitle('🚕 配車依頼 - 目的地入力')
     .setDescription(
-      `種別: **${type === 'cast' ? 'キャスト' : 'ゲスト'}**\n方面: **${direction}**\n\n乗車人数を選択してください。`
+      `種別: **${type === 'cast' ? 'キャスト' : 'ゲスト'}**\n方面: **${direction}**\n\n具体的な目的地を入力してください（任意）。\n※入力が難しい場合は、そのままボタンを押して「次へ」進めます。`
     )
     .setColor(0x0099ff);
 
   const row = new ActionRowBuilder().addComponents(
-    [1, 2, 3, 4, 5].map((n) =>
-      new ButtonBuilder()
-        .setCustomId(`dispatch|order|sub=confirm&type=${type}&dir=${direction}&cnt=${n}`)
-        .setLabel(`${n}人`)
-        .setStyle(ButtonStyle.Primary)
-    )
+    new ButtonBuilder()
+      .setCustomId(`dispatch|order|sub=dest_modal_trigger&type=${type}&dir=${direction}`)
+      .setLabel('🎯 目的地を入力する')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId(`dispatch|order|sub=count&type=${type}&dir=${direction}&dest=`)
+      .setLabel('スキップして次へ')
+      .setStyle(ButtonStyle.Secondary)
   );
 
   const navRow = new ActionRowBuilder().addComponents(
@@ -155,23 +163,81 @@ async function showCountSelection(interaction, type, direction) {
 }
 
 /**
+ * MODAL TRIGGER (Modal logic is usually outside autoInteractionTemplate for showing, but handle inside)
+ */
+async function handleDestModalTrigger(interaction, type, direction) {
+  const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+  const modal = new ModalBuilder()
+    .setCustomId(`dispatch|order|sub=dest_modal&type=${type}&dir=${direction}`)
+    .setTitle('目的地入力');
+
+  const destInp = new TextInputBuilder()
+    .setCustomId('dest')
+    .setLabel('具体的な目的地 (任意)')
+    .setPlaceholder('例: 〇〇ホテル、△△交差点')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(false);
+
+  modal.addComponents(new ActionRowBuilder().addComponents(destInp));
+  await interaction.showModal(modal);
+}
+
+/**
+ * STEP 2.6: 目的地モーダル受付
+ */
+async function handleDestModal(interaction, type, direction) {
+  const dest = interaction.fields.getTextInputValue('dest') || '';
+  return showCountSelection(interaction, type, direction, dest);
+}
+
+/**
+ * STEP 3: 人数選択
+ */
+async function showCountSelection(interaction, type, direction, dest) {
+  const embed = new EmbedBuilder()
+    .setTitle('🚕 配車依頼 - 人数選択')
+    .setDescription(
+      `種別: **${type === 'cast' ? 'キャスト' : 'ゲスト'}**\n方面: **${direction}**\n目的地: **${dest || '(未入力)'}**\n\n乗車人数を選択してください。`
+    )
+    .setColor(0x0099ff);
+
+  const row = new ActionRowBuilder().addComponents(
+    [1, 2, 3, 4, 5].map((n) =>
+      new ButtonBuilder()
+        .setCustomId(`dispatch|order|sub=confirm&type=${type}&dir=${direction}&dest=${dest}&cnt=${n}`)
+        .setLabel(`${n}人`)
+        .setStyle(ButtonStyle.Primary)
+    )
+  );
+
+  const navRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`dispatch|order|sub=dest_input&type=${type}&dir=${direction}`)
+      .setLabel('← 戻る')
+      .setStyle(ButtonStyle.Danger)
+  );
+
+  await interaction.editReply({ embeds: [embed], components: [row, navRow] });
+}
+
+/**
  * STEP 4: 最終確認
  */
-async function showConfirmation(interaction, type, direction, count) {
+async function showConfirmation(interaction, type, direction, count, dest) {
   const embed = new EmbedBuilder()
     .setTitle('🚕 配車依頼 - 最終確認')
     .setDescription(
-      `以下の内容で配車を依頼します。よろしいですか？\n\n・種別: **${type === 'cast' ? 'キャスト' : 'ゲスト'}**\n・方面: **${direction}**\n・人数: **${count}人**`
+      `以下の内容で配車を依頼します。よろしいですか？\n\n・種別: **${type === 'cast' ? 'キャスト' : 'ゲスト'}**\n・方面: **${direction}**\n・目的地: **${dest || '(未入力)'}**\n・人数: **${count}人**`
     )
     .setColor(0xffff00);
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId(`dispatch|order|sub=execute&type=${type}&dir=${direction}&cnt=${count}`)
+      .setCustomId(`dispatch|order|sub=execute&type=${type}&dir=${direction}&dest=${dest}&cnt=${count}`)
       .setLabel('配車を確定する')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
-      .setCustomId(`dispatch|order|sub=count&type=${type}&dir=${direction}`)
+      .setCustomId(`dispatch|order|sub=count&type=${type}&dir=${direction}&dest=${dest}`)
       .setLabel('やり直す')
       .setStyle(ButtonStyle.Danger)
   );
@@ -182,7 +248,7 @@ async function showConfirmation(interaction, type, direction, count) {
 /**
  * STEP 5: 実行（マッチングロジック呼び出し）
  */
-async function executeDispatch(interaction, type, direction, count) {
+async function executeDispatch(interaction, type, direction, count, dest) {
   // ここでFIFO先頭ドライバーを取得し、マッチング処理を行う
   const { popNextDriver } = require('../../utils/配車/待機列マネージャ');
   const driver = await popNextDriver(interaction.guildId);
@@ -206,7 +272,7 @@ async function executeDispatch(interaction, type, direction, count) {
     driver,
     passenger: interaction.user,
     type,
-    direction,
+    direction: dest ? `${direction} / ${dest}` : direction,
     count,
   });
 
@@ -217,7 +283,7 @@ async function executeDispatch(interaction, type, direction, count) {
     )
     .addFields(
       { name: '種別', value: type === 'cast' ? 'キャスト' : 'ゲスト', inline: true },
-      { name: '方面', value: direction, inline: true },
+      { name: '方面/目的地', value: dest ? `${direction} / ${dest}` : direction, inline: true },
       { name: '人数', value: `${count}人`, inline: true }
     )
     .setColor(0x00ff00);
@@ -232,7 +298,8 @@ async function executeDispatch(interaction, type, direction, count) {
       interaction.user,
       direction,
       count,
-      dispatchId
+      dispatchId,
+      dest
     );
   }
 }

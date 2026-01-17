@@ -11,10 +11,11 @@ module.exports = {
       ack: ACK.REPLY,
       async run(interaction) {
         const rideId = parsed?.params?.rid;
+        const direction = parsed?.params?.dir || '不明';
         const userId = interaction.user.id; // 相乗り希望者
         const guildId = interaction.guildId;
 
-        const location = interaction.fields.getTextInputValue('input:carpool:location');
+        const location = interaction.fields.getTextInputValue('input:carpool:location') || '(未入力)';
         const countStr = interaction.fields.getTextInputValue('input:carpool:count');
         const count = parseInt(countStr) || 1;
 
@@ -22,8 +23,8 @@ module.exports = {
         const activePath = `${paths.activeDispatchDir(guildId)}/${rideId}.json`;
         const rideData = await store.readJson(activePath).catch(() => null);
 
-        if (!rideData || rideData.status !== 'dispatching') {
-          await interaction.editReply('❌ この送迎は既に終了しているか、無効です。');
+        if (!rideData) {
+          await interaction.editReply('❌ 送迎データが見つかりませんでした。');
           return;
         }
 
@@ -37,24 +38,24 @@ module.exports = {
         }
 
         const embed = new EmbedBuilder()
-          .setTitle('📢 相乗りリクエスト')
-          .setDescription(`あなたの現在送迎中の便に、相乗り希望が届きました。`)
+          .setTitle('📢 相乗り希望')
+          .setDescription(`【**${direction} / ${location}**】で相乗り希望者がいます。`)
           .addFields(
-            { name: '希望者', value: `<@${userId}>` },
-            { name: '人数', value: `${count}名` },
-            { name: '希望場所', value: location },
+            { name: '希望者', value: `<@${userId}>`, inline: true },
+            { name: '人数', value: `${count}名`, inline: true },
+            { name: '希望場所/目的地', value: location, inline: false },
             {
-              name: 'ルート概要',
+              name: '現在のルート',
               value: `【${rideData.driverPlace || '現在地'}】→【${rideData.mark || '不明'}】→【${rideData.destination}】`,
             }
           )
           .setColor(0xffa500)
-          .setFooter({ text: '※承認すると自動的にVCに追加されます' });
+          .setFooter({ text: '許可を押すと区間選択に進みます' });
 
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
-            .setCustomId(`carpool|approve|rid=${rideId}&uid=${userId}&cnt=${count}`) // 人数も含める
-            .setLabel('承認')
+            .setCustomId(`carpool|join|sub=segment_select&rid=${rideId}&uid=${userId}&cnt=${count}&dir=${direction}&dest=${location}`)
+            .setLabel('許可')
             .setStyle(ButtonStyle.Success),
           new ButtonBuilder()
             .setCustomId(`carpool|reject|rid=${rideId}&uid=${userId}`)

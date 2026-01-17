@@ -6,7 +6,7 @@ const { loadConfig } = require('../設定/設定マネージャ');
  */
 async function postGlobalLog({ guild, embeds, content }) {
   const config = await loadConfig(guild.id);
-  const channelId = config.logs.globalChannel;
+  const channelId = config.logs.globalLogThread || config.logs.globalChannel;
   if (!channelId) return;
 
   const channel =

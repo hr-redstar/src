@@ -1,4 +1,5 @@
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
+const { postAdminActionLog } = require('../../../../utils/ログ/管理者ログ');
 const { loadConfig, saveConfig } = require('../../../../utils/設定/設定マネージャ');
 const autoInteractionTemplate = require('../../../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
@@ -47,6 +48,13 @@ module.exports = {
         config.ranks ??= {};
         config.ranks.tiers = tiers;
         await saveConfig(interaction.guildId, config);
+
+        await postAdminActionLog({
+          guild: interaction.guild,
+          user: interaction.user,
+          title: 'ランク階級設定更新',
+          description: `登録された階級：\n${tiers.join(', ')}`,
+        });
 
         await interaction.editReply({
           content: `✅ ランク階級を登録しました（${tiers.length}階級）。\n\`${tiers.join(' > ')}\``,

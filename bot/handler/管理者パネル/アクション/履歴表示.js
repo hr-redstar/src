@@ -185,13 +185,15 @@ async function showHistoryResult(interaction) {
       } else {
         results.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
         const lines = results.map((r) => {
-          const time = new Date(r.createdAt).toLocaleTimeString('ja-JP', {
-            hour: '2-digit',
-            minute: '2-digit',
-          });
-          return `\`${time}\` <@${r.driverId}> ➔ <@${r.passengerId}> (${r.direction || '詳細不明'})`;
+          const startTime = new Date(r.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+          const endTime = r.completedAt ? new Date(r.completedAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '未完';
+          const carpoolCount = r.carpoolUsers ? r.carpoolUsers.reduce((sum, u) => sum + (u.count || 1), 0) : 0;
+          const carpoolStr = carpoolCount > 0 ? ` (+相乗り${carpoolCount}名)` : '';
+
+          return `\`${startTime}-${endTime}\` <@${r.driverId}> ➔ <@${r.passengerId}>${carpoolStr}\n   ┗ 🗺️ ${r.route || r.direction || '不明'}`;
         });
-        embed.setDescription(lines.join('\n'));
+        embed.setDescription(lines.join('\n\n'));
+        embed.addFields({ name: '統計', value: `総走行件数: ${results.length}件`, inline: false });
       }
 
       await interaction.editReply({ content: null, embeds: [embed], components: [] });

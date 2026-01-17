@@ -6,7 +6,7 @@ const interactionTemplate = require('../../共通/interactionTemplate');
 const { ACK } = interactionTemplate;
 
 module.exports = {
-  customId: 'ps:select:adminPanelChannel',
+  customId: 'ps|select|panel=admin',
   type: 'channelSelect',
   async execute(interaction) {
     return interactionTemplate(interaction, {

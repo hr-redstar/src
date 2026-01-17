@@ -7,6 +7,8 @@
 } = require('discord.js');
 const store = require('../../../utils/ストレージ/ストア共通');
 const interactionTemplate = require('../../共通/interactionTemplate');
+const { loadConfig } = require('../../../utils/設定/設定マネージャ');
+const { getRatingSummary } = require('../../../utils/ratingsStore');
 const { ACK } = interactionTemplate;
 
 module.exports = {
@@ -49,12 +51,30 @@ module.exports = {
             )
           );
         } else {
+          const config = await loadConfig(guildId);
+          const userRanks = config.ranks?.userRanks || {};
+
           let desc = '';
           if (userProfile) {
-            desc += `**【👤 利用者】**\n座席名/ニックネーム: \`${userProfile.name}\`\n送迎目印: \`${userProfile.mark}\`\n\n`;
+            const rank = userRanks[userId] || '設定なし';
+            const rating = await getRatingSummary(guildId, userId, 'user');
+            const stars = rating?.average ? '⭐'.repeat(Math.round(rating.average)) + ` (${rating.average})` : '未評価';
+
+            desc += `**【👤 利用者情報】**\n`;
+            desc += `ニックネーム: \`${userProfile.name}\`\n`;
+            desc += `ランク: \`${rank}\` / 評価: ${stars}\n`;
+            desc += `送迎目印: \`${userProfile.mark}\`\n\n`;
           }
           if (driverProfile) {
-            desc += `**【🛠 送迎者】**\nニックネーム: \`${driverProfile.nickname}\`\n待機場所: \`${driverProfile.stopPlace}\`\n乗車人数: \`${driverProfile.capacity}\`名\n`;
+            const rank = userRanks[userId] || '設定なし';
+            const rating = await getRatingSummary(guildId, userId, 'driver');
+            const stars = rating?.average ? '⭐'.repeat(Math.round(rating.average)) + ` (${rating.average})` : '未評価';
+
+            desc += `**【🚗 送迎者情報】**\n`;
+            desc += `ニックネーム: \`${driverProfile.nickname}\`\n`;
+            desc += `ランク: \`${rank}\` / 評価: ${stars}\n`;
+            desc += `待機場所: \`${driverProfile.stopPlace || driverProfile.stop}\`\n`;
+            desc += `乗車定員: \`${driverProfile.capacity}\`名\n`;
           }
           embed.setDescription(desc);
         }

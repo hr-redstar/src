@@ -6,7 +6,7 @@ const paths = require('../../utils/ストレージ/ストレージパス');
 /**
  * 相乗り募集の自動発動判定と送信
  */
-async function handleCarpoolRecruitment(guild, leadUser, direction, count, dispatchId) {
+async function handleCarpoolRecruitment(guild, leadUser, direction, count, dispatchId, dest) {
   const config = await loadConfig(guild.id);
   const carpoolChId = config.rideShareChannel;
   if (!carpoolChId) return;
@@ -22,8 +22,8 @@ async function handleCarpoolRecruitment(guild, leadUser, direction, count, dispa
   const carpoolData = {
     rideId,
     leadUserId: leadUser.id,
-    dispatchId, // 紐付け
-    direction,
+    dispatchId,
+    direction: dest ? `${direction} / ${dest}` : direction,
     currentUsers: [{ userId: leadUser.id, count: parseInt(count) }],
     status: 'recruiting',
     createdAt: new Date().toISOString(),
@@ -34,9 +34,9 @@ async function handleCarpoolRecruitment(guild, leadUser, direction, count, dispa
 
   const embed = new EmbedBuilder()
     .setTitle('📢 相乗り募集')
-    .setDescription(`現在、**${direction}** 行きの便が手配されました。`)
+    .setDescription(`現在、**${dest ? `${direction} / ${dest}` : direction}** 行きの便が手配されました。`)
     .addFields(
-      { name: '方面', value: direction, inline: true },
+      { name: '方面/目的地', value: dest ? `${direction} / ${dest}` : direction, inline: true },
       { name: '先発店舗', value: leadUser.username, inline: true },
       { name: '現在の乗員', value: `<@${leadUser.id}> (${count}名)`, inline: false },
       {

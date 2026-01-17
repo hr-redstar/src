@@ -7,7 +7,7 @@ const { updateRideListPanel } = require('../../送迎処理/一覧パネル更�
 const { MessageFlags } = require('discord.js');
 
 module.exports = {
-  customId: 'ps:select:rideListPanelChannel',
+  customId: 'ps|select|panel=rideList',
   type: 'channelSelect',
   async execute(interaction) {
     return interactionTemplate(interaction, {

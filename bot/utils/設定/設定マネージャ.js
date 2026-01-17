@@ -19,6 +19,7 @@ function normalizeConfig(cfg = {}) {
       ratingRank: { messageId: null, channelId: null },
       carpoolPanel: { messageId: null, channelId: null },
       globalLog: { messageId: null, channelId: null },
+      globalLogThread: { messageId: null, channelId: null },
       operatorLog: { messageId: null, channelId: null },
     },
     roles: {
@@ -35,6 +36,7 @@ function normalizeConfig(cfg = {}) {
     },
     logs: {
       globalChannel: null,
+      globalLogThread: null,
       operatorChannel: null,
       adminLogThread: null,
       adminLogThreadIndex: 1,
