@@ -17,7 +17,7 @@ const { updateDriverPanel } = require('../../送迎パネル/メイン');
 const interactionTemplate = require('../../共通/interactionTemplate');
 const { ACK } = interactionTemplate;
 
-module.exports = async function (interaction) {
+module.exports = async function (interaction, client, parsed) {
   return interactionTemplate(interaction, {
     ack: ACK.REPLY,
     async run(interaction) {
@@ -29,6 +29,9 @@ module.exports = async function (interaction) {
       const address = interaction.fields.getTextInputValue('input|ride|address');
       const mark = interaction.fields.getTextInputValue('input|ride|mark');
       const destination = interaction.fields.getTextInputValue('input|ride|to');
+
+      const sub = parsed?.params?.sub;
+      const rideId = `${Date.now()}_${userId}`;
 
       // ゲストモード判定
       const isGuest = sub === 'guest_modal';
@@ -65,9 +68,8 @@ module.exports = async function (interaction) {
         const minutes = String(now.getMinutes()).padStart(2, '0');
         const timeStr = `${hours}${minutes}`;
 
-        // フォーマット: 月/日 開始時間-終了時間【送迎者現在地】→【目印】→【目的地】
-        // 終了時間は後で更新されるため、初期値は空白またはプレースホルダー
-        const channelName = `${dateStr} ${timeStr}-【${driverPlace}】→【${mark}】→【${destination}】`;
+        // フォーマット: 月/日 HH:mm~--:-- 【送迎者現在地】→【目印】→【目的地】
+        const channelName = `${dateStr} ${hours}:${minutes}~--:-- 【${driverPlace}】→【${mark}】→【${destination}】`;
 
         try {
           vcChannel = await guild.channels.create({
@@ -111,43 +113,38 @@ module.exports = async function (interaction) {
               ButtonBuilder,
               ButtonStyle,
             } = require('discord.js');
-            const routeInfo = `【${driverPlace}】→【${mark}】→【${destination}】`;
-            const month = now.getMonth() + 1;
-            const day = now.getDate();
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const timeStr = `${hours}${minutes}`;
-            const displayTime = `${month}/${day} ${timeStr}-`;
-
+            const matchTime = `${hours}:${minutes}`;
             const controlEmbed = new EmbedBuilder()
-              .setTitle(routeInfo)
+              .setTitle(channelName.substring(0, 256))
               .setDescription(
-                `${displayTime}\n` +
-                `送迎者：送迎開始時間：未 ｜ 送迎終了時間：未\n` +
-                `利用者：送迎開始時間：未 ｜ 送迎終了時間：未`
+                `送迎者：<@${driverId}>　利用者：<@${userId}>\n` +
+                `マッチング時間：${matchTime}　向かっています：--:--\n\n` +
+                `送迎者　送迎開始時間：--:-- ｜ 送迎終了時間：--:--\n` +
+                `利用者　送迎開始時間：--:-- ｜ 送迎終了時間：--:--`
               )
               .setColor(0x3498db)
               .setTimestamp();
 
             const controlButtons = new ActionRowBuilder().addComponents(
               new ButtonBuilder()
-                .setCustomId(`ride:enroute:${rideId}`)
+                .setCustomId(`ride|approach|rid=${rideId}`)
                 .setLabel('向かっています')
                 .setStyle(ButtonStyle.Secondary)
                 .setEmoji('🚗'),
               new ButtonBuilder()
-                .setCustomId(`ride:start:${rideId}`)
+                .setCustomId(`ride|start|rid=${rideId}`)
                 .setLabel('送迎開始')
                 .setStyle(ButtonStyle.Success)
                 .setEmoji('🚀'),
               new ButtonBuilder()
-                .setCustomId(`ride:complete:${rideId}`)
+                .setCustomId(`ride|end|rid=${rideId}`)
                 .setLabel('送迎終了')
                 .setStyle(ButtonStyle.Primary)
                 .setEmoji('✅')
             );
 
-            await vcChannel.send({ embeds: [controlEmbed], components: [controlButtons] });
+            const ctrlMsg = await vcChannel.send({ embeds: [controlEmbed], components: [controlButtons] });
+            dispatchData.vcMessageId = ctrlMsg.id;
 
             // 利用中一覧に登録
             const userInUsePath = paths.userInUseListJson(guildId);
@@ -218,8 +215,6 @@ module.exports = async function (interaction) {
         }
       }
 
-      // rideId を定義（VC作成前に移動）
-      const rideId = `${Date.now()}_${userId}`;
 
       // 3. 送迎ステータス保存 (Active Dispatch)
       const dispatchData = {
@@ -232,11 +227,19 @@ module.exports = async function (interaction) {
         destination: destination, // to
         status: 'dispatching', // 配車済
         vcId: vcChannel ? vcChannel.id : null,
+        vcMessageId: null, // あとで保存
+        matchTime: `${hours}:${minutes}`,
         startedAt: new Date().toISOString(),
         guest: isGuest,
       };
 
       const activePath = `${paths.activeDispatchDir(guildId)}/${rideId}.json`;
+
+      // 送信したメッセージIDを保存
+      if (vcChannel) {
+        // 先程送信したメッセージを取得する必要があるが、vcChannel.send の戻り値を使う
+        // run関数の構造上、メッセージ送信後にIDを取得して保存する
+      }
       await store.writeJson(activePath, dispatchData);
 
       // 相乗り募集開始 (非同期で実行)

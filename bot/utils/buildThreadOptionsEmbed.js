@@ -14,21 +14,21 @@ function buildThreadOptionsEmbed() {
     .setTitle('📁 履歴メモの整理（スレッド化）について')
     .setDescription(
       '登録情報の履歴が増えた場合、\n' +
-        'このメモチャンネルを見やすく保つため\n' +
-        '履歴をスレッドにまとめることができます。\n\n' +
-        '**■ 選択可能な期間**\n' +
-        '・1週間\n' +
-        '・2週間\n' +
-        '・1か月\n' +
-        '・半年\n\n' +
-        '※ 選択がない場合、スレッドは作成されません\n' +
-        '※ この設定は再登録時に変更可能です'
+      'このメモチャンネルを見やすく保つため\n' +
+      '履歴をスレッドにまとめることができます。\n\n' +
+      '**■ 選択可能な期間**\n' +
+      '・1週間\n' +
+      '・2週間\n' +
+      '・1か月\n' +
+      '・半年\n\n' +
+      '※ 選択がない場合、スレッドは作成されません\n' +
+      '※ この設定は再登録時に変更可能です'
     )
     .setColor(0x95a5a6)
     .setFooter({ text: '設定は登録時の選択内容に基づいて自動処理されます' });
 
   const selectMenu = new StringSelectMenuBuilder()
-    .setCustomId('memo:threadpolicy:select')
+    .setCustomId('memo|threadpolicy|sub=select')
     .setPlaceholder('スレッド作成期間を選択（任意）')
     .addOptions(
       new StringSelectMenuOptionBuilder()

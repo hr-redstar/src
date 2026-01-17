@@ -41,24 +41,17 @@ module.exports = async function handleRideEnroute(interaction, rideId) {
     });
 
     // Embed更新
-    const currentEmbed = interaction.message.embeds[0];
-    const newEmbed = EmbedBuilder.from(currentEmbed);
-
-    // Description内の「**向かっています**：--:--」を置換
-    let desc = newEmbed.data.description;
-    desc = desc.replace(/\*\*向かっています\*\*：--:--/, `**向かっています**：${timeStr}`);
-    newEmbed.setDescription(desc);
+    const { buildVcControlEmbed } = require('../../utils/配車/vcControlEmbedBuilder');
+    const newEmbed = buildVcControlEmbed(dispatchData);
 
     // ボタン更新 (向かっていますボタンのみ無効化)
     const currentComponents = interaction.message.components;
     const newComponents = currentComponents.map((row) => {
-      const newRow = new ActionRowBuilder();
-      row.components.forEach((component) => {
-        const btn = ButtonBuilder.from(component);
-        if (btn.data.custom_id === interaction.customId) {
-          btn.setDisabled(true);
+      const newRow = ActionRowBuilder.from(row);
+      newRow.components.forEach((component) => {
+        if (component.customId === interaction.customId) {
+          component.setDisabled(true);
         }
-        newRow.addComponents(btn);
       });
       return newRow;
     });

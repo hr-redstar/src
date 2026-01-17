@@ -7,7 +7,7 @@ const paths = require('../../utils/ストレージ/ストレージパス');
 
 /**
  * VC操作ルーター
- * カスタムID形式: vc:btn:action:rideId
+ * カスタムID形式: ride|action|rid=rideId
  */
 module.exports = async function (interaction, parsed) {
   const action = parsed?.action;

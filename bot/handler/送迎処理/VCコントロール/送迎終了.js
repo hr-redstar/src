@@ -29,10 +29,11 @@ module.exports = async function handleRideComplete(interaction, rideId) {
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     const isDriver = interaction.user.id === dispatchData.driverId;
     const isUser = interaction.user.id === dispatchData.userId;
+    const carpoolIndex = (dispatchData.carpoolUsers || []).findIndex(u => u.userId === interaction.user.id);
 
-    if (!isDriver && !isUser) {
+    if (!isDriver && !isUser && carpoolIndex === -1) {
       return interaction.followUp({
-        content: '⚠️ 送迎者または利用者のみが操作できます。',
+        content: '⚠️ この送迎の関係者のみが操作できます。',
         ephemeral: true,
       });
     }
@@ -42,79 +43,54 @@ module.exports = async function handleRideComplete(interaction, rideId) {
       if (dispatchData.driverEndTime)
         return interaction.followUp({ content: '⚠️ 既に終了済みです。', ephemeral: true });
       dispatchData.driverEndTime = timeStr;
-      await interaction.channel.send(`※送迎終了：送迎者 <@${interaction.user.id}>`);
-    } else {
+      await interaction.channel.send(`※送迎終了：送迎者 <@${interaction.user.id}> (${timeStr})`);
+    } else if (isUser) {
       if (dispatchData.userEndTime)
         return interaction.followUp({ content: '⚠️ 既に終了済みです。', ephemeral: true });
       dispatchData.userEndTime = timeStr;
-      await interaction.channel.send(`※送迎終了：利用者 <@${interaction.user.id}>`);
+      await interaction.channel.send(`※送迎終了：利用者 <@${interaction.user.id}> (${timeStr})`);
+    } else {
+      // 相乗り者
+      if (dispatchData.carpoolUsers[carpoolIndex].endTime)
+        return interaction.followUp({ content: '⚠️ 既に終了済みです。', ephemeral: true });
+      dispatchData.carpoolUsers[carpoolIndex].endTime = timeStr;
+      await interaction.channel.send(`※送迎終了：相乗り者${carpoolIndex + 1} <@${interaction.user.id}> (${timeStr})`);
     }
 
-    // 両方が終了を押したか確認
-    const isFinished = dispatchData.driverEndTime && dispatchData.userEndTime;
+    // 全員が終了を押したか確認
+    const allCarpoolFinished = (dispatchData.carpoolUsers || []).every(u => u.endTime);
+    const isFinished = dispatchData.driverEndTime && dispatchData.userEndTime && allCarpoolFinished;
 
-    // データを保存 (statusはまだ active のまま、完全に終わったら削除される)
+    // データを保存
     if (isFinished) {
       dispatchData.completedAt = now.toISOString();
       dispatchData.status = 'completed';
     }
     await store.writeJson(activePath, dispatchData);
 
-    // Embed更新 (Fields)
-    const currentEmbed = interaction.message.embeds[0];
-    const newEmbed = EmbedBuilder.from(currentEmbed);
-    const fields = newEmbed.data.fields || [];
-
-    if (isDriver) {
-      if (fields[0])
-        fields[0].value = fields[0].value.replace(
-          /送迎終了時間：--:--/,
-          `送迎終了時間：${timeStr}`
-        );
-    } else {
-      if (fields[1])
-        fields[1].value = fields[1].value.replace(
-          /送迎終了時間：--:--/,
-          `送迎終了時間：${timeStr}`
-        );
-    }
-
-    if (isFinished) {
-      // タイトル更新: "送迎終了" を追加したりする？ 仕様には明確なEmbed更新指示はないが
-      // "embed更新 タイトル：VC名 を" -> "VC名：...~終了時間..." に更新する指示がある
-      // ここではEmbed内のタイトルも更新しておく
-      // VC名更新ロジックは後述
-      newEmbed.setTitle(newEmbed.data.title.replace(/--:--$/, timeStr)); // タイトルがVC名と同じ前提
-      newEmbed.setDescription(
-        newEmbed.data.description.replace(
-          '**向かっています**',
-          '✅ **送迎終了しました**\n**向かっています**'
-        )
-      );
-      newEmbed.setColor(0x95a5a6); // Gray
-    }
-    newEmbed.setFields(fields);
+    // Embed更新
+    const { buildVcControlEmbed } = require('../../utils/配車/vcControlEmbedBuilder');
+    const newEmbed = buildVcControlEmbed(dispatchData);
 
     // ボタン更新
     const currentComponents = interaction.message.components;
     let newComponents = currentComponents.map((row) => {
-      const newRow = new ActionRowBuilder();
-      row.components.forEach((component) => {
-        const btn = ButtonBuilder.from(component);
-        if (btn.data.custom_id === interaction.customId) {
-          let label = btn.data.label;
+      const newRow = ActionRowBuilder.from(row);
+      newRow.components.forEach((component) => {
+        if (component.customId === interaction.customId) {
+          let label = component.label;
           if (isDriver && !label.includes('送迎者済')) label += '(送迎者済)';
           if (isUser && !label.includes('利用者済')) label += '(利用者済)';
-          btn.setLabel(label);
+          if (carpoolIndex >= 0 && !label.includes(`相乗り${carpoolIndex + 1}済`)) {
+            label += `(相乗り${carpoolIndex + 1}済)`;
+          }
+          component.setLabel(label);
 
-          if (label.includes('送迎者済') && label.includes('利用者済')) {
-            btn.setDisabled(true);
-            btn.setStyle(ButtonStyle.Secondary);
+          if (isFinished) {
+            component.setDisabled(true);
+            component.setStyle(ButtonStyle.Secondary);
           }
         }
-        // もし完了したら全ボタン無効化するか？ -> Start/Approachは既に無効化されているはずだが
-        // 安全のため完了時は全て無効化しても良いが、個別制御しているのでそのまま
-        newRow.addComponents(btn);
       });
       return newRow;
     });
@@ -122,12 +98,10 @@ module.exports = async function handleRideComplete(interaction, rideId) {
     if (isFinished) {
       // 完了時は全ボタン無効化
       newComponents = newComponents.map((row) => {
-        const newRow = new ActionRowBuilder();
-        row.components.forEach((component) => {
-          const btn = ButtonBuilder.from(component);
-          btn.setDisabled(true);
-          btn.setStyle(ButtonStyle.Secondary);
-          newRow.addComponents(btn);
+        const newRow = ActionRowBuilder.from(row);
+        newRow.components.forEach((component) => {
+          component.setDisabled(true);
+          component.setStyle(ButtonStyle.Secondary);
         });
         return newRow;
       });
@@ -235,15 +209,15 @@ module.exports = async function handleRideComplete(interaction, rideId) {
       .setTitle('送迎終了しました')
       .setDescription(
         '落とし物などのトラブルが無ければ、\n' +
-          '1週間でこのvcチャンネルは削除されます。\n\n' +
-          '※トラブルがあった場合は、\n' +
-          '削除延長を押して下さい。'
+        '1週間でこのvcチャンネルは削除されます。\n\n' +
+        '※トラブルがあった場合は、\n' +
+        '削除延長を押して下さい。'
       )
       .setColor(0xe74c3c); // Red
 
     const completionRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId('ride|extend') // rideId不要 (VC依存)
+        .setCustomId('ride|control|sub=extend') // rideId不要 (VC依存)
         .setLabel('削除延長')
         .setStyle(ButtonStyle.Danger)
     );

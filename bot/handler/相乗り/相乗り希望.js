@@ -124,7 +124,7 @@ async function showDestInput(interaction, rideId, direction) {
       .setLabel('🎯 目的地を入力する')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
-      .setCustomId(`carpool|join|sub=modal_trigger&rid=${rideId}&dir=${direction}&dest=`) // 既存のモーダル(人数)へ
+      .setCustomId(`carpool|join|sub=dest_modal_trigger&rid=${rideId}&dir=${direction}&dest=`) // 既存のモーダル(人数)へ
       .setLabel('スキップして次へ')
       .setStyle(ButtonStyle.Secondary)
   );

@@ -67,15 +67,29 @@ module.exports = {
                 await store.writeJson(activePath, rideData);
 
                 // プライベートVCの埋め込み更新
-                const vcChannel = await guild.channels.fetch(rideData.channelId).catch(() => null);
+                const vcChannel = await guild.channels.fetch(rideData.vcId).catch(() => null);
                 if (vcChannel) {
-                    const vcMsg = await vcChannel.messages.fetch(rideData.initialMessageId).catch(() => null);
-                    if (vcMsg) {
-                        const embed = EmbedBuilder.from(vcMsg.embeds[0]);
-                        embed.spliceFields(0, 1, { name: 'ルート', value: newRoute, inline: false });
-                        await vcMsg.edit({ embeds: [embed] });
-                        await vcChannel.send(`➕ <@${userId}> 様の相乗りが承認されました！\nルートが更新されました：${newRoute}`);
+                    const msgId = rideData.vcMessageId;
+                    if (msgId) {
+                        const vcMsg = await vcChannel.messages.fetch(msgId).catch(() => null);
+                        if (vcMsg) {
+                            const { buildVcControlEmbed } = require('../../utils/配車/vcControlEmbedBuilder');
+                            const newEmbed = buildVcControlEmbed(rideData);
+                            await vcMsg.edit({ embeds: [newEmbed] });
+                        }
                     }
+                    await vcChannel.send(`➕ <@${userId}> 様の相乗りが承認されました！\nルートが更新されました：${newRoute}`);
+
+                    // VC名の更新 (ルートが変わったため)
+                    // 仕様: 月日 マッチング時間~送迎終了時間【送迎者現在地】→【目印】→【目的地】
+                    // 終了時間は --:-- のまま
+                    const now = new Date();
+                    const month = now.getMonth() + 1;
+                    const day = now.getDate();
+                    const dateStr = `${month}/${day}`;
+                    const timeStr = rideData.matchTime || '--:--';
+                    const newChannelName = `${dateStr} ${timeStr}~--:-- ${newRoute}`;
+                    await vcChannel.setName(newChannelName.substring(0, 100)).catch(() => null);
                 }
 
                 // 利用中一覧に追加

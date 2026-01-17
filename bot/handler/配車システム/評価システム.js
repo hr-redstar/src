@@ -36,38 +36,50 @@ async function sendRatingDM(guild, dispatchData) {
   } = dispatchData;
 
   const dateObj = new Date(completedAt || createdAt || Date.now());
-  const dateStr = dateObj.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const d = String(dateObj.getDate()).padStart(2, '0');
+  const dateStr = `${y}年${m}月${d}日`;
 
   // ルート詳細 (仕様 #16 準拠)
-  // 実際には dispatchData に個別の項目がないため、route や direction から推測するか
-  // route が "出発点→目印→目的地" の形式であることを前提とする
-  const routeDisplay = route || `${direction} (直行)`;
+  const routeDisplay = route || `【${driverPlace || '不明'}】→【${mark || '不明'}】→【${destination || '不明'}】`;
 
   // 時間経過 (向かってます時間～送迎開始時間～送迎終了時間)
-  const headingT = headingAt ? new Date(headingAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+  const headT = approachTime || '--:--';
   const startT = driverStartTime || userStartTime || '--:--';
   const endT = driverEndTime || userEndTime || '--:--';
-  const timeline = `${headingT} ～ ${startT} ～ ${endT}`;
+  const timeline = `${headT} ～ ${startT} ～ ${endT}`;
 
-  const passenger = await guild.client.users.fetch(passengerId).catch(() => null);
+  const passenger = await guild.client.users.fetch(userId || passengerId).catch(() => null);
   const driver = await guild.client.users.fetch(driverId).catch(() => null);
 
   // 利用者へのDM（送迎者を評価）
-  if (passenger) {
+  const sendToPassenger = async (user) => {
+    if (!user) return;
     const embed = new EmbedBuilder()
       .setTitle('送迎者・利用者口コミ評価')
-      .setDescription(`${dateStr}\n『${routeDisplay}』\n${timeline}\n\n今回の送迎員を評価してください。`)
+      .setDescription(`${dateStr}\n『${routeDisplay}』\n${timeline}\n\n今回の送迎者を評価してください。`)
       .setColor(0xffd700);
 
-    await passenger
+    await user
       .send({
         embeds: [embed],
-        components: buildRatingButtons('driver', dispatchId),
+        components: buildRatingButtons('driver', rideId || dispatchId),
       })
       .catch(() => null);
+  };
+
+  await sendToPassenger(passenger);
+
+  // 相乗り者にも評価依頼を送信
+  if (carpoolUsers && carpoolUsers.length > 0) {
+    for (const cp of carpoolUsers) {
+      const cpUser = await guild.client.users.fetch(cp.userId).catch(() => null);
+      await sendToPassenger(cpUser);
+    }
   }
 
-  // 送迎者へのDM（利用者を評価）
+  // 送迎者へのDM（メイン利用者を評価）
   if (driver) {
     const embed = new EmbedBuilder()
       .setTitle('送迎者・利用者口コミ評価')
@@ -77,9 +89,11 @@ async function sendRatingDM(guild, dispatchData) {
     await driver
       .send({
         embeds: [embed],
-        components: buildRatingButtons('user', dispatchId),
+        components: buildRatingButtons('user', rideId || dispatchId),
       })
       .catch(() => null);
+
+    // 余裕があれば相乗り者の評価も送るべきだが、仕様上「利用者」と単数形に近い表記なので、まずはメイン利用者分。
   }
 }
 
