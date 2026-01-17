@@ -1,6 +1,12 @@
-﻿const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
+﻿const {
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  MessageFlags,
+} = require('discord.js');
 const store = require('../../../utils/ストレージ/ストア共通');
-const interactionTemplate = require("../../共通/interactionTemplate");
+const interactionTemplate = require('../../共通/interactionTemplate');
 const { ACK } = interactionTemplate;
 
 module.exports = {
@@ -14,8 +20,12 @@ module.exports = {
         const userId = interaction.user.id;
 
         const paths = require('../../../utils/ストレージ/ストレージパス');
-        const userProfile = await store.readJson(paths.userProfileJson(guildId, userId)).catch(() => null);
-        const driverProfile = await store.readJson(paths.driverProfileJson(guildId, userId)).catch(() => null);
+        const userProfile = await store
+          .readJson(paths.userProfileJson(guildId, userId))
+          .catch(() => null);
+        const driverProfile = await store
+          .readJson(paths.driverProfileJson(guildId, userId))
+          .catch(() => null);
 
         const embed = new EmbedBuilder()
           .setTitle('🔍 登録状態確認')
@@ -28,8 +38,14 @@ module.exports = {
           embed.setDescription('登録情報が見つかりませんでした。先に登録を行ってください。');
           components.push(
             new ActionRowBuilder().addComponents(
-              new ButtonBuilder().setCustomId('user:goto:register').setLabel('利用者登録へ').setStyle(ButtonStyle.Primary),
-              new ButtonBuilder().setCustomId('driver:goto:register').setLabel('送迎者登録へ').setStyle(ButtonStyle.Secondary)
+              new ButtonBuilder()
+                .setCustomId('user:goto:register')
+                .setLabel('利用者登録へ')
+                .setStyle(ButtonStyle.Primary),
+              new ButtonBuilder()
+                .setCustomId('driver:goto:register')
+                .setLabel('送迎者登録へ')
+                .setStyle(ButtonStyle.Secondary)
             )
           );
         } else {
@@ -44,7 +60,7 @@ module.exports = {
         }
 
         await interaction.editReply({ embeds: [embed], components });
-      }
+      },
     });
   },
 };

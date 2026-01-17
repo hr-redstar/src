@@ -19,10 +19,13 @@ async function postAdminActionLog({ guild, user, title, description }) {
   // 1. 管理者用ログスレッドを最優先
   // 2. 運営者ログチャンネル
   // 3. 管理者パネル設置チャンネル
-  const targetChannelId = config.logs?.adminLogThread || config.logs?.operatorChannel || config.panels?.admin?.channelId;
+  const targetChannelId =
+    config.logs?.adminLogThread || config.logs?.operatorChannel || config.panels?.admin?.channelId;
   if (!targetChannelId) return;
 
-  const baseChannel = guild.channels.cache.get(targetChannelId) || await guild.channels.fetch(targetChannelId).catch(() => null);
+  const baseChannel =
+    guild.channels.cache.get(targetChannelId) ||
+    (await guild.channels.fetch(targetChannelId).catch(() => null));
   if (!baseChannel || !baseChannel.isTextBased()) return;
 
   const jstNow = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
@@ -31,7 +34,10 @@ async function postAdminActionLog({ guild, user, title, description }) {
     .setTitle(title.startsWith('📌') ? title : `📌 ${title}`)
     .setDescription(`**${description}**\n\n**実行者：** <@${user.id}>\n**日時：** ${jstNow}`)
     .setColor(0x2ecc71) // 成功を表す緑
-    .setFooter({ text: `${guild.client.user.username} | Log Management`, iconURL: guild.client.user.displayAvatarURL() });
+    .setFooter({
+      text: `${guild.client.user.username} | Log Management`,
+      iconURL: guild.client.user.displayAvatarURL(),
+    });
 
   // チャンネルに直接送信
   await baseChannel.send({ embeds: [embed] }).catch(() => null);

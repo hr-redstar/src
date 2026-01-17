@@ -1,5 +1,5 @@
-const { prefix, readJson, writeJson } = require("../ストレージ/GCS_JSON");
-const { configPath } = require("../ストレージ/GCSパス");
+const { prefix, readJson, writeJson } = require('../ストレージ/GCS_JSON');
+const { configPath } = require('../ストレージ/GCSパス');
 
 const cache = new Map();
 
@@ -7,8 +7,8 @@ function defaultConfig() {
   return {
     version: 1,
     roles: {
-      driver: [],        // 送迎者ロール（複数）
-      customer: [],      // 利用者ロール（複数）
+      driver: [], // 送迎者ロール（複数）
+      customer: [], // 利用者ロール（複数）
       driverMention: [],
       customerMention: [],
     },

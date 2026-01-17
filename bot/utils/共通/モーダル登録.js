@@ -1,6 +1,6 @@
-const { EmbedBuilder, MessageFlags } = require("discord.js");
-const { sendAdminLog } = require("../ログ/管理者ログ");
-const { isRegisteredUser, upsertUserRegistration } = require("../ユーザー/ユーザー管理");
+const { EmbedBuilder, MessageFlags } = require('discord.js');
+const { sendAdminLog } = require('../ログ/管理者ログ');
+const { isRegisteredUser, upsertUserRegistration } = require('../ユーザー/ユーザー管理');
 
 module.exports = async function userRegisterModal(interaction) {
   const guildId = interaction.guildId;
@@ -33,11 +33,13 @@ module.exports = async function userRegisterModal(interaction) {
   // 管理者ログ
   const logEmbed = new EmbedBuilder()
     .setTitle('利用者登録')
-    .setDescription(`
+    .setDescription(
+      `
 **ユーザー** <@${userId}>
 **店舗名 / ニックネーム** ${name}
 **近所の目印** ${landmark}
-    `)
+    `
+    )
     .setTimestamp();
 
   await sendAdminLog(interaction.guild, logEmbed);

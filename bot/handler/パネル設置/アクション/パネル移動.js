@@ -2,7 +2,7 @@
 
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { CUSTOM_ID } = require('../共通/_panelSetupCommon');
-const interactionTemplate = require("../../共通/interactionTemplate");
+const interactionTemplate = require('../../共通/interactionTemplate');
 const { ACK } = interactionTemplate;
 
 module.exports = {
@@ -30,9 +30,9 @@ module.exports = {
 
         await interaction.editReply({
           content: '移動先のパネル選択に戻ります。',
-          components: [row]
+          components: [row],
         });
-      }
+      },
     });
-  }
+  },
 };

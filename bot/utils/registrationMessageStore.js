@@ -8,14 +8,15 @@ const { readJson, writeJson } = require('./ストレージ/ストア共通');
  * @param {string} role - 役割 ('driver' または 'user')
  */
 async function saveRegistrationMessageId(guildId, userId, messageId, role = 'driver') {
-    const { driverProfileJson, userProfileJson } = require('./ストレージ/ストレージパス');
-    const basePath = role === 'driver' ? driverProfileJson(guildId, userId) : userProfileJson(guildId, userId);
-    const json = await readJson(basePath).catch(() => null);
+  const { driverProfileJson, userProfileJson } = require('./ストレージ/ストレージパス');
+  const basePath =
+    role === 'driver' ? driverProfileJson(guildId, userId) : userProfileJson(guildId, userId);
+  const json = await readJson(basePath).catch(() => null);
 
-    if (!json) return;
+  if (!json) return;
 
-    json.registrationMessageId = messageId;
-    await writeJson(basePath, json);
+  json.registrationMessageId = messageId;
+  await writeJson(basePath, json);
 }
 
 /**
@@ -26,14 +27,15 @@ async function saveRegistrationMessageId(guildId, userId, messageId, role = 'dri
  * @returns {string|null} メッセージID
  */
 async function getRegistrationMessageId(guildId, userId, role = 'driver') {
-    const { driverProfileJson, userProfileJson } = require('./ストレージ/ストレージパス');
-    const basePath = role === 'driver' ? driverProfileJson(guildId, userId) : userProfileJson(guildId, userId);
-    const json = await readJson(basePath).catch(() => null);
+  const { driverProfileJson, userProfileJson } = require('./ストレージ/ストレージパス');
+  const basePath =
+    role === 'driver' ? driverProfileJson(guildId, userId) : userProfileJson(guildId, userId);
+  const json = await readJson(basePath).catch(() => null);
 
-    return json?.registrationMessageId || null;
+  return json?.registrationMessageId || null;
 }
 
 module.exports = {
-    saveRegistrationMessageId,
-    getRegistrationMessageId,
+  saveRegistrationMessageId,
+  getRegistrationMessageId,
 };

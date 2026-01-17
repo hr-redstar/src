@@ -10,7 +10,9 @@ module.exports = async function updateRideListPanel(guild, client) {
 
   if (!panel || !panel.channelId) return;
 
-  const channel = guild.channels.cache.get(panel.channelId) || await guild.channels.fetch(panel.channelId).catch(() => null);
+  const channel =
+    guild.channels.cache.get(panel.channelId) ||
+    (await guild.channels.fetch(panel.channelId).catch(() => null));
   if (!channel) return;
 
   const newMessageId = await sendOrUpdatePanel({

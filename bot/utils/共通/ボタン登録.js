@@ -1,14 +1,7 @@
-const {
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
-  ActionRowBuilder,
-} = require('discord.js');
+const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
 
 module.exports = async function userRegisterButton(interaction) {
-  const modal = new ModalBuilder()
-    .setCustomId('user:register:modal')
-    .setTitle('利用者登録');
+  const modal = new ModalBuilder().setCustomId('user:register:modal').setTitle('利用者登録');
 
   const name = new TextInputBuilder()
     .setCustomId('name')
@@ -24,7 +17,7 @@ module.exports = async function userRegisterButton(interaction) {
 
   modal.addComponents(
     new ActionRowBuilder().addComponents(name),
-    new ActionRowBuilder().addComponents(landmark),
+    new ActionRowBuilder().addComponents(landmark)
   );
 
   await interaction.showModal(modal);

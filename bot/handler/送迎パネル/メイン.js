@@ -1,10 +1,10 @@
 ﻿// handler/送迎パネル/メイン.js
-const logger = require("../../utils/logger");
-const store = require("../../utils/ストレージ/ストア共通");
-const paths = require("../../utils/ストレージ/ストレージパス");
-const { sendOrUpdatePanel } = require("../共通/パネル送信");
-const { loadConfig, saveConfig } = require("../../utils/設定/設定マネージャ");
-const { buildDriverPanelMessage } = require("./埋め込み作成");
+const logger = require('../../utils/logger');
+const store = require('../../utils/ストレージ/ストア共通');
+const paths = require('../../utils/ストレージ/ストレージパス');
+const { sendOrUpdatePanel } = require('../共通/パネル送信');
+const { loadConfig, saveConfig } = require('../../utils/設定/設定マネージャ');
+const { buildDriverPanelMessage } = require('./埋め込み作成');
 
 async function updateDriverPanel(guild, client) {
   const config = await loadConfig(guild.id);
@@ -12,7 +12,9 @@ async function updateDriverPanel(guild, client) {
 
   if (!panel || !panel.channelId) return;
 
-  const channel = guild.channels.cache.get(panel.channelId) || await guild.channels.fetch(panel.channelId).catch(() => null);
+  const channel =
+    guild.channels.cache.get(panel.channelId) ||
+    (await guild.channels.fetch(panel.channelId).catch(() => null));
   if (!channel) return;
 
   // 待機中の送迎者数をカウント
@@ -49,5 +51,5 @@ async function execute(interaction, parsed) {
 module.exports = {
   buildDriverPanelMessage,
   updateDriverPanel,
-  execute
+  execute,
 };

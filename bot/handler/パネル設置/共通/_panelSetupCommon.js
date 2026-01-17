@@ -9,7 +9,6 @@ const {
   MessageFlags,
 } = require('discord.js');
 
-
 /**
  * パネル設置パネル共通ユーティリティ
  * - 管理者チェック
@@ -89,17 +88,12 @@ const INNER_ID = {
 };
 
 function isAdmin(interaction) {
-  return interaction.memberPermissions?.has(
-    PermissionsBitField.Flags.Administrator
-  );
+  return interaction.memberPermissions?.has(PermissionsBitField.Flags.Administrator);
 }
 
 async function requireAdmin(interaction) {
   if (!isAdmin(interaction)) {
-    await safeEphemeral(
-      interaction,
-      '⚠️ この操作は管理者のみ実行できます。'
-    );
+    await safeEphemeral(interaction, '⚠️ この操作は管理者のみ実行できます。');
     return false;
   }
   return true;
@@ -110,10 +104,7 @@ function ensureSendableChannel(interaction) {
   if (!ch) return null;
 
   // Text / Announcement のみ送信可
-  if (
-    ch.type === ChannelType.GuildText ||
-    ch.type === ChannelType.GuildAnnouncement
-  ) {
+  if (ch.type === ChannelType.GuildText || ch.type === ChannelType.GuildAnnouncement) {
     return ch;
   }
   return null;
@@ -148,9 +139,7 @@ async function sendPanelToCurrentChannel(interaction, messagePayload) {
 }
 
 function buildInfoEmbed(title, description) {
-  return new EmbedBuilder()
-    .setTitle(title)
-    .setDescription(description);
+  return new EmbedBuilder().setTitle(title).setDescription(description);
 }
 
 module.exports = {

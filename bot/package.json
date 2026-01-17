@@ -11,16 +11,21 @@
     "deploy:guild": "node script/deployGuildCommands.js",
     "deploy:global": "node script/deployGlobalCommands.js",
     "deploy": "node script/deploy.js",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write ."
   },
   "dependencies": {
+    "@google-cloud/storage": "^7.12.0",
     "discord.js": "^14.17.3",
-    "dotenv": "^16.4.5",
-    "@google-cloud/storage": "^7.12.0"
+    "dotenv": "^16.4.5"
   },
   "devDependencies": {
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
     "nodemon": "^3.1.7",
-    "eslint": "^9.17.0"
+    "prettier": "^3.8.0"
   },
   "engines": {
     "node": ">=18.0.0"

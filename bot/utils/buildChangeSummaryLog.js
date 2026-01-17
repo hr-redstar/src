@@ -5,43 +5,43 @@
  * @returns {string|null} 変更点ログ、変更がない場合はnull
  */
 function buildChangeSummaryLog(changes, fieldLabels = {}) {
-    if (!changes.length) return null;
+  if (!changes.length) return null;
 
-    const timestamp = new Date().toLocaleString('ja-JP');
+  const timestamp = new Date().toLocaleString('ja-JP');
 
-    // デフォルトラベル
-    const defaultLabels = {
-        area: '区域',
-        stop: '停留場所',
-        nickname: 'ニックネーム',
-        car: '車種',
-        capacity: '乗車人数',
-        storeName: '店舗名',
-        mark: '目印',
-    };
+  // デフォルトラベル
+  const defaultLabels = {
+    area: '区域',
+    stop: '停留場所',
+    nickname: 'ニックネーム',
+    car: '車種',
+    capacity: '乗車人数',
+    storeName: '店舗名',
+    mark: '目印',
+  };
 
-    const labels = { ...defaultLabels, ...fieldLabels };
+  const labels = { ...defaultLabels, ...fieldLabels };
 
-    let content = `
+  let content = `
 ────────────────────
 📝 変更点サマリー
 ────────────────────
 `;
 
-    for (const change of changes) {
-        const fieldName = labels[change.field] || change.field;
-        content += `・${fieldName}：
+  for (const change of changes) {
+    const fieldName = labels[change.field] || change.field;
+    content += `・${fieldName}：
   変更前：${change.before ?? '未設定'}
   変更後：${change.after ?? '未設定'}
 
 `;
-    }
+  }
 
-    content += `・更新日時：${timestamp}`;
+  content += `・更新日時：${timestamp}`;
 
-    return content.trim();
+  return content.trim();
 }
 
 module.exports = {
-    buildChangeSummaryLog,
+  buildChangeSummaryLog,
 };

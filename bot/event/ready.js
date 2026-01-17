@@ -1,5 +1,5 @@
-const { Events, ActivityType } = require("discord.js");
-const logger = require("../utils/logger");
+const { Events, ActivityType } = require('discord.js');
+const logger = require('../utils/logger');
 const { loadConfig, saveConfig } = require('../utils/設定/設定マネージャ');
 const { sendOrUpdatePanel } = require('../handler/共通/パネル送信');
 const store = require('../utils/ストレージ/ストア共通');
@@ -18,7 +18,6 @@ const { buildUserMemoGuide } = require('../handler/ガイド/個人メモ');
 
 const { buildRatingRankPanelMessage } = require('../handler/管理者パネル/口コミランクパネル構築');
 
-
 module.exports = {
   name: Events.ClientReady,
   once: true,
@@ -30,20 +29,20 @@ module.exports = {
     // ステータス表示
     try {
       client.user.setPresence({
-        status: "online",
-        activities: [{ name: "送迎パネル", type: ActivityType.Watching }],
+        status: 'online',
+        activities: [{ name: '送迎パネル', type: ActivityType.Watching }],
       });
-      logger.debug("プレゼンスを設定しました", {
-        status: "online",
-        activity: "送迎パネル",
-        type: "Watching",
+      logger.debug('プレゼンスを設定しました', {
+        status: 'online',
+        activity: '送迎パネル',
+        type: 'Watching',
       });
     } catch (e) {
-      logger.warn("プレゼンス設定に失敗しました", {
-        error: logger.formatError ? logger.formatError(e).split("\n")[0] : String(e),
+      logger.warn('プレゼンス設定に失敗しました', {
+        error: logger.formatError ? logger.formatError(e).split('\n')[0] : String(e),
       });
       // 詳細はデバッグに回す（長いstackをerrorに混ぜない）
-      logger.debug("プレゼンス設定エラー詳細", logger.formatError ? logger.formatError(e) : e);
+      logger.debug('プレゼンス設定エラー詳細', logger.formatError ? logger.formatError(e) : e);
     }
 
     // 全ギルドの出勤状態をGCSと同期 (Legacy logic removed temporarily)
@@ -67,7 +66,7 @@ module.exports = {
     */
 
     // ===== パネル自動復旧処理 =====
-    logger.info("パネルの自動復旧を開始します...");
+    logger.info('パネルの自動復旧を開始します...');
     for (const guild of client.guilds.cache.values()) {
       try {
         const config = await loadConfig(guild.id);
@@ -87,32 +86,48 @@ module.exports = {
               buildMessage: async () => {
                 logger.debug(`[パネル復旧] メッセージ構築中: ${key}`);
                 switch (key) {
-                  case 'admin': return buildAdminPanelMessage(guild, config, client);
+                  case 'admin':
+                    return buildAdminPanelMessage(guild, config, client);
                   case 'driverPanel': {
-                    const driverIds = await store.readJson(paths.guildDriverIndexJson(guild.id), []).catch(() => []);
+                    const driverIds = await store
+                      .readJson(paths.guildDriverIndexJson(guild.id), [])
+                      .catch(() => []);
                     let activeCount = 0;
                     for (const id of driverIds) {
-                      const profile = await store.readJson(paths.driverProfileJson(guild.id, id)).catch(() => null);
+                      const profile = await store
+                        .readJson(paths.driverProfileJson(guild.id, id))
+                        .catch(() => null);
                       if (profile?.current?.available) activeCount++;
                     }
                     return buildDriverPanelMessage(guild, activeCount, client);
                   }
                   case 'userPanel': {
-                    const driverIds = await store.readJson(paths.guildDriverIndexJson(guild.id), []).catch(() => []);
+                    const driverIds = await store
+                      .readJson(paths.guildDriverIndexJson(guild.id), [])
+                      .catch(() => []);
                     let activeCount = 0;
                     for (const id of driverIds) {
-                      const profile = await store.readJson(paths.driverProfileJson(guild.id, id)).catch(() => null);
+                      const profile = await store
+                        .readJson(paths.driverProfileJson(guild.id, id))
+                        .catch(() => null);
                       if (profile?.current?.available) activeCount++;
                     }
                     return buildUserPanelMessage(guild, activeCount, client);
                   }
-                  case 'driverRegister': return buildDriverRegPanelMessage(guild, client);
-                  case 'userRegister': return buildUserRegPanelMessage(guild, client);
-                  case 'userCheckPanel': return buildUserCheckPanelMessage(guild, client);
-                  case 'rideList': return buildRideListPanelMessage(guild, client);
-                  case 'ratingRank': return buildRatingRankPanelMessage(guild);
-                  case 'guide': return buildGuidePanelMessage(guild, config, client);
-                  default: return null;
+                  case 'driverRegister':
+                    return buildDriverRegPanelMessage(guild, client);
+                  case 'userRegister':
+                    return buildUserRegPanelMessage(guild, client);
+                  case 'userCheckPanel':
+                    return buildUserCheckPanelMessage(guild, client);
+                  case 'rideList':
+                    return buildRideListPanelMessage(guild, client);
+                  case 'ratingRank':
+                    return buildRatingRankPanelMessage(guild);
+                  case 'guide':
+                    return buildGuidePanelMessage(guild, config, client);
+                  default:
+                    return null;
                 }
               },
             });
@@ -129,18 +144,22 @@ module.exports = {
           }
         }
         if (needsSave) {
-          await saveConfig(guild.id, config).catch(err => {
-            logger.error(`ギルド(${guild.id}) のパネル復旧後の設定保存に失敗しました: ${err.message}`);
+          await saveConfig(guild.id, config).catch((err) => {
+            logger.error(
+              `ギルド(${guild.id}) のパネル復旧後の設定保存に失敗しました: ${err.message}`
+            );
           });
         }
       } catch (err) {
-        logger.error(`ギルド(${guild.id}) の設定ロードまたは復旧中にエラーが発生しました: ${err.message}`);
+        logger.error(
+          `ギルド(${guild.id}) の設定ロードまたは復旧中にエラーが発生しました: ${err.message}`
+        );
       }
     }
-    logger.info("パネルの自動復旧が完了しました。");
+    logger.info('パネルの自動復旧が完了しました。');
 
     // ===== ガイドチャンネルの自動チェック・復旧 =====
-    logger.info("ガイドチャンネルのチェックを開始します...");
+    logger.info('ガイドチャンネルのチェックを開始します...');
     for (const guild of client.guilds.cache.values()) {
       try {
         const config = await loadConfig(guild.id);
@@ -151,7 +170,7 @@ module.exports = {
           await ensureGuideChannel({
             guild,
             categoryId: config.categories.privateVc,
-            channelName: "📝プライベートVCの使い方",
+            channelName: '📝プライベートVCの使い方',
             messageBuilder: buildPrivateVcGuide,
           });
         }
@@ -161,7 +180,7 @@ module.exports = {
           await ensureGuideChannel({
             guild,
             categoryId: config.categories.userMemo,
-            channelName: "📝個人メモの使い方",
+            channelName: '📝個人メモの使い方',
             messageBuilder: buildUserMemoGuide,
           });
         }
@@ -169,14 +188,13 @@ module.exports = {
         logger.warn(`ギルド(${guild.id}) のガイドチャンネルチェック失敗: ${err.message}`);
       }
     }
-    logger.info("ガイドチャンネルのチェックが完了しました。");
+    logger.info('ガイドチャンネルのチェックが完了しました。');
 
     // ===== 全ユーザー登録情報メッセージの一括更新 (Embed化対応) =====
-    const { batchUpdateRegistrationMessages } = require("../utils/batchUpdateRegistrationMessages");
+    const { batchUpdateRegistrationMessages } = require('../utils/batchUpdateRegistrationMessages');
     // awaitせずにバックグラウンドで実行
-    batchUpdateRegistrationMessages(client).catch(err => {
+    batchUpdateRegistrationMessages(client).catch((err) => {
       logger.error(`一括更新バッチ起動失敗: ${err.message}`);
     });
-
   },
 };

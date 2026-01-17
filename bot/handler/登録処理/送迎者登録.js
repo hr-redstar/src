@@ -8,28 +8,28 @@ const {
   TextInputBuilder,
   TextInputStyle,
   MessageFlags,
-} = require("discord.js");
+} = require('discord.js');
 
-const logger = require("../../utils/logger");
-const { readJson, writeJson } = require("../../utils/ストレージ/ストア共通");
+const logger = require('../../utils/logger');
+const { readJson, writeJson } = require('../../utils/ストレージ/ストア共通');
 const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 const buildPanelMessage_ = require('../../utils/embed/panelMessageTemplate');
-const interactionTemplate = require("../共通/interactionTemplate");
+const interactionTemplate = require('../共通/interactionTemplate');
 const { ACK } = interactionTemplate;
 
 // ===== Custom IDs =====
 const CID = {
-  BTN_REGISTER: "reg|driver|sub=button",
-  MODAL_REGISTER: "reg|driver|sub=modal",
-  INP_AREA: "reg|driver|input=area",
-  INP_STOP: "reg|driver|input=stop",
-  INP_NICKNAME: "reg|driver|input=nickname",
-  INP_CAR: "reg|driver|input=car",
-  INP_CAPACITY: "reg|driver|input=capacity",
+  BTN_REGISTER: 'reg|driver|sub=button',
+  MODAL_REGISTER: 'reg|driver|sub=modal',
+  INP_AREA: 'reg|driver|input=area',
+  INP_STOP: 'reg|driver|input=stop',
+  INP_NICKNAME: 'reg|driver|input=nickname',
+  INP_CAR: 'reg|driver|input=car',
+  INP_CAPACITY: 'reg|driver|input=capacity',
 };
 
 // ===== Paths =====
-const paths = require("../../utils/ストレージ/ストレージパス");
+const paths = require('../../utils/ストレージ/ストレージパス');
 
 const nowIso = () => new Date().toISOString();
 
@@ -39,7 +39,7 @@ const nowIso = () => new Date().toISOString();
 function buildDriverRegPanelMessage(guild, client) {
   const botClient = client || guild.client;
   const embed = buildPanelEmbed({
-    title: "送迎者登録パネル",
+    title: '送迎者登録パネル',
     description: `
 **区域**
 普段活動しているエリアを入力してください。
@@ -50,7 +50,7 @@ function buildDriverRegPanelMessage(guild, client) {
 **その他の情報**
 ニックネーム、車種、最大乗車人数などを入力します。
     `,
-    client: botClient
+    client: botClient,
   });
 
   if (guild?.iconURL()) embed.setThumbnail(guild.iconURL());
@@ -58,11 +58,11 @@ function buildDriverRegPanelMessage(guild, client) {
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(CID.BTN_REGISTER)
-      .setLabel("送迎者登録")
+      .setLabel('送迎者登録')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
-      .setCustomId("ps|check")
-      .setLabel("登録状態確認")
+      .setCustomId('ps|check')
+      .setLabel('登録状態確認')
       .setStyle(ButtonStyle.Secondary)
   );
 
@@ -79,15 +79,13 @@ async function execute(interaction, parsed) {
 
   // ボタン → モーダル
   if (interaction.isButton() && sub === 'button') {
-    const modal = new ModalBuilder()
-      .setCustomId(CID.MODAL_REGISTER)
-      .setTitle("送迎者登録");
+    const modal = new ModalBuilder().setCustomId(CID.MODAL_REGISTER).setTitle('送迎者登録');
 
     modal.addComponents(
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId(CID.INP_AREA)
-          .setLabel("区域")
+          .setLabel('区域')
           .setStyle(TextInputStyle.Short)
           .setRequired(true)
           .setMaxLength(50)
@@ -95,7 +93,7 @@ async function execute(interaction, parsed) {
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId(CID.INP_STOP)
-          .setLabel("停留場所")
+          .setLabel('停留場所')
           .setStyle(TextInputStyle.Short)
           .setRequired(true)
           .setMaxLength(50)
@@ -103,7 +101,7 @@ async function execute(interaction, parsed) {
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId(CID.INP_NICKNAME)
-          .setLabel("ニックネーム（任意）")
+          .setLabel('ニックネーム（任意）')
           .setStyle(TextInputStyle.Short)
           .setRequired(false) // 任意
           .setMaxLength(30)
@@ -111,7 +109,7 @@ async function execute(interaction, parsed) {
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId(CID.INP_CAR)
-          .setLabel("車種（任意）")
+          .setLabel('車種（任意）')
           .setStyle(TextInputStyle.Short)
           .setRequired(false) // 任意
           .setMaxLength(50)
@@ -119,7 +117,7 @@ async function execute(interaction, parsed) {
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId(CID.INP_CAPACITY)
-          .setLabel("乗車人数（数字）")
+          .setLabel('乗車人数（数字）')
           .setStyle(TextInputStyle.Short)
           .setRequired(true)
           .setMaxLength(3)
@@ -135,7 +133,7 @@ async function execute(interaction, parsed) {
       ack: ACK.REPLY,
       async run(interaction) {
         // 設定読み込み (ロール・ログ用)
-        const { loadConfig } = require("../../utils/設定/設定マネージャ");
+        const { loadConfig } = require('../../utils/設定/設定マネージャ');
         const config = await loadConfig(interaction.guildId);
 
         const area = interaction.fields.getTextInputValue(CID.INP_AREA)?.trim();
@@ -146,14 +144,16 @@ async function execute(interaction, parsed) {
 
         const capacity = Number.parseInt(capRaw, 10);
         if (!Number.isFinite(capacity) || capacity <= 0 || capacity > 99) {
-          return interaction.editReply({ content: "⚠️ 乗車人数は 1〜99 の数字で入力してください。" });
+          return interaction.editReply({
+            content: '⚠️ 乗車人数は 1〜99 の数字で入力してください。',
+          });
         }
 
         const guildId = interaction.guildId;
         const userId = interaction.user.id;
 
         // データ保存履歴付き (インデックス更新含む)
-        const { saveDriver } = require("../../utils/driversStore");
+        const { saveDriver } = require('../../utils/driversStore');
         const driverData = {
           userId,
           area,
@@ -178,33 +178,40 @@ async function execute(interaction, parsed) {
         }
 
         // ログ出力 (運営者ログ)
-        const { postOperatorLog } = require("../../utils/ログ/運営者ログ");
+        const { postOperatorLog } = require('../../utils/ログ/運営者ログ');
         const logEmbed = new EmbedBuilder()
-          .setTitle("🚗 送迎者登録")
+          .setTitle('🚗 送迎者登録')
           .setColor(0x2ecc71)
           .addFields(
-            { name: "ユーザー", value: `<@${userId}>`, inline: true },
-            { name: "区域", value: area, inline: true },
-            { name: "停留場所", value: stop, inline: true },
-            { name: "車種", value: car || "未設定", inline: true },
-            { name: "乗車人数", value: `${capacity}人`, inline: true },
-            { name: "ニックネーム", value: nickname || "未設定", inline: true }
+            { name: 'ユーザー', value: `<@${userId}>`, inline: true },
+            { name: '区域', value: area, inline: true },
+            { name: '停留場所', value: stop, inline: true },
+            { name: '車種', value: car || '未設定', inline: true },
+            { name: '乗車人数', value: `${capacity}人`, inline: true },
+            { name: 'ニックネーム', value: nickname || '未設定', inline: true }
           )
           .setTimestamp();
 
         await postOperatorLog({
           guild: interaction.guild,
-          embeds: [logEmbed]
+          embeds: [logEmbed],
         });
 
         // チャンネル作成 or 検出 (メモチャンネル)
         if (config.categories?.userMemo) {
-          const { createUserMemoChannel } = require("../../utils/createUserMemoChannel");
-          const { findUserMemoChannel } = require("../../utils/findUserMemoChannel");
-          const { loadDriverFull } = require("../../utils/driversStore");
-          const { getRegistrationMessageId, saveRegistrationMessageId } = require("../../utils/registrationMessageStore");
-          const { updateRegistrationInfoMessage } = require("../../utils/updateRegistrationInfoMessage");
-          const { buildDriverRegistrationEmbed } = require("../../utils/buildRegistrationInfoEmbed");
+          const { createUserMemoChannel } = require('../../utils/createUserMemoChannel');
+          const { findUserMemoChannel } = require('../../utils/findUserMemoChannel');
+          const { loadDriverFull } = require('../../utils/driversStore');
+          const {
+            getRegistrationMessageId,
+            saveRegistrationMessageId,
+          } = require('../../utils/registrationMessageStore');
+          const {
+            updateRegistrationInfoMessage,
+          } = require('../../utils/updateRegistrationInfoMessage');
+          const {
+            buildDriverRegistrationEmbed,
+          } = require('../../utils/buildRegistrationInfoEmbed');
 
           let memoChannel = await findUserMemoChannel({
             guild: interaction.guild,
@@ -217,11 +224,23 @@ async function execute(interaction, parsed) {
             const fullJson = await loadDriverFull(interaction.guildId, userId);
             const messageId = await getRegistrationMessageId(interaction.guildId, userId, 'driver');
             if (messageId) {
-              await updateRegistrationInfoMessage(memoChannel, messageId, fullJson, 'driver', interaction.user).catch(() => null);
+              await updateRegistrationInfoMessage(
+                memoChannel,
+                messageId,
+                fullJson,
+                'driver',
+                interaction.user
+              ).catch(() => null);
             } else {
               const embed = buildDriverRegistrationEmbed(fullJson, interaction.user);
               const sentMessage = await memoChannel.send({ embeds: [embed] }).catch(() => null);
-              if (sentMessage) await saveRegistrationMessageId(interaction.guildId, userId, sentMessage.id, 'driver').catch(() => null);
+              if (sentMessage)
+                await saveRegistrationMessageId(
+                  interaction.guildId,
+                  userId,
+                  sentMessage.id,
+                  'driver'
+                ).catch(() => null);
             }
           } else {
             await createUserMemoChannel({
@@ -234,11 +253,11 @@ async function execute(interaction, parsed) {
         }
 
         // ユーザー確認パネルを更新
-        const { updateUserCheckPanel } = require("./ユーザー確認パネル");
+        const { updateUserCheckPanel } = require('./ユーザー確認パネル');
         await updateUserCheckPanel(interaction.guild, interaction.client).catch(() => null);
 
-        await interaction.editReply({ content: "✅ 送迎者登録が完了しました！" });
-      }
+        await interaction.editReply({ content: '✅ 送迎者登録が完了しました！' });
+      },
     });
   }
 }

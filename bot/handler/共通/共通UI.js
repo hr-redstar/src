@@ -11,19 +11,19 @@ const { EmbedBuilder } = require('discord.js');
  * @returns {EmbedBuilder}
  */
 function buildCommonEmbed({ title, description, color = 0x3498db }, client) {
-    const embed = new EmbedBuilder()
-        .setTitle(`${title}パネル`)
-        .setDescription(description)
-        .setColor(color)
-        .setTimestamp();
+  const embed = new EmbedBuilder()
+    .setTitle(`${title}パネル`)
+    .setDescription(description)
+    .setColor(color)
+    .setTimestamp();
 
-    if (client?.user?.username) {
-        embed.setFooter({ text: client.user.username, iconURL: client.user.displayAvatarURL() });
-    }
+  if (client?.user?.username) {
+    embed.setFooter({ text: client.user.username, iconURL: client.user.displayAvatarURL() });
+  }
 
-    return embed;
+  return embed;
 }
 
 module.exports = {
-    buildCommonEmbed
+  buildCommonEmbed,
 };

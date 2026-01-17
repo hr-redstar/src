@@ -32,8 +32,8 @@ function userInUseListJson(guildId) {
 
 // 全体送迎履歴
 function globalRideHistoryJson(guildId, y, m, d) {
-  const mm = String(m).padStart(2, "0");
-  const dd = String(d).padStart(2, "0");
+  const mm = String(m).padStart(2, '0');
+  const dd = String(d).padStart(2, '0');
   return `${guildRoot(guildId)}/送迎履歴/${y}/${mm}/${dd}/${y}${mm}${dd}_送迎履歴.json`;
 }
 
@@ -45,14 +45,14 @@ function driverProfileJson(guildId, userId) {
   return `${driverRoot(guildId)}/${userId}/登録情報.json`;
 }
 function driverRideHistoryJson(guildId, userId, y, m, d) {
-  const mm = String(m).padStart(2, "0");
-  const dd = String(d).padStart(2, "0");
+  const mm = String(m).padStart(2, '0');
+  const dd = String(d).padStart(2, '0');
   const ymd = `${y}${mm}${dd}`;
   return `${driverRoot(guildId)}/${userId}/送迎履歴/${y}/${mm}/${dd}/${ymd}_送迎履歴.json`;
 }
 function driverRatingJson(guildId, userId, y, m, d) {
-  const mm = String(m).padStart(2, "0");
-  const dd = String(d).padStart(2, "0");
+  const mm = String(m).padStart(2, '0');
+  const dd = String(d).padStart(2, '0');
   const ymd = `${y}${mm}${dd}`;
   return `${driverRoot(guildId)}/${userId}/口コミ/${ymd}_口コミ.json`;
 }
@@ -69,14 +69,14 @@ function userProfileJson(guildId, userId) {
   return `${userRoot(guildId)}/${userId}/登録情報.json`;
 }
 function userRideHistoryJson(guildId, userId, y, m, d) {
-  const mm = String(m).padStart(2, "0");
-  const dd = String(d).padStart(2, "0");
+  const mm = String(m).padStart(2, '0');
+  const dd = String(d).padStart(2, '0');
   const ymd = `${y}${mm}${dd}`;
   return `${userRoot(guildId)}/${userId}/利用履歴/${y}/${mm}/${dd}/${ymd}_利用履歴.json`;
 }
 function userRatingJson(guildId, userId, y, m, d) {
-  const mm = String(m).padStart(2, "0");
-  const dd = String(d).padStart(2, "0");
+  const mm = String(m).padStart(2, '0');
+  const dd = String(d).padStart(2, '0');
   const ymd = `${y}${mm}${dd}`;
   return `${userRoot(guildId)}/${userId}/口コミ/${ymd}_口コミ.json`;
 }

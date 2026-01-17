@@ -3,7 +3,7 @@ const store = require('../../utils/ストレージ/ストア共通');
 const updateRideListPanel = require('./一覧パネル更新');
 const { updateDriverPanel } = require('../送迎パネル/メイン');
 
-const interactionTemplate = require("../共通/interactionTemplate");
+const interactionTemplate = require('../共通/interactionTemplate');
 const { ACK } = interactionTemplate;
 
 module.exports = async function (interaction, targetId) {
@@ -22,7 +22,7 @@ module.exports = async function (interaction, targetId) {
 
       try {
         const files = await store.listKeys(carpoolDir).catch(() => []);
-        const jsonFiles = files.filter(f => f.endsWith('.json'));
+        const jsonFiles = files.filter((f) => f.endsWith('.json'));
         for (const fileKey of jsonFiles) {
           const rideData = await store.readJson(fileKey).catch(() => null);
           if (rideData && rideData.driverId === driverId && rideData.status === 'active') {
@@ -34,7 +34,9 @@ module.exports = async function (interaction, targetId) {
             await incrementRideCount(guildId, driverId).catch(() => null);
 
             // 告知メッセージの更新（満員/終了状態へ）
-            const channel = await interaction.guild.channels.fetch(rideData.channelId).catch(() => null);
+            const channel = await interaction.guild.channels
+              .fetch(rideData.channelId)
+              .catch(() => null);
             if (channel) {
               const message = await channel.messages.fetch(rideData.messageId).catch(() => null);
               if (message) {
@@ -51,17 +53,16 @@ module.exports = async function (interaction, targetId) {
             }
           }
         }
-      } catch (err) { }
+      } catch (err) {}
 
       // 送迎中データ削除
       const activeRideDir = paths.activeDispatchDir(guildId);
       try {
         const activeRideFiles = await store.listKeys(activeRideDir).catch(() => []);
-        const jsonFiles = activeRideFiles.filter(f => f.endsWith('.json'));
+        const jsonFiles = activeRideFiles.filter((f) => f.endsWith('.json'));
         for (const fileKey of jsonFiles) {
           const rideData = await store.readJson(fileKey).catch(() => null);
           if (rideData && rideData.driverId === driverId && rideData.passengerId === targetId) {
-
             // --- NEW: 送迎中一覧 & 送迎履歴への反映 ---
             try {
               // 1. 送迎中一覧 (Active List) 削除
@@ -83,22 +84,23 @@ module.exports = async function (interaction, targetId) {
               if (historyList) {
                 // driverIdの一致かつ未完了のものを探す
                 const entries = Object.values(historyList);
-                const targetEntry = entries.find(e => e.driverId === driverId && !e.endTime);
+                const targetEntry = entries.find((e) => e.driverId === driverId && !e.endTime);
 
                 if (targetEntry) {
                   targetEntry.endTime = new Date().toISOString();
 
                   // keyを探して更新
-                  const targetKey = Object.keys(historyList).find(key => historyList[key] === targetEntry);
+                  const targetKey = Object.keys(historyList).find(
+                    (key) => historyList[key] === targetEntry
+                  );
                   if (targetKey) {
                     historyList[targetKey] = targetEntry;
                     await store.writeJson(historyPath, historyList);
                   }
                 }
               }
-
             } catch (e) {
-              console.error("送迎終了ログ更新エラー", e);
+              console.error('送迎終了ログ更新エラー', e);
             }
             // ------------------------------------------
 
@@ -106,13 +108,13 @@ module.exports = async function (interaction, targetId) {
             break;
           }
         }
-      } catch (err) { }
+      } catch (err) {}
 
       // --- VC Retention Logic ---
       const vcState = await loadVcState(guildId);
 
       // Find VC for this pair (Driver & Passenger)
-      const vcId = Object.keys(vcState).find(key => {
+      const vcId = Object.keys(vcState).find((key) => {
         const s = vcState[key];
         return s.driverId === driverId && s.userId === passengerId && !s.endedAt;
       });
@@ -120,44 +122,56 @@ module.exports = async function (interaction, targetId) {
       if (vcId) {
         // Mark as ended with Expiration
         const now = new Date();
-        const expire = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000));
+        const expire = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
         await updateVcState(guildId, vcId, {
           endedAt: now.toISOString(),
-          expiresAt: expire.toISOString()
+          expiresAt: expire.toISOString(),
         });
 
         const vcCh = interaction.guild.channels.cache.get(vcId);
-        if (vcCh && vcCh.type === ChannelType.GuildVoice) { // Ensure it's a voice channel
-          await vcCh.send({ content: "✅ **送迎終了**\nこのチャンネルとチャット履歴は7日後に自動削除されます。" }).catch(() => { });
+        if (vcCh && vcCh.type === ChannelType.GuildVoice) {
+          // Ensure it's a voice channel
+          await vcCh
+            .send({
+              content: '✅ **送迎終了**\nこのチャンネルとチャット履歴は7日後に自動削除されます。',
+            })
+            .catch(() => {});
         }
 
         // Memo Channel Notification
         const memoChId = vcState[vcId].memoChannelId;
         if (memoChId) {
           const memoCh = interaction.guild.channels.cache.get(memoChId);
-          if (memoCh && memoCh.type === ChannelType.GuildText) { // Ensure it's a text channel
-            const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
-            await memoCh.send({
-              content: "🧾 **送迎メモチャンネル**\n\nこのチャンネルは送迎終了後 **7日間保存** されます。\n落とし物などで延長が必要な場合は下のボタンを使用してください。",
-              components: [
-                new ActionRowBuilder().addComponents(
-                  new ButtonBuilder()
-                    .setCustomId("ride:extend")
-                    .setLabel("🧳 期間延長（+7日）")
-                    .setStyle(ButtonStyle.Secondary),
-                  new ButtonBuilder()
-                    .setCustomId("ride:delete")
-                    .setLabel("🗑️ 即時削除（管理者）")
-                    .setStyle(ButtonStyle.Danger)
-                )
-              ]
-            }).catch(() => { });
+          if (memoCh && memoCh.type === ChannelType.GuildText) {
+            // Ensure it's a text channel
+            const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+            await memoCh
+              .send({
+                content:
+                  '🧾 **送迎メモチャンネル**\n\nこのチャンネルは送迎終了後 **7日間保存** されます。\n落とし物などで延長が必要な場合は下のボタンを使用してください。',
+                components: [
+                  new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                      .setCustomId('ride:extend')
+                      .setLabel('🧳 期間延長（+7日）')
+                      .setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder()
+                      .setCustomId('ride:delete')
+                      .setLabel('🗑️ 即時削除（管理者）')
+                      .setStyle(ButtonStyle.Danger)
+                  ),
+                ],
+              })
+              .catch(() => {});
           }
         }
       }
       // --------------------------
 
-      await interaction.followUp({ content: `送迎を終了しました。\nお疲れさまでした！`, flags: 64 });
+      await interaction.followUp({
+        content: `送迎を終了しました。\nお疲れさまでした！`,
+        flags: 64,
+      });
 
       // パネル更新
       await updateRideListPanel(interaction.guild, interaction.client);
@@ -173,10 +187,10 @@ module.exports = async function (interaction, targetId) {
         dispatchId: `manual_${driverId}_${targetId}_${guildId}`, // 簡易ID
         driverId: driverId,
         passengerId: targetId,
-        direction: "マニュアル送迎", // ルート情報があれば入れたい
-        createdAt: new Date().toISOString()
+        direction: 'マニュアル送迎', // ルート情報があれば入れたい
+        createdAt: new Date().toISOString(),
       };
       await sendRatingDM(interaction.guild, pseudoDispatchData).catch(() => null);
-    }
+    },
   });
 };

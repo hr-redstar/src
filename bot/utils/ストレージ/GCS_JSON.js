@@ -1,24 +1,24 @@
 // src/bot/utils/gcsJson.js
-require("dotenv").config();
+require('dotenv').config();
 
-const fs = require("fs/promises");
-const path = require("path");
+const fs = require('fs/promises');
+const path = require('path');
 
-const DATA_DIR = path.join(process.cwd(), "src", "bot", "data");
-const MODE = (process.env.STORAGE_MODE || "local").toLowerCase(); // local | gcs
+const DATA_DIR = path.join(process.cwd(), 'src', 'bot', 'data');
+const MODE = (process.env.STORAGE_MODE || 'local').toLowerCase(); // local | gcs
 
 async function ensureLocalFile(localPath, defaultValue) {
   await fs.mkdir(path.dirname(localPath), { recursive: true });
   try {
     await fs.access(localPath);
   } catch {
-    await fs.writeFile(localPath, JSON.stringify(defaultValue, null, 2), "utf8");
+    await fs.writeFile(localPath, JSON.stringify(defaultValue, null, 2), 'utf8');
   }
 }
 
 async function readLocalJson(localPath, defaultValue) {
   await ensureLocalFile(localPath, defaultValue);
-  const raw = await fs.readFile(localPath, "utf8");
+  const raw = await fs.readFile(localPath, 'utf8');
   try {
     return JSON.parse(raw);
   } catch {
@@ -28,23 +28,23 @@ async function readLocalJson(localPath, defaultValue) {
 
 async function writeLocalJson(localPath, data) {
   await fs.mkdir(path.dirname(localPath), { recursive: true });
-  const tmp = localPath + ".tmp";
-  await fs.writeFile(tmp, JSON.stringify(data, null, 2), "utf8");
+  const tmp = localPath + '.tmp';
+  await fs.writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
   await fs.rename(tmp, localPath);
 }
 
-const prefix = process.env.GCS_PREFIX || "shuttlebot/";
+const prefix = process.env.GCS_PREFIX || 'shuttlebot/';
 
 function getGcs() {
   // MODE が gcs じゃないなら絶対にGCSを使わない
-  if (MODE !== "gcs") return null;
+  if (MODE !== 'gcs') return null;
 
   const bucketName = process.env.GCS_BUCKET;
-  if (!bucketName) throw new Error("GCS_BUCKET is required when STORAGE_MODE=gcs");
+  if (!bucketName) throw new Error('GCS_BUCKET is required when STORAGE_MODE=gcs');
 
   // gcsモードのときだけ require する（localでは依存不要）
   // eslint-disable-next-line global-require
-  const { Storage } = require("@google-cloud/storage");
+  const { Storage } = require('@google-cloud/storage');
   const storage = new Storage();
   const bucket = storage.bucket(bucketName);
 
@@ -61,7 +61,7 @@ async function readGcsJson(key, defaultValue) {
     if (!exists) return defaultValue;
 
     const [buf] = await file.download();
-    return JSON.parse(buf.toString("utf8"));
+    return JSON.parse(buf.toString('utf8'));
   } catch {
     return defaultValue;
   }
@@ -72,8 +72,8 @@ async function writeGcsJson(key, data) {
   if (!gcs) return false;
 
   const file = gcs.bucket.file(gcs.prefix + key);
-  const body = Buffer.from(JSON.stringify(data, null, 2), "utf8");
-  await file.save(body, { contentType: "application/json" });
+  const body = Buffer.from(JSON.stringify(data, null, 2), 'utf8');
+  await file.save(body, { contentType: 'application/json' });
   return true;
 }
 

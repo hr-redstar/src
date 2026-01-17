@@ -1,14 +1,6 @@
-﻿const {
-  ChannelSelectMenuBuilder,
-  ActionRowBuilder,
-  ChannelType,
-} = require('discord.js');
+﻿const { ChannelSelectMenuBuilder, ActionRowBuilder, ChannelType } = require('discord.js');
 
-const {
-  CUSTOM_ID,
-  requireAdmin,
-  MessageFlags,
-} = require('../共通/_panelSetupCommon');
+const { CUSTOM_ID, requireAdmin, MessageFlags } = require('../共通/_panelSetupCommon');
 
 module.exports = {
   customId: CUSTOM_ID.SEND_ADMIN_PANEL,
@@ -21,10 +13,7 @@ module.exports = {
     const select = new ChannelSelectMenuBuilder()
       .setCustomId(CUSTOM_ID.SEL_ADMIN_PANEL)
       .setPlaceholder('送信先のテキストチャンネルを選択してください')
-      .setChannelTypes(
-        ChannelType.GuildText,
-        ChannelType.GuildAnnouncement
-      )
+      .setChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
       .setMinValues(1)
       .setMaxValues(1);
 
@@ -42,7 +31,7 @@ module.exports = {
 
     await interaction.editReply({
       content,
-      components: [row]
+      components: [row],
     });
   },
 };

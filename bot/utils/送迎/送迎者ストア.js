@@ -1,5 +1,5 @@
-const { readJson, writeJson, prefix } = require("../ストレージ/GCS_JSON");
-const { driversIndexPath, driverRegPath } = require("../ストレージ/GCSパス");
+const { readJson, writeJson, prefix } = require('../ストレージ/GCS_JSON');
+const { driversIndexPath, driverRegPath } = require('../ストレージ/GCSパス');
 
 function defIndex() {
   return { version: 1, updatedAt: 0, drivers: {} };
@@ -20,9 +20,12 @@ async function registerDriver(guildId, userId, { area, stop, nickname }) {
   const oldReg = (await readJson(regPath)) || {};
 
   const newReg = {
-    userId, area, stop, nickname,
+    userId,
+    area,
+    stop,
+    nickname,
     createdAt: oldReg.createdAt ?? now,
-    updatedAt: now
+    updatedAt: now,
   };
   await writeJson(regPath, newReg);
 

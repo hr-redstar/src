@@ -1,7 +1,7 @@
 ﻿// handler/送迎パネル/アクション/現在地更新.js
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
 
-const autoInteractionTemplate = require("../../共通/autoInteractionTemplate");
+const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 
 const store = require('../../../utils/ストレージ/ストア共通');
@@ -41,10 +41,11 @@ module.exports = async function (interaction, parsed) {
 
         const { getPosition } = require('../../../utils/配車/待機列マネージャ');
         const myPosition = await getPosition(guildId, userId);
-        const posText = myPosition ? `\n現在の待機順位は **第 ${myPosition} 位** です。` : "";
+        const posText = myPosition ? `\n現在の待機順位は **第 ${myPosition} 位** です。` : '';
 
-        return interaction.editReply({ content: `✅ 現在地を「${location}」に更新しました。${posText}` });
-
+        return interaction.editReply({
+          content: `✅ 現在地を「${location}」に更新しました。${posText}`,
+        });
       } else {
         // --- ボタン押下時 (Show Modal) ---
         const modal = new ModalBuilder()
@@ -58,12 +59,10 @@ module.exports = async function (interaction, parsed) {
           .setRequired(true)
           .setMaxLength(50);
 
-        modal.addComponents(
-          new ActionRowBuilder().addComponents(locInput)
-        );
+        modal.addComponents(new ActionRowBuilder().addComponents(locInput));
 
         await interaction.showModal(modal);
       }
-    }
+    },
   });
 };

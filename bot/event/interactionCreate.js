@@ -1,17 +1,17 @@
 // src/bot/events/interactionCreate.js
 // interaction を handler/handler.js に丸投げするだけの薄いイベント
 
-const { Events } = require("discord.js");
-const handler = require("../handler/handler"); // Assuming this is the new handler entry point
-const logger = require("../utils/logger");
+const { Events } = require('discord.js');
+const handler = require('../handler/handler'); // Assuming this is the new handler entry point
+const logger = require('../utils/logger');
 
 function oneLineError(err) {
-  const fe = typeof logger.formatError === "function" ? logger.formatError(err) : String(err);
-  return String(fe).split("\n")[0];
+  const fe = typeof logger.formatError === 'function' ? logger.formatError(err) : String(err);
+  return String(fe).split('\n')[0];
 }
 
 function fullError(err) {
-  return typeof logger.formatError === "function" ? logger.formatError(err) : err;
+  return typeof logger.formatError === 'function' ? logger.formatError(err) : err;
 }
 
 module.exports = {
@@ -23,7 +23,7 @@ module.exports = {
       await handler.handleInteraction(interaction, client);
     } catch (err) {
       // 重要: ここでさらに例外を起こさない（formatError未定義対策）
-      logger.error("Interaction処理で例外が発生しました", {
+      logger.error('Interaction処理で例外が発生しました', {
         summary: oneLineError(err),
         customId: interaction.customId ?? null,
         command: interaction.commandName ?? null,
@@ -31,18 +31,18 @@ module.exports = {
         guildId: interaction.guildId ?? null,
         channelId: interaction.channelId ?? null,
         kind: interaction.isButton?.()
-          ? "button"
+          ? 'button'
           : interaction.isModalSubmit?.()
-            ? "modal"
+            ? 'modal'
             : interaction.isStringSelectMenu?.()
-              ? "select"
+              ? 'select'
               : interaction.isChatInputCommand?.()
-                ? "slash"
-                : "other",
+                ? 'slash'
+                : 'other',
       });
 
       // 詳細はdebugへ（stack含む）
-      logger.debug("例外詳細", fullError(err));
+      logger.debug('例外詳細', fullError(err));
     }
   },
 };

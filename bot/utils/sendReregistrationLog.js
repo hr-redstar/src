@@ -4,10 +4,10 @@
  * @param {string} role - 役割 ('driver' または 'user')
  */
 async function sendReregistrationLog(channel, role = 'driver') {
-    const timestamp = new Date().toLocaleString('ja-JP');
-    const roleLabel = role === 'driver' ? '送迎者' : '利用者';
+  const timestamp = new Date().toLocaleString('ja-JP');
+  const roleLabel = role === 'driver' ? '送迎者' : '利用者';
 
-    const content = `
+  const content = `
 ────────────────────
 🔁 再登録ログ
 ────────────────────
@@ -15,9 +15,9 @@ async function sendReregistrationLog(channel, role = 'driver') {
 ・理由：内容更新（車種／区域／登録修正 等）
 ・再登録日時：${timestamp}`;
 
-    await channel.send({ content: content.trim() });
+  await channel.send({ content: content.trim() });
 }
 
 module.exports = {
-    sendReregistrationLog,
+  sendReregistrationLog,
 };

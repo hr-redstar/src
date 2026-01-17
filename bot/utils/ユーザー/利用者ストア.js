@@ -1,5 +1,5 @@
-const { readJson, writeJson, prefix } = require("../ストレージ/GCS_JSON");
-const { usersIndexPath, userRegPath } = require("../ストレージ/GCSパス");
+const { readJson, writeJson, prefix } = require('../ストレージ/GCS_JSON');
+const { usersIndexPath, userRegPath } = require('../ストレージ/GCSパス');
 
 function defIndex() {
   return { version: 1, updatedAt: 0, users: {} };

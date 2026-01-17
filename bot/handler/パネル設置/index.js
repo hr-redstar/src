@@ -72,6 +72,6 @@ module.exports = {
     stafflogpanel_select,
     // Refined Flow
     flow.startHandler,
-    flow.typeHandler
+    flow.typeHandler,
   ],
 };

@@ -19,7 +19,9 @@ module.exports = async function (interaction) {
       const profile = await loadDriver(guildId, userId);
 
       if (!profile) {
-        return interaction.editReply({ content: '送迎者登録が見つかりません。先に登録してください。' });
+        return interaction.editReply({
+          content: '送迎者登録が見つかりません。先に登録してください。',
+        });
       }
 
       profile.available = false;
@@ -38,14 +40,14 @@ module.exports = async function (interaction) {
       const logData = {
         ...profile,
         clockInTime: waitData?.timestamp,
-        rideCount: waitData?.rideCount || 0
+        rideCount: waitData?.rideCount || 0,
       };
 
       await postDetailedAttendanceLog({
         guild: interaction.guild,
         user: interaction.user,
         data: logData,
-        type: 'off'
+        type: 'off',
       }).catch(() => null);
 
       // 各パネルを更新
@@ -66,17 +68,17 @@ module.exports = async function (interaction) {
       await postGlobalLog({
         guild: interaction.guild,
         content: '送迎車が一台退勤しました。',
-        embeds: [embed]
+        embeds: [embed],
       }).catch(() => null);
 
       await Promise.all([
         updateDriverPanel(interaction.guild, interaction.client),
         updateUserPanel(interaction.guild, interaction.client),
         updateRideListPanel(interaction.guild, interaction.client),
-      ]).catch(err => console.error("パネル更新失敗", err));
+      ]).catch((err) => console.error('パネル更新失敗', err));
 
       // ユーザーへの通知 (Ephemeral)
       await interaction.editReply({ content: 'お疲れ様でした。退勤しました。' });
-    }
+    },
   });
 };

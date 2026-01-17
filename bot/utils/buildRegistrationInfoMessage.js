@@ -7,84 +7,90 @@
  * @param {string} reregistrationReason - 再登録の理由（再登録時のみ）
  * @returns {string} 登録情報メッセージ
  */
-function buildRegistrationInfoMessage(registrationJson, role, user, isReregistration = false, reregistrationReason = null) {
-    const roleLabel = role === 'driver' ? '送迎者' : '利用者';
-    let message = '';
+function buildRegistrationInfoMessage(
+  registrationJson,
+  role,
+  user,
+  isReregistration = false,
+  reregistrationReason = null
+) {
+  const roleLabel = role === 'driver' ? '送迎者' : '利用者';
+  let message = '';
 
-    // 基本情報
-    message += '📋 登録情報\n';
-    message += '基本情報\n';
-    message += `・ユーザー：${user.tag}\n`;
-    message += `・登録区分：${roleLabel}\n`;
+  // 基本情報
+  message += '📋 登録情報\n';
+  message += '基本情報\n';
+  message += `・ユーザー：${user.tag}\n`;
+  message += `・登録区分：${roleLabel}\n`;
 
-    // 現在の登録情報
-    if (registrationJson?.current) {
-        const current = registrationJson.current;
-        message += '📌 現在の登録情報\n';
+  // 現在の登録情報
+  if (registrationJson?.current) {
+    const current = registrationJson.current;
+    message += '📌 現在の登録情報\n';
 
-        if (role === 'driver') {
-            message += `・ニックネーム：${current.nickname || '未設定'}\n`;
-            message += `・車種：${current.car || '未設定'}\n`;
-            message += `・対応エリア：${current.area || '未設定'}\n`;
-            message += `・停留場所：${current.stop || '未設定'}\n`;
-            message += `・乗車人数：${current.capacity || '未設定'}人\n`;
-        } else {
-            message += `・店舗名 / ニックネーム：${current.storeName || '未設定'}\n`;
-            message += `・目印：${current.mark || '未設定'}\n`;
-        }
-
-        if (current.registeredAt) {
-            const registeredAt = new Date(current.registeredAt).toLocaleString('ja-JP', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-            });
-            message += `\n登録日時：${registeredAt}\n`;
-        }
+    if (role === 'driver') {
+      message += `・ニックネーム：${current.nickname || '未設定'}\n`;
+      message += `・車種：${current.car || '未設定'}\n`;
+      message += `・対応エリア：${current.area || '未設定'}\n`;
+      message += `・停留場所：${current.stop || '未設定'}\n`;
+      message += `・乗車人数：${current.capacity || '未設定'}人\n`;
+    } else {
+      message += `・店舗名 / ニックネーム：${current.storeName || '未設定'}\n`;
+      message += `・目印：${current.mark || '未設定'}\n`;
     }
 
-    // 過去の登録情報（履歴）
-    if (registrationJson?.history && registrationJson.history.length > 0) {
-        registrationJson.history.forEach((historyItem, index) => {
-            message += `🕒 過去の登録情報 ${index + 1}\n`;
+    if (current.registeredAt) {
+      const registeredAt = new Date(current.registeredAt).toLocaleString('ja-JP', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+      message += `\n登録日時：${registeredAt}\n`;
+    }
+  }
 
-            if (role === 'driver') {
-                message += `・ニックネーム：${historyItem.nickname || '未設定'}\n`;
-                message += `・車種：${historyItem.car || '未設定'}\n`;
-                message += `・対応エリア：${historyItem.area || '未設定'}\n`;
-                message += `・停留場所：${historyItem.stop || '未設定'}\n`;
-                message += `・乗車人数：${historyItem.capacity || '未設定'}人\n`;
-            } else {
-                message += `・店舗名 / ニックネーム：${historyItem.storeName || '未設定'}\n`;
-                message += `・目印：${historyItem.mark || '未設定'}\n`;
-            }
+  // 過去の登録情報（履歴）
+  if (registrationJson?.history && registrationJson.history.length > 0) {
+    registrationJson.history.forEach((historyItem, index) => {
+      message += `🕒 過去の登録情報 ${index + 1}\n`;
 
-            if (historyItem.oldRegisteredAt && historyItem.changedAt) {
-                const startDate = new Date(historyItem.oldRegisteredAt).toLocaleString('ja-JP', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                });
-                const endDate = new Date(historyItem.changedAt).toLocaleString('ja-JP', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                });
-                message += `\n有効期間：${startDate} 〜 ${endDate}\n`;
-            }
+      if (role === 'driver') {
+        message += `・ニックネーム：${historyItem.nickname || '未設定'}\n`;
+        message += `・車種：${historyItem.car || '未設定'}\n`;
+        message += `・対応エリア：${historyItem.area || '未設定'}\n`;
+        message += `・停留場所：${historyItem.stop || '未設定'}\n`;
+        message += `・乗車人数：${historyItem.capacity || '未設定'}人\n`;
+      } else {
+        message += `・店舗名 / ニックネーム：${historyItem.storeName || '未設定'}\n`;
+        message += `・目印：${historyItem.mark || '未設定'}\n`;
+      }
+
+      if (historyItem.oldRegisteredAt && historyItem.changedAt) {
+        const startDate = new Date(historyItem.oldRegisteredAt).toLocaleString('ja-JP', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
         });
-    }
+        const endDate = new Date(historyItem.changedAt).toLocaleString('ja-JP', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        });
+        message += `\n有効期間：${startDate} 〜 ${endDate}\n`;
+      }
+    });
+  }
 
-    return message;
+  return message;
 }
 
 /**
@@ -95,40 +101,40 @@ function buildRegistrationInfoMessage(registrationJson, role, user, isReregistra
  * @returns {string} 初回登録メッセージ
  */
 function buildInitialRegistrationMessage(registrationJson, role, user) {
-    const roleLabel = role === 'driver' ? '送迎者' : '利用者';
-    let message = '────────────────────\n';
-    message += '📥 登録情報（初回登録）\n';
-    message += '────────────────────\n';
+  const roleLabel = role === 'driver' ? '送迎者' : '利用者';
+  let message = '────────────────────\n';
+  message += '📥 登録情報（初回登録）\n';
+  message += '────────────────────\n';
 
-    if (registrationJson?.current) {
-        const current = registrationJson.current;
+  if (registrationJson?.current) {
+    const current = registrationJson.current;
 
-        if (role === 'driver') {
-            message += `・ニックネーム：${current.nickname || '未設定'}\n`;
-            message += `・車種：${current.car || '未設定'}\n`;
-            message += `・対応エリア（区域）：${current.area || '未設定'}\n`;
-            message += `・停留場所：${current.stop || '未設定'}\n`;
-            message += `・乗車人数：${current.capacity || '未設定'}\n`;
-        } else {
-            message += `・店舗名 / ニックネーム：${current.storeName || '未設定'}\n`;
-            message += `・目印：${current.mark || '未設定'}\n`;
-        }
-
-        if (current.registeredAt) {
-            const registeredAt = new Date(current.registeredAt).toLocaleString('ja-JP', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-            });
-            message += `\n・登録日時：${registeredAt}\n`;
-        }
+    if (role === 'driver') {
+      message += `・ニックネーム：${current.nickname || '未設定'}\n`;
+      message += `・車種：${current.car || '未設定'}\n`;
+      message += `・対応エリア（区域）：${current.area || '未設定'}\n`;
+      message += `・停留場所：${current.stop || '未設定'}\n`;
+      message += `・乗車人数：${current.capacity || '未設定'}\n`;
+    } else {
+      message += `・店舗名 / ニックネーム：${current.storeName || '未設定'}\n`;
+      message += `・目印：${current.mark || '未設定'}\n`;
     }
 
-    message += '────────────────────\n';
-    return message;
+    if (current.registeredAt) {
+      const registeredAt = new Date(current.registeredAt).toLocaleString('ja-JP', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+      message += `\n・登録日時：${registeredAt}\n`;
+    }
+  }
+
+  message += '────────────────────\n';
+  return message;
 }
 
 /**
@@ -138,24 +144,24 @@ function buildInitialRegistrationMessage(registrationJson, role, user) {
  * @returns {string} 再登録ログメッセージ
  */
 function buildReregistrationLogMessage(role, reason = '内容更新（車種／区域／登録修正 等）') {
-    const roleLabel = role === 'driver' ? '送迎者' : '利用者';
-    const now = new Date().toLocaleString('ja-JP', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-    });
+  const roleLabel = role === 'driver' ? '送迎者' : '利用者';
+  const now = new Date().toLocaleString('ja-JP', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 
-    let message = '────────────────────\n';
-    message += '🔁 再登録ログ\n';
-    message += '────────────────────\n';
-    message += `・登録区分：${roleLabel}\n`;
-    message += `・理由：${reason}\n`;
-    message += `・再登録日時：${now}\n`;
+  let message = '────────────────────\n';
+  message += '🔁 再登録ログ\n';
+  message += '────────────────────\n';
+  message += `・登録区分：${roleLabel}\n`;
+  message += `・理由：${reason}\n`;
+  message += `・再登録日時：${now}\n`;
 
-    return message;
+  return message;
 }
 
 /**
@@ -163,25 +169,25 @@ function buildReregistrationLogMessage(role, reason = '内容更新（車種／�
  * @returns {string} スレッドオプション説明メッセージ
  */
 function buildThreadOptionsMessage() {
-    let message = '📁 履歴メモの整理（スレッド化）について\n';
-    message += 'メモ履歴が増えた場合、\n';
-    message += 'このメモチャンネルを見やすく保つため\n';
-    message += '履歴をスレッドにまとめることができます。\n\n';
-    message += '■ 選択可能な期間\n';
-    message += '・1週間\n';
-    message += '・2週間\n';
-    message += '・1か月\n';
-    message += '・半年\n\n';
-    message += '※ 選択がない場合、スレッドは作成されません\n';
-    message += '※ この設定は再登録時に変更可能です\n';
-    message += '設定は登録時の選択内容に基づいて自動処理されます';
+  let message = '📁 履歴メモの整理（スレッド化）について\n';
+  message += 'メモ履歴が増えた場合、\n';
+  message += 'このメモチャンネルを見やすく保つため\n';
+  message += '履歴をスレッドにまとめることができます。\n\n';
+  message += '■ 選択可能な期間\n';
+  message += '・1週間\n';
+  message += '・2週間\n';
+  message += '・1か月\n';
+  message += '・半年\n\n';
+  message += '※ 選択がない場合、スレッドは作成されません\n';
+  message += '※ この設定は再登録時に変更可能です\n';
+  message += '設定は登録時の選択内容に基づいて自動処理されます';
 
-    return message;
+  return message;
 }
 
 module.exports = {
-    buildRegistrationInfoMessage,
-    buildInitialRegistrationMessage,
-    buildReregistrationLogMessage,
-    buildThreadOptionsMessage,
+  buildRegistrationInfoMessage,
+  buildInitialRegistrationMessage,
+  buildReregistrationLogMessage,
+  buildThreadOptionsMessage,
 };

@@ -1,5 +1,5 @@
-const store = require("../ストレージ/ストア共通");
-const paths = require("../ストレージ/ストレージパス");
+const store = require('../ストレージ/ストア共通');
+const paths = require('../ストレージ/ストレージパス');
 
 /**
  * 利用者.json の基本スキーマ:

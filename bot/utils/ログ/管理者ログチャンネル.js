@@ -1,4 +1,4 @@
-const { ChannelType } = require("discord.js");
+const { ChannelType } = require('discord.js');
 
 async function logToAdminChannel(guild, cfg, content) {
   const id = cfg.channels?.adminLogChannelId;

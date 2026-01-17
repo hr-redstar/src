@@ -3,7 +3,7 @@ const store = require('../../../utils/ストレージ/ストア共通');
 const paths = require('../../../utils/ストレージ/ストレージパス');
 const { updateDriverPanel } = require('../メイン');
 
-const interactionTemplate = require("../../共通/interactionTemplate");
+const interactionTemplate = require('../../共通/interactionTemplate');
 const { ACK } = interactionTemplate;
 
 module.exports = async function (interaction) {
@@ -35,9 +35,11 @@ module.exports = async function (interaction) {
 
       const { getPosition } = require('../../../utils/配車/待機列マネージャ');
       const myPosition = await getPosition(guildId, userId);
-      const posText = myPosition ? `\n現在の待機順位は **第 ${myPosition} 位** です。` : "";
+      const posText = myPosition ? `\n現在の待機順位は **第 ${myPosition} 位** です。` : '';
 
-      await interaction.editReply({ content: `✅ 現在地を「${location}」に更新しました。${posText}` });
-    }
+      await interaction.editReply({
+        content: `✅ 現在地を「${location}」に更新しました。${posText}`,
+      });
+    },
   });
 };

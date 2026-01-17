@@ -1,21 +1,22 @@
 // src/bot/utils/stateStore.js
 // guildごとの状態をJSONに保存（再起動しても維持）
 
-const fs = require("fs");
-const path = require("path");
+const fs = require('fs');
+const path = require('path');
 
-const DATA_DIR = path.join(process.cwd(), "src", "bot", "data");
-const FILE_PATH = path.join(DATA_DIR, "state.json");
+const DATA_DIR = path.join(process.cwd(), 'src', 'bot', 'data');
+const FILE_PATH = path.join(DATA_DIR, 'state.json');
 
 function ensureFile() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(FILE_PATH)) fs.writeFileSync(FILE_PATH, JSON.stringify({ guilds: {} }, null, 2), "utf8");
+  if (!fs.existsSync(FILE_PATH))
+    fs.writeFileSync(FILE_PATH, JSON.stringify({ guilds: {} }, null, 2), 'utf8');
 }
 
 function loadAll() {
   ensureFile();
   try {
-    const raw = fs.readFileSync(FILE_PATH, "utf8");
+    const raw = fs.readFileSync(FILE_PATH, 'utf8');
     const json = JSON.parse(raw);
     if (!json.guilds) json.guilds = {};
     return json;
@@ -26,7 +27,7 @@ function loadAll() {
 
 function saveAll(data) {
   ensureFile();
-  fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), "utf8");
+  fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
 }
 
 function getGuildState(guildId) {

@@ -1,8 +1,5 @@
 // command/00_パネル設置パネル.js
-const {
-  SlashCommandBuilder,
-  PermissionsBitField,
-} = require("discord.js");
+const { SlashCommandBuilder, PermissionsBitField } = require('discord.js');
 
 /**
  * /パネル設置パネル
@@ -11,8 +8,8 @@ const {
  */
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName("パネル設置パネル")
-    .setDescription("パネル設置パネルを送信します（管理者用）")
+    .setName('パネル設置パネル')
+    .setDescription('パネル設置パネルを送信します（管理者用）')
     .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator),
 
   async execute(interaction) {

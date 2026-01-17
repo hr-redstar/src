@@ -28,10 +28,9 @@ async function deployCommands() {
   const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
 
   try {
-    const data = await rest.put(
-      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-      { body: commands }
-    );
+    const data = await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), {
+      body: commands,
+    });
     logger.success(`ギルド(${GUILD_ID})に ${data.length}個のコマンドを登録しました。`);
   } catch (error) {
     logger.error(`ギルド(${GUILD_ID})へのコマンド登録に失敗しました:`, error);

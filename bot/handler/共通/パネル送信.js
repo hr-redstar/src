@@ -7,43 +7,38 @@
  * @param {boolean} options.suppressFallback 既存がなければ再送信しない
  * @returns {Promise<string|null>} messageId
  */
-async function sendOrUpdatePanel({
-    channel,
-    messageId,
-    buildMessage,
-    suppressFallback = false,
-}) {
-    const payload = await buildMessage();
+async function sendOrUpdatePanel({ channel, messageId, buildMessage, suppressFallback = false }) {
+  const payload = await buildMessage();
 
-    // 既存パネルがある場合 → 更新
-    if (messageId) {
-        try {
-            const msg = await channel.messages.fetch(messageId);
-            await msg.edit(payload);
-            return msg.id;
-        } catch (err) {
-            // メッセージが消えているなど
-            console.warn(
-                `⚠️ 既存パネル(ID:${messageId})が見つかりません。メッセージが削除された可能性があります。`
-            );
-
-            if (suppressFallback) {
-                console.info('✅ suppressFallback が有効なため、再送信をスキップします。');
-                return null;
-            }
-        }
-    }
-
-    // 新規送信
+  // 既存パネルがある場合 → 更新
+  if (messageId) {
     try {
-        const sent = await channel.send(payload);
-        return sent.id;
+      const msg = await channel.messages.fetch(messageId);
+      await msg.edit(payload);
+      return msg.id;
     } catch (err) {
-        console.error('❌ パネルの新規送信に失敗しました:', err.message);
+      // メッセージが消えているなど
+      console.warn(
+        `⚠️ 既存パネル(ID:${messageId})が見つかりません。メッセージが削除された可能性があります。`
+      );
+
+      if (suppressFallback) {
+        console.info('✅ suppressFallback が有効なため、再送信をスキップします。');
         return null;
+      }
     }
+  }
+
+  // 新規送信
+  try {
+    const sent = await channel.send(payload);
+    return sent.id;
+  } catch (err) {
+    console.error('❌ パネルの新規送信に失敗しました:', err.message);
+    return null;
+  }
 }
 
 module.exports = {
-    sendOrUpdatePanel,
+  sendOrUpdatePanel,
 };

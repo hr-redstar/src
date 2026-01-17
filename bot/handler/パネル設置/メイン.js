@@ -1,14 +1,11 @@
-﻿const {
-  CUSTOM_ID,
-  requireAdmin,
-} = require("./共通/_panelSetupCommon");
+﻿const { CUSTOM_ID, requireAdmin } = require('./共通/_panelSetupCommon');
 
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
-const { loadConfig, saveConfig } = require("../../utils/設定/設定マネージャ");
-const { sendOrUpdatePanel } = require("../共通/パネル送信");
-const interactionTemplate = require("../共通/interactionTemplate");
+const { loadConfig, saveConfig } = require('../../utils/設定/設定マネージャ');
+const { sendOrUpdatePanel } = require('../共通/パネル送信');
+const interactionTemplate = require('../共通/interactionTemplate');
 const { ACK } = interactionTemplate;
-const buildPanelSetupEmbed = require("./埋め込み作成");
+const buildPanelSetupEmbed = require('./埋め込み作成');
 
 /**
  * /パネル設置パネル 実行時に呼ばれる
@@ -25,7 +22,7 @@ async function sendPanelSetupPanel(interaction) {
 
     const payload = {
       embeds: [embed],
-      components: components
+      components: components,
     };
 
     // 既存パネルがあれば更新を試みる
@@ -42,7 +39,9 @@ async function sendPanelSetupPanel(interaction) {
         } catch (error) {
           console.error('パネル更新エラー:', error);
           if (error.code !== 10008) {
-            return interaction.editReply({ content: '❌ パネルの更新に失敗しました。\n' + error.message });
+            return interaction.editReply({
+              content: '❌ パネルの更新に失敗しました。\n' + error.message,
+            });
           }
         }
       }
@@ -79,7 +78,7 @@ async function sendPanelSetupPanel(interaction) {
   return interactionTemplate(interaction, {
     ack: ACK.REPLY,
     adminOnly: true,
-    run
+    run,
   });
 }
 
@@ -91,15 +90,15 @@ function buildPanelSetupComponents(config) {
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(CUSTOM_ID.SEND_ADMIN_PANEL)
-      .setLabel("管理者パネル")
+      .setLabel('管理者パネル')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(CUSTOM_ID.SEND_DRIVER_PANEL)
-      .setLabel("送迎者パネル")
+      .setLabel('送迎者パネル')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(CUSTOM_ID.SEND_USER_PANEL)
-      .setLabel("利用者パネル")
+      .setLabel('利用者パネル')
       .setStyle(ButtonStyle.Secondary)
   );
 
@@ -107,11 +106,11 @@ function buildPanelSetupComponents(config) {
   const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(CUSTOM_ID.SEND_DRIVER_REG_PANEL)
-      .setLabel("送迎者登録パネル")
+      .setLabel('送迎者登録パネル')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(CUSTOM_ID.SEND_USER_REG_PANEL)
-      .setLabel("利用者登録パネル")
+      .setLabel('利用者登録パネル')
       .setStyle(ButtonStyle.Secondary)
   );
 
@@ -119,11 +118,11 @@ function buildPanelSetupComponents(config) {
   const row3 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(CUSTOM_ID.SEND_USER_CHECK_PANEL)
-      .setLabel("ユーザー確認パネル")
+      .setLabel('ユーザー確認パネル')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId(CUSTOM_ID.SEND_RIDE_LIST_PANEL)
-      .setLabel("送迎一覧パネル")
+      .setLabel('送迎一覧パネル')
       .setStyle(ButtonStyle.Primary)
   );
 
@@ -131,11 +130,11 @@ function buildPanelSetupComponents(config) {
   const row4 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(CUSTOM_ID.SEND_GUIDE_PANEL)
-      .setLabel("案内パネル")
+      .setLabel('案内パネル')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(CUSTOM_ID.SEND_RATING_RANK_PANEL)
-      .setLabel("口コミランクパネル")
+      .setLabel('口コミランクパネル')
       .setStyle(ButtonStyle.Secondary)
   );
 
@@ -152,7 +151,9 @@ async function updatePanelSetupPanel(guild) {
   const panel = config.panels?.panelSetup;
   if (!panel || !panel.channelId || !panel.messageId) return;
 
-  const channel = guild.channels.cache.get(panel.channelId) || await guild.channels.fetch(panel.channelId).catch(() => null);
+  const channel =
+    guild.channels.cache.get(panel.channelId) ||
+    (await guild.channels.fetch(panel.channelId).catch(() => null));
   if (!channel) return;
 
   const embed = buildPanelSetupEmbed(config, guild.id, client);
@@ -163,7 +164,7 @@ async function updatePanelSetupPanel(guild) {
     messageId: panel.messageId,
     buildMessage: () => ({
       embeds: [embed],
-      components: components
+      components: components,
     }),
     suppressFallback: true,
   });

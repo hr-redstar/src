@@ -7,39 +7,42 @@
  * @param {Object} user - Discordユーザーオブジェクト
  */
 async function updateRegistrationInfoMessage(channel, messageId, registrationJson, role, user) {
-    if (!channel || !messageId || !registrationJson) return;
+  if (!channel || !messageId || !registrationJson) return;
 
-    try {
-        const message = await channel.messages.fetch(messageId);
-        if (!message) return;
+  try {
+    const message = await channel.messages.fetch(messageId);
+    if (!message) return;
 
-        const { buildDriverRegistrationEmbed, buildUserRegistrationEmbed } = require('./buildRegistrationInfoEmbed');
+    const {
+      buildDriverRegistrationEmbed,
+      buildUserRegistrationEmbed,
+    } = require('./buildRegistrationInfoEmbed');
 
-        let embed;
-        if (role === 'driver') {
-            embed = buildDriverRegistrationEmbed(registrationJson, user);
-        } else {
-            embed = buildUserRegistrationEmbed(registrationJson, user);
-        }
-
-        // テキストを空にしてEmbedで上書き
-        await message.edit({ content: '', embeds: [embed] });
-
-        // 古い履歴をスレッドに退避 (非同期)
-        const { postOldHistoryToThread } = require('./postOldHistoryToThread');
-        await postOldHistoryToThread(channel, registrationJson.history, role);
-
-        return true;
-    } catch (error) {
-        if (error.code === 10008) {
-            // Unknown Message: メッセージが削除されている
-            return false;
-        }
-        console.error('登録情報メッセージの更新に失敗:', error);
-        return false;
+    let embed;
+    if (role === 'driver') {
+      embed = buildDriverRegistrationEmbed(registrationJson, user);
+    } else {
+      embed = buildUserRegistrationEmbed(registrationJson, user);
     }
+
+    // テキストを空にしてEmbedで上書き
+    await message.edit({ content: '', embeds: [embed] });
+
+    // 古い履歴をスレッドに退避 (非同期)
+    const { postOldHistoryToThread } = require('./postOldHistoryToThread');
+    await postOldHistoryToThread(channel, registrationJson.history, role);
+
+    return true;
+  } catch (error) {
+    if (error.code === 10008) {
+      // Unknown Message: メッセージが削除されている
+      return false;
+    }
+    console.error('登録情報メッセージの更新に失敗:', error);
+    return false;
+  }
 }
 
 module.exports = {
-    updateRegistrationInfoMessage,
+  updateRegistrationInfoMessage,
 };

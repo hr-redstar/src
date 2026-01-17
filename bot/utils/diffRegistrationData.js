@@ -5,24 +5,24 @@
  * @returns {Array} 変更点の配列
  */
 function diffRegistrationData(previousData, currentData) {
-    const changes = [];
+  const changes = [];
 
-    for (const key of Object.keys(currentData)) {
-        const before = previousData?.[key] ?? null;
-        const after = currentData[key];
+  for (const key of Object.keys(currentData)) {
+    const before = previousData?.[key] ?? null;
+    const after = currentData[key];
 
-        if (before !== after) {
-            changes.push({
-                field: key,
-                before,
-                after,
-            });
-        }
+    if (before !== after) {
+      changes.push({
+        field: key,
+        before,
+        after,
+      });
     }
+  }
 
-    return changes;
+  return changes;
 }
 
 module.exports = {
-    diffRegistrationData,
+  diffRegistrationData,
 };

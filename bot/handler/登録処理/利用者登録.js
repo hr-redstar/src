@@ -8,26 +8,26 @@ const {
   TextInputBuilder,
   TextInputStyle,
   MessageFlags,
-} = require("discord.js");
+} = require('discord.js');
 
-const logger = require("../../utils/logger");
-const { readJson, writeJson } = require("../../utils/ストレージ/ストア共通");
+const logger = require('../../utils/logger');
+const { readJson, writeJson } = require('../../utils/ストレージ/ストア共通');
 const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 const buildPanelMessage_ = require('../../utils/embed/panelMessageTemplate');
-const interactionTemplate = require("../共通/interactionTemplate");
+const interactionTemplate = require('../共通/interactionTemplate');
 const { ACK } = interactionTemplate;
 
 // ===== Custom IDs =====
 const CID = {
-  BTN_REGISTER: "reg|user|sub=button",
-  MODAL_REGISTER: "reg|user|sub=modal",
-  INP_NAME: "reg|user|input=name",
-  INP_ADDRESS: "reg|user|input=address",
-  INP_MARK: "reg|user|input=mark",
+  BTN_REGISTER: 'reg|user|sub=button',
+  MODAL_REGISTER: 'reg|user|sub=modal',
+  INP_NAME: 'reg|user|input=name',
+  INP_ADDRESS: 'reg|user|input=address',
+  INP_MARK: 'reg|user|input=mark',
 };
 
 // ===== Paths =====
-const paths = require("../../utils/ストレージ/ストレージパス");
+const paths = require('../../utils/ストレージ/ストレージパス');
 
 function normalizeIdList(v) {
   if (!Array.isArray(v)) return [];
@@ -41,7 +41,7 @@ const nowIso = () => new Date().toISOString();
 function buildUserRegPanelMessage(guild, client) {
   const botClient = client || guild.client;
   const embed = buildPanelEmbed({
-    title: "利用者登録パネル",
+    title: '利用者登録パネル',
     description: `
 利用者登録には以下の情報が必要です。
 ボタンを押して入力してください。
@@ -55,7 +55,7 @@ function buildUserRegPanelMessage(guild, client) {
 **駐車目印**
 送迎車が停車する際の目印（看板、入口横など）を入力してください。
     `,
-    client: botClient
+    client: botClient,
   });
 
   if (guild?.iconURL()) embed.setThumbnail(guild.iconURL());
@@ -63,11 +63,11 @@ function buildUserRegPanelMessage(guild, client) {
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(CID.BTN_REGISTER)
-      .setLabel("利用者登録")
+      .setLabel('利用者登録')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
-      .setCustomId("ps|check")
-      .setLabel("登録状態確認")
+      .setCustomId('ps|check')
+      .setLabel('登録状態確認')
       .setStyle(ButtonStyle.Secondary)
   );
 
@@ -84,15 +84,13 @@ async function execute(interaction, parsed) {
 
   // ボタン → モーダル (ACKなしでshowModal)
   if (interaction.isButton() && sub === 'button') {
-    const modal = new ModalBuilder()
-      .setCustomId(CID.MODAL_REGISTER)
-      .setTitle("利用者登録");
+    const modal = new ModalBuilder().setCustomId(CID.MODAL_REGISTER).setTitle('利用者登録');
 
     modal.addComponents(
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId(CID.INP_NAME)
-          .setLabel("店舗名 または ニックネーム")
+          .setLabel('店舗名 または ニックネーム')
           .setStyle(TextInputStyle.Short)
           .setRequired(true)
           .setMaxLength(50)
@@ -100,7 +98,7 @@ async function execute(interaction, parsed) {
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId(CID.INP_ADDRESS)
-          .setLabel("店舗住所")
+          .setLabel('店舗住所')
           .setStyle(TextInputStyle.Paragraph)
           .setRequired(true)
           .setMaxLength(100)
@@ -108,7 +106,7 @@ async function execute(interaction, parsed) {
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId(CID.INP_MARK)
-          .setLabel("駐車目印")
+          .setLabel('駐車目印')
           .setStyle(TextInputStyle.Paragraph)
           .setRequired(true)
           .setMaxLength(200)
@@ -131,10 +129,10 @@ async function execute(interaction, parsed) {
         const userId = interaction.user.id;
 
         // 個別登録情報を履歴付きで保存 (インデックス更新含む)
-        const { saveUser } = require("../../utils/usersStore");
+        const { saveUser } = require('../../utils/usersStore');
         const registrationData = {
           userId,
-          storeName: name,  // 利用者の場合は storeName
+          storeName: name, // 利用者の場合は storeName
           address,
           mark,
           registeredAt: nowIso(),
@@ -142,12 +140,12 @@ async function execute(interaction, parsed) {
         await saveUser(guildId, userId, registrationData);
 
         // メモチャンネル作成 or 検出
-        const { loadConfig } = require("../../utils/設定/設定マネージャ");
+        const { loadConfig } = require('../../utils/設定/設定マネージャ');
         const config = await loadConfig(interaction.guild.id);
 
         if (config.categories?.userMemo) {
-          const { findUserMemoChannel } = require("../../utils/findUserMemoChannel");
-          const { createUserMemoChannel } = require("../../utils/createUserMemoChannel");
+          const { findUserMemoChannel } = require('../../utils/findUserMemoChannel');
+          const { createUserMemoChannel } = require('../../utils/createUserMemoChannel');
 
           // 既存チャンネル検出
           let memoChannel = await findUserMemoChannel({
@@ -155,8 +153,8 @@ async function execute(interaction, parsed) {
             userId: interaction.user.id,
             categoryId: config.categories.userMemo,
             role: 'user',
-          }).catch(err => {
-            console.error("メモチャンネル検出失敗", err);
+          }).catch((err) => {
+            console.error('メモチャンネル検出失敗', err);
             return null;
           });
 
@@ -165,16 +163,24 @@ async function execute(interaction, parsed) {
 
           if (memoChannel) {
             // 最新のJSON取得（履歴含む）
-            const { loadUserFull } = require("../../utils/usersStore");
+            const { loadUserFull } = require('../../utils/usersStore');
             const fullJson = await loadUserFull(interaction.guild.id, interaction.user.id);
 
             // 登録情報メッセージを更新または新規作成
-            const { getRegistrationMessageId } = require("../../utils/registrationMessageStore");
-            const { updateRegistrationInfoMessage } = require("../../utils/updateRegistrationInfoMessage");
-            const { buildRegistrationInfoMessage } = require("../../utils/buildRegistrationInfoMessage");
-            const { saveRegistrationMessageId } = require("../../utils/registrationMessageStore");
+            const { getRegistrationMessageId } = require('../../utils/registrationMessageStore');
+            const {
+              updateRegistrationInfoMessage,
+            } = require('../../utils/updateRegistrationInfoMessage');
+            const {
+              buildRegistrationInfoMessage,
+            } = require('../../utils/buildRegistrationInfoMessage');
+            const { saveRegistrationMessageId } = require('../../utils/registrationMessageStore');
 
-            const messageId = await getRegistrationMessageId(interaction.guild.id, interaction.user.id, 'user');
+            const messageId = await getRegistrationMessageId(
+              interaction.guild.id,
+              interaction.user.id,
+              'user'
+            );
 
             if (messageId) {
               // 既存メッセージを編集
@@ -184,24 +190,31 @@ async function execute(interaction, parsed) {
                 fullJson,
                 'user',
                 interaction.user
-              ).catch(err => {
-                console.error("登録情報メッセージ更新失敗", err);
+              ).catch((err) => {
+                console.error('登録情報メッセージ更新失敗', err);
               });
             } else {
               // 初回再登録時: 新規メッセージを作成
-              const { buildUserRegistrationEmbed } = require("../../utils/buildRegistrationInfoEmbed");
+              const {
+                buildUserRegistrationEmbed,
+              } = require('../../utils/buildRegistrationInfoEmbed');
 
               const embed = buildUserRegistrationEmbed(fullJson, interaction.user);
 
-              const sentMessage = await memoChannel.send({ embeds: [embed] }).catch(err => {
-                console.error("登録情報メッセージ送信失敗", err);
+              const sentMessage = await memoChannel.send({ embeds: [embed] }).catch((err) => {
+                console.error('登録情報メッセージ送信失敗', err);
                 return null;
               });
 
               // メッセージIDを保存
               if (sentMessage) {
-                await saveRegistrationMessageId(interaction.guild.id, interaction.user.id, sentMessage.id, 'user').catch(err => {
-                  console.error("メッセージID保存失敗", err);
+                await saveRegistrationMessageId(
+                  interaction.guild.id,
+                  interaction.user.id,
+                  sentMessage.id,
+                  'user'
+                ).catch((err) => {
+                  console.error('メッセージID保存失敗', err);
                 });
               }
             }
@@ -212,8 +225,8 @@ async function execute(interaction, parsed) {
               user: interaction.user,
               categoryId: config.categories.userMemo,
               role: 'user',
-            }).catch(err => {
-              console.error("メモチャンネル作成失敗", err);
+            }).catch((err) => {
+              console.error('メモチャンネル作成失敗', err);
               return null;
             });
           }
@@ -235,13 +248,13 @@ async function execute(interaction, parsed) {
           const ch = await interaction.guild.channels.fetch(logChId).catch(() => null);
           if (ch) {
             const logEmbed = new EmbedBuilder()
-              .setTitle("👤 利用者登録")
+              .setTitle('👤 利用者登録')
               .setColor(0x3498db)
               .addFields(
-                { name: "ユーザー", value: `<@${userId}>`, inline: true },
-                { name: "お名前", value: name, inline: true },
-                { name: "住所", value: address, inline: false },
-                { name: "駐車目印", value: mark, inline: false }
+                { name: 'ユーザー', value: `<@${userId}>`, inline: true },
+                { name: 'お名前', value: name, inline: true },
+                { name: '住所', value: address, inline: false },
+                { name: '駐車目印', value: mark, inline: false }
               )
               .setTimestamp();
             await ch.send({ embeds: [logEmbed] }).catch(() => null);
@@ -249,13 +262,13 @@ async function execute(interaction, parsed) {
         }
 
         // パネル更新
-        const { updateUserCheckPanel } = require("./ユーザー確認パネル");
+        const { updateUserCheckPanel } = require('./ユーザー確認パネル');
         await updateUserCheckPanel(interaction.guild, interaction.client).catch(() => null);
 
         await interaction.editReply({
-          content: "✅ 利用者登録が完了しました！",
+          content: '✅ 利用者登録が完了しました！',
         });
-      }
+      },
     });
   }
 }

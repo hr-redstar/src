@@ -1,7 +1,7 @@
 ﻿// handler/利用者パネル/アクション/送迎依頼.js
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
 
-const autoInteractionTemplate = require("../../共通/autoInteractionTemplate");
+const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 
 module.exports = async function (interaction) {
@@ -12,8 +12,8 @@ module.exports = async function (interaction) {
       const { loadUser } = require('../../../utils/usersStore');
       const userData = await loadUser(interaction.guildId, interaction.user.id);
 
-      const defaultAddress = userData?.address || "";
-      const defaultMark = userData?.mark || "";
+      const defaultAddress = userData?.address || '';
+      const defaultMark = userData?.mark || '';
 
       const modal = new ModalBuilder()
         .setCustomId('user:ride:request:modal')
@@ -50,6 +50,6 @@ module.exports = async function (interaction) {
       );
 
       await interaction.showModal(modal);
-    }
+    },
   });
 };

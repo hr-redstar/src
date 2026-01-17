@@ -3,7 +3,7 @@ const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = req
 const store = require('../../../utils/ストレージ/ストア共通');
 const paths = require('../../../utils/ストレージ/ストレージパス');
 
-const autoInteractionTemplate = require("../../共通/autoInteractionTemplate");
+const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 
 module.exports = async function (interaction, parsed) {
@@ -31,7 +31,7 @@ module.exports = async function (interaction, parsed) {
         };
 
         const waitPath = `${paths.waitingDriversDir(guildId)}/${userId}.json`;
-        const isAlreadyWaiting = await store.readJson(waitPath).catch(() => null) !== null;
+        const isAlreadyWaiting = (await store.readJson(waitPath).catch(() => null)) !== null;
 
         await store.writeJson(waitPath, data);
 
@@ -55,7 +55,7 @@ module.exports = async function (interaction, parsed) {
           await postGlobalLog({
             guild: interaction.guild,
             content: '送迎車が一台出勤しました。',
-            embeds: [embed]
+            embeds: [embed],
           }).catch(() => null);
 
           // 詳細ログ
@@ -64,7 +64,7 @@ module.exports = async function (interaction, parsed) {
             guild: interaction.guild,
             user: interaction.user,
             data: data,
-            type: 'on'
+            type: 'on',
           }).catch(() => null);
         }
 
@@ -72,12 +72,11 @@ module.exports = async function (interaction, parsed) {
           updateDriverPanel(interaction.guild, interaction.client),
           updateUserPanel(interaction.guild, interaction.client),
           updateRideListPanel(interaction.guild, interaction.client),
-        ]).catch(err => console.error("パネル更新失敗", err));
+        ]).catch((err) => console.error('パネル更新失敗', err));
 
         return interaction.editReply({
-          content: `✅ 待機中に追加しました。\n現在の待機順位は **第 ${myPosition} 位** です。`
+          content: `✅ 待機中に追加しました。\n現在の待機順位は **第 ${myPosition} 位** です。`,
         });
-
       } else {
         // --- ボタン押下時 (Show Modal) ---
         const { loadDriver } = require('../../../utils/driversStore');
@@ -134,6 +133,6 @@ module.exports = async function (interaction, parsed) {
 
         await interaction.showModal(modal);
       }
-    }
+    },
   });
 };

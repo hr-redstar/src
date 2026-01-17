@@ -1,16 +1,16 @@
 // src/bot/utils/panelRefresher.js
-const path = require("path");
-const { readJson } = require("../ストレージ/ストア共通");
-const { getPanel } = require("./パネル登録");
+const path = require('path');
+const { readJson } = require('../ストレージ/ストア共通');
+const { getPanel } = require('./パネル登録');
 
-const { buildDriverListPanelMessage } = require("../handler/送迎パネル/panel_送迎者一覧パネル");
-const { buildDriverShiftPanelMessage } = require("../handler/送迎パネル/panel_送迎者パネル");
+const { buildDriverListPanelMessage } = require('../handler/送迎パネル/panel_送迎者一覧パネル');
+const { buildDriverShiftPanelMessage } = require('../handler/送迎パネル/panel_送迎者パネル');
 
-const DATA_FILE = path.join(process.cwd(), "data", "drivers.json");
+const DATA_FILE = path.join(process.cwd(), 'data', 'drivers.json');
 
 function toDriversArr(db) {
   const drivers = db?.drivers ?? {};
-  return Object.values(drivers).map(d => ({
+  return Object.values(drivers).map((d) => ({
     userId: d.userId,
     mention: `<@${d.userId}>`,
     area: d.area,
@@ -21,7 +21,7 @@ function toDriversArr(db) {
 
 async function getAvailableCount(db) {
   const drivers = Object.values(db?.drivers ?? {});
-  return drivers.filter(d => d.available).length;
+  return drivers.filter((d) => d.available).length;
 }
 
 async function editStoredMessage(client, guildId, key, payloadBuilder) {
@@ -41,14 +41,18 @@ async function refreshDriverListPanel(client, guildId) {
   const db = await readJson(DATA_FILE, { drivers: {} });
   const driversArr = toDriversArr(db);
 
-  await editStoredMessage(client, guildId, "driverList", () => buildDriverListPanelMessage(driversArr, null));
+  await editStoredMessage(client, guildId, 'driverList', () =>
+    buildDriverListPanelMessage(driversArr, null)
+  );
 }
 
 async function refreshDriverShiftPanel(client, guildId) {
   const db = await readJson(DATA_FILE, { drivers: {} });
   const count = await getAvailableCount(db);
 
-  await editStoredMessage(client, guildId, "driverShift", () => buildDriverShiftPanelMessage(count));
+  await editStoredMessage(client, guildId, 'driverShift', () =>
+    buildDriverShiftPanelMessage(count)
+  );
 }
 
 async function refreshAllDriverPanels(client, guildId) {
