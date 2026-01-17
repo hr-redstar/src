@@ -66,14 +66,30 @@ class LocalBackend {
     }
   }
 
-  async listKeys(prefix) {
+  async listKeys(prefix, { recursive = false } = {}) {
     const rel = this.normalizeKey(prefix);
     const dirPath = path.join(this.dataDir, rel);
+
     try {
-      const entries = await fsp.readdir(dirPath, { withFileTypes: true });
-      return entries
-        .filter((e) => e.isFile())
-        .map((e) => this.normalizeKey(path.join(rel, e.name)));
+      if (!fs.existsSync(dirPath)) return [];
+
+      const results = [];
+      const scan = async (currentPath, currentRel) => {
+        const entries = await fsp.readdir(currentPath, { withFileTypes: true });
+        for (const entry of entries) {
+          const entryRel = path.join(currentRel, entry.name).replace(/\\/g, '/');
+          if (entry.isDirectory()) {
+            if (recursive) {
+              await scan(path.join(currentPath, entry.name), entryRel);
+            }
+          } else if (entry.isFile()) {
+            results.push(entryRel);
+          }
+        }
+      };
+
+      await scan(dirPath, rel);
+      return results.map((k) => this.normalizeKey(k));
     } catch (e) {
       if (e.code === 'ENOENT') return [];
       throw e;

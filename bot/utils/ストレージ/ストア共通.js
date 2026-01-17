@@ -48,81 +48,45 @@ const normalizeKey = (key) => backend.normalizeKey(key);
 const getAbsolutePath = (key) => (USE_LOCAL ? backend.getAbsolutePath(key) : null);
 
 /**
- * ギルドの送迎者一覧（詳細情報付き）を取得
+ * 汎用的な JSON オブジェクトリスト取得 (バックエンド非依存)
  */
-async function loadDrivers(guildId) {
-  const root = `GCS/${guildId}/送迎者`;
+async function listAllJsonObjects(root, excludePatterns = []) {
+  const keys = await listKeys(root, { recursive: true });
   const results = [];
 
-  if (USE_LOCAL) {
-    const entries = await backend.listEntries(root);
-    for (const entry of entries) {
-      let json = null;
-      if (entry.isDirectory()) {
-        const profilePath = `${root}/${entry.name}/登録情報.json`;
-        json = await readJson(profilePath).catch(() => null);
-      } else if (entry.isFile() && entry.name.endsWith('.json')) {
-        if (
-          ['送迎者.json', 'index.json'].some((s) => entry.name.includes(s)) ||
-          entry.name.includes('一覧') ||
-          entry.name.includes('出勤中')
-        )
-          continue;
-        json = await readJson(`${root}/${entry.name}`).catch(() => null);
-      }
-      if (json) results.push(json.current || json);
-    }
-  } else {
-    const files = await backend.listAllFiles(root);
-    for (const file of files) {
-      if (!file.name.endsWith('.json')) continue;
-      if (['送迎者.json', '一覧.json', '出勤中.json'].some((s) => file.name.endsWith(s))) continue;
+  for (const key of keys) {
+    if (!key.endsWith('.json')) continue;
+    if (excludePatterns.some((pattern) => key.includes(pattern))) continue;
 
-      const [buf] = await file.download().catch(() => [null]);
-      if (buf) {
-        const json = JSON.parse(buf.toString('utf8'));
-        results.push(json.current || json);
-      }
+    const json = await readJson(key).catch(() => null);
+    if (json) {
+      results.push(json.current || json);
     }
   }
   return results;
 }
 
 /**
+ * ギルドの送迎者一覧（詳細情報付き）を取得
+ */
+async function loadDrivers(guildId) {
+  return await listAllJsonObjects(`GCS/${guildId}/送迎者`, [
+    '送迎者.json',
+    '一覧.json',
+    '出勤中.json',
+    'index.json',
+  ]);
+}
+
+/**
  * ギルドの利用者一覧（詳細情報付き）を取得
  */
 async function loadUsers(guildId) {
-  const root = `GCS/${guildId}/利用者`;
-  const results = [];
-
-  if (USE_LOCAL) {
-    const entries = await backend.listEntries(root);
-    for (const entry of entries) {
-      let json = null;
-      if (entry.isDirectory()) {
-        const profilePath = `${root}/${entry.name}/登録情報.json`;
-        json = await readJson(profilePath).catch(() => null);
-      } else if (entry.isFile() && entry.name.endsWith('.json')) {
-        if (['利用者.json', '一覧.json', 'index.json'].some((s) => entry.name.includes(s)))
-          continue;
-        json = await readJson(`${root}/${entry.name}`).catch(() => null);
-      }
-      if (json) results.push(json.current || json);
-    }
-  } else {
-    const files = await backend.listAllFiles(root);
-    for (const file of files) {
-      if (!file.name.endsWith('.json')) continue;
-      if (['利用者.json', '一覧.json'].some((s) => file.name.endsWith(s))) continue;
-
-      const [buf] = await file.download().catch(() => [null]);
-      if (buf) {
-        const json = JSON.parse(buf.toString('utf8'));
-        results.push(json.current || json);
-      }
-    }
-  }
-  return results;
+  return await listAllJsonObjects(`GCS/${guildId}/利用者`, [
+    '利用者.json',
+    '一覧.json',
+    'index.json',
+  ]);
 }
 
 module.exports = {

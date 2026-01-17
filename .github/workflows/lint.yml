@@ -38,3 +38,8 @@ jobs:
         run: |
           cd bot
           npm run lint
+
+      - name: Run Tests
+        run: |
+          cd bot
+          npm test

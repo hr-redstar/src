@@ -2,9 +2,8 @@
  * スレッド作成ボタンのハンドラー
  */
 module.exports = async (interaction, client, parsed) => {
-  // v1: memo:thread:1week -> params.legacy[0]
-  // v2: memo|thread|period=1week -> params.period
-  const period = parsed.params?.legacy?.[0] || parsed.params?.period;
+  // Custom ID: memo|thread|period=1week
+  const period = parsed.params?.period || parsed.params?.legacy?.[0];
 
   const periodLabels = {
     '1week': '1週間',

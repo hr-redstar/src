@@ -65,27 +65,20 @@ class GCSBackend {
     return true;
   }
 
-  async listKeys(prefix) {
+  async listKeys(prefix, { recursive = false } = {}) {
     const bucket = this.getBucket();
     const p = this.normalizeKey(prefix);
     const options = {
       prefix: p.endsWith('/') ? p : p + '/',
-      delimiter: '/',
       autoPaginate: true,
     };
 
-    const [files] = await bucket.getFiles(options);
-    return files.map((f) => f.name);
-  }
+    if (!recursive) {
+      options.delimiter = '/';
+    }
 
-  /**
-   * プレフィックスに一致するすべてのファイル（再帰的）を取得
-   */
-  async listAllFiles(prefix) {
-    const bucket = this.getBucket();
-    const p = this.normalizeKey(prefix);
-    const [files] = await bucket.getFiles({ prefix: p + '/' });
-    return files;
+    const [files] = await bucket.getFiles(options);
+    return files.map((f) => this.normalizeKey(f.name));
   }
 }
 

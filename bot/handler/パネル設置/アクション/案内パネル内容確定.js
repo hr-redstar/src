@@ -9,8 +9,7 @@ module.exports = {
   customId: 'ps:modal:guideContent', // 接頭辞で判定する想定
   type: 'modal',
   async execute(interaction, client, parsed) {
-    // v1: ps:modal:guideContent:channelId -> params.legacy[1]
-    // v2: ps|modal|sub=guideContent&cid=channelId -> params.cid
+    // Custom ID: ps|modal|sub=guideContent&cid=channelId
     const channelId = parsed.params?.cid || parsed.params?.legacy?.[1];
 
     return interactionTemplate(interaction, {
@@ -75,8 +74,8 @@ module.exports = {
                 .setTitle('🔐 送迎マッチング後')
                 .setDescription(
                   `送迎がマッチングされると、指定されたカテゴリー内に\n送迎者と利用者専用のプライベートVCチャンネルが作成されます。\n\n` +
-                  `📁 カテゴリー：${config.categories?.privateVc ? `<#${config.categories.privateVc}>` : '**未設定**'}\n` +
-                  `📘 使い方：${config.logs?.operatorChannel ? `<#${config.logs.operatorChannel}>` : '**未設定**'}`
+                    `📁 カテゴリー：${config.categories?.privateVc ? `<#${config.categories.privateVc}>` : '**未設定**'}\n` +
+                    `📘 使い方：${config.logs?.operatorChannel ? `<#${config.logs.operatorChannel}>` : '**未設定**'}`
                 )
                 .setColor(0x9b59b6)
             );
