@@ -1,0 +1,19 @@
+# Bot specific
+bot/.env
+bot/node_modules/
+bot/data/
+
+# Dependencies
+node_modules/
+*.log
+npm-debug.log*
+.DS_Store
+.idea/
+.vscode/
+data/
+brain/
+bot/brain/
+temp/
+tmp/
+dist/
+
