@@ -208,8 +208,8 @@ async function handleDepart(interaction, dispatchId) {
         .setColor(0xffa500);
 
     const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`dispatch:depart:${dispatchId}`).setLabel("出発済").setStyle(ButtonStyle.Primary).setDisabled(true),
-        new ButtonBuilder().setCustomId(`dispatch:complete:${dispatchId}`).setLabel("配送完了・帰庫").setStyle(ButtonStyle.Success).setDisabled(false)
+        new ButtonBuilder().setCustomId(`dispatch|order|sub=depart&did=${dispatchId}`).setLabel("出発済").setStyle(ButtonStyle.Primary).setDisabled(true),
+        new ButtonBuilder().setCustomId(`dispatch|order|sub=complete&did=${dispatchId}`).setLabel("配送完了・帰庫").setStyle(ButtonStyle.Success).setDisabled(false)
     );
 
     await interaction.editReply({ embeds: [embed], components: [row] });

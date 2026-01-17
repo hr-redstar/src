@@ -15,63 +15,71 @@ const buildPanelSetupEmbed = require("./埋め込み作成");
  * パネル設置用の管理パネルを送信・更新する
  */
 async function sendPanelSetupPanel(interaction) {
-  return interactionTemplate(interaction, {
-    ack: ACK.REPLY,
-    adminOnly: true,
-    async run(interaction) {
-      const guild = interaction.guild;
-      const config = await loadConfig(guild.id);
-      const client = interaction.client;
+  const run = async (interaction) => {
+    const guild = interaction.guild;
+    const config = await loadConfig(guild.id);
+    const client = interaction.client;
 
-      const embed = buildPanelSetupEmbed(config, guild.id, client);
-      const components = buildPanelSetupComponents(config);
+    const embed = buildPanelSetupEmbed(config, guild.id, client);
+    const components = buildPanelSetupComponents(config);
 
-      const payload = {
-        embeds: [embed],
-        components: components
-      };
+    const payload = {
+      embeds: [embed],
+      components: components
+    };
 
-      // 既存パネルがあれば更新を試みる
-      const panel = config.panels?.panelSetup;
-      const channel = interaction.channel;
-      let updateSuccess = false;
+    // 既存パネルがあれば更新を試みる
+    const panel = config.panels?.panelSetup;
+    const channel = interaction.channel;
+    let updateSuccess = false;
 
-      if (panel && panel.messageId) {
-        const msg = await channel.messages.fetch(panel.messageId).catch(() => null);
-        if (msg) {
-          try {
-            await msg.edit(payload);
-            updateSuccess = true;
-          } catch (error) {
-            console.error('パネル更新エラー:', error);
-            // 10008: Unknown Message は削除済みとみなし、新規作成へ進む
-            if (error.code !== 10008) {
-              return interaction.editReply({ content: '❌ パネルの更新に失敗しました。\n' + error.message });
-            }
+    if (panel && panel.messageId) {
+      const msg = await channel.messages.fetch(panel.messageId).catch(() => null);
+      if (msg) {
+        try {
+          await msg.edit(payload);
+          updateSuccess = true;
+        } catch (error) {
+          console.error('パネル更新エラー:', error);
+          if (error.code !== 10008) {
+            return interaction.editReply({ content: '❌ パネルの更新に失敗しました。\n' + error.message });
           }
         }
       }
-
-      if (updateSuccess) {
-        return interaction.editReply({ content: '✅ パネル設置パネルを更新しました。' });
-      }
-
-      // 新規送信 (または更新失敗時の再作成)
-      const panelMsg = await channel.send(payload);
-
-      if (panelMsg) {
-        config.panels ??= {};
-        config.panels.panelSetup = {
-          channelId: interaction.channelId,
-          messageId: panelMsg.id,
-        };
-        await saveConfig(guild.id, config);
-
-        await interaction.editReply({ content: '✅ パネル設置パネルを設置しました。' });
-      } else {
-        await interaction.editReply({ content: '❌ パネルの送信に失敗しました。' });
-      }
     }
+
+    if (updateSuccess) {
+      return interaction.editReply({ content: '✅ パネル設置パネルを更新しました。' });
+    }
+
+    // 新規送信
+    const panelMsg = await channel.send(payload);
+    if (panelMsg) {
+      config.panels ??= {};
+      config.panels.panelSetup = {
+        channelId: interaction.channelId,
+        messageId: panelMsg.id,
+      };
+      await saveConfig(guild.id, config);
+      await interaction.editReply({ content: '✅ パネル設置パネルを設置しました。' });
+    } else {
+      await interaction.editReply({ content: '❌ パネルの送信に失敗しました。' });
+    }
+  };
+
+  // Slash Command の場合は直接 ACK
+  if (interaction.isChatInputCommand()) {
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    }
+    return run(interaction);
+  }
+
+  // Component の場合は interactionTemplate を利用
+  return interactionTemplate(interaction, {
+    ack: ACK.REPLY,
+    adminOnly: true,
+    run
   });
 }
 

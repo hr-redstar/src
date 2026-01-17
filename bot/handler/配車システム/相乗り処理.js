@@ -45,8 +45,8 @@ async function handleCarpoolRecruitment(guild, leadUser, direction, count, dispa
         .setTimestamp();
 
     const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`dispatch:carpool:join:${rideId}`).setLabel("相乗りを希望する").setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId(`dispatch:carpool:cancel:${rideId}`).setLabel("キャンセル").setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId(`dispatch|order|sub=carpool_join&rid=${rideId}`).setLabel("相乗りを希望する").setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId(`dispatch|order|sub=carpool_cancel&rid=${rideId}`).setLabel("キャンセル").setStyle(ButtonStyle.Secondary)
     );
 
     const msg = await channel.send({ embeds: [embed], components: [row] });

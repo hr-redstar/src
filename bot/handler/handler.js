@@ -39,59 +39,58 @@ async function routeToPanelHandler(interaction, client) {
   // - user:...      → 利用者パネル
   let handler;
 
-  switch (parsed.namespace) {
-    case "admin":
-    case "adm":
-      handler = require("./管理者パネル/メイン");
-      break;
-    case "ps":
-      if (parsed.action === 'setup' || (parsed.legacy && parsed.action === 'send')) {
-        handler = require('./パネル設置/アクション/パネル設置フロー');
+  // ns（先頭識別子）でルーティング
+  const ROUTES = {
+    adm: () => require("./管理者パネル/メイン"),
+    admin: () => require("./管理者パネル/メイン"),
+    ps: () => {
+      if (parsed.action === 'setup' || parsed.action === 'send') {
+        return require('./パネル設置/アクション/パネル設置フロー');
       }
       if (parsed.action === 'check') {
-        handler = require('./パネル設置/アクション/状態確認');
+        return require('./パネル設置/アクション/状態確認');
       }
-      break;
-    case "driver":
-      handler = require("./送迎パネル/メイン");
-      break;
-    case "user":
-      handler = require("./利用者パネル/メイン");
-      break;
-    case "reg":
-      if (parsed.action === 'driver') handler = require("./登録処理/送迎者登録");
-      if (parsed.action === 'user') handler = require("./登録処理/利用者登録");
-      break;
-    case "ride":
-      // VC操作(approach, start, end, extend)
-      handler = require("./送迎処理/VCコントロール/VC操作");
-      break;
-    case "carpool":
-      // 相乗り系 (join, approve, reject, cancel)
+      return null;
+    },
+    driver: () => require("./送迎パネル/メイン"),
+    user: () => require("./利用者パネル/メイン"),
+    reg: () => {
+      if (parsed.action === 'driver') return require("./登録処理/送迎者登録");
+      if (parsed.action === 'user') return require("./登録処理/利用者登録");
+      return null;
+    },
+    ride: () => require("./送迎処理/VCコントロール/VC操作"),
+    carpool: () => {
       const action = parsed.action;
       if (action === 'join') {
-        if (parsed.params?.sub === 'modal') handler = require("./相乗り/相乗り希望モーダル");
-        else handler = require("./相乗り/相乗り希望");
+        return parsed.params?.sub === 'modal' ? require("./相乗り/相乗り希望モーダル") : require("./相乗り/相乗り希望");
       }
-      if (action === 'approve') handler = require("./相乗り/承認");
+      if (action === 'approve') return require("./相乗り/承認");
       if (action === 'reject') {
-        if (parsed.params?.sub === 'modal') handler = require("./相乗り/却下モーダル");
-        else handler = require("./相乗り/却下理由選択");
+        return parsed.params?.sub === 'modal' ? require("./相乗り/却下モーダル") : require("./相乗り/却下理由選択");
       }
-      if (action === 'reject_reason') handler = require("./相乗り/却下理由処理");
-      if (action === 'cancel') handler = require("./相乗り/相乗りキャンセル");
-      break;
-    case "dispatch":
+      if (action === 'reject_reason') return require("./相乗り/却下理由処理");
+      if (action === 'cancel') return require("./相乗り/相乗りキャンセル");
+      return null;
+    },
+    dispatch: () => {
       if (parsed.action === 'rating') {
-        if (parsed.params?.sub === 'modal') handler = require("./配車システム/評価システム").handleModalSubmit;
-        else handler = require("./配車システム/評価システム").execute;
-      } else {
-        handler = require("./配車システム/配車依頼フロー");
+        return {
+          execute: parsed.params?.sub === 'modal'
+            ? require("./配車システム/評価システム").handleModalSubmit
+            : require("./配車システム/評価システム").execute
+        };
       }
-      break;
-    default:
-      handler = null;
-  }
+      return require("./配車システム/配車依頼フロー");
+    },
+    memo: () => {
+      if (parsed.action === 'threadpolicy') return require("./メモ管理/スレッドポリシー設定");
+      return null;
+    }
+  };
+
+  const getHandler = ROUTES[parsed.namespace];
+  handler = getHandler ? getHandler() : null;
 
   if (!handler || (typeof handler.handle !== "function" && typeof handler.execute !== "function")) {
     logger.error("ハンドラーの形式が不正です", {
@@ -119,14 +118,9 @@ async function handleInteraction(interaction, client) {
     if (interaction.isChatInputCommand()) {
       const cmd = client.commands?.get(interaction.commandName);
       if (!cmd?.execute) {
-        return safeReply(interaction, { content: "未登録のコマンドです。" });
+        return interaction.reply({ content: "未登録のコマンドです。", flags: MessageFlags.Ephemeral });
       }
       return await cmd.execute(interaction, client);
-    }
-
-    // Thread Policy Select Menu
-    if (interaction.isStringSelectMenu() && (interaction.customId === "memo:threadpolicy:select" || interaction.customId === "memo|threadpolicy|sub=select")) {
-      return require("./メモ管理/スレッドポリシー設定")(interaction);
     }
 
     // ユーザー確認パネル

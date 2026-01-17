@@ -11,6 +11,15 @@ const ACK = {
 const activeInteractions = new Set();
 
 async function interactionTemplate(interaction, options) {
+    // Slash Command 等、customId がないインタラクションはここで無視（または個別に処理）
+    // interactionTemplate は原則 Button / Select / Modal 専用とする
+    if (!interaction.customId) {
+        if (typeof options.run === 'function') {
+            return options.run(interaction);
+        }
+        return;
+    }
+
     const {
         ack = ACK.REPLY,
         adminOnly = false,

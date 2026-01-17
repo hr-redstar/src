@@ -10,6 +10,14 @@ const ACK = {
 const active = new Set();
 
 async function autoInteractionTemplate(interaction, options) {
+    // Slash Command 等、customId がないインタラクションはここで無視（または個別に処理）
+    if (!interaction.customId) {
+        if (typeof options.run === 'function') {
+            return options.run(interaction);
+        }
+        return;
+    }
+
     const {
         ack = ACK.AUTO,
         adminOnly = false,

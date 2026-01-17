@@ -38,9 +38,9 @@ async function execute(interaction, parsed) {
   const action = parsed?.action;
 
   try {
-    if (action === 'on') return require('./アクション/出勤')(interaction);
-    if (action === 'off') return require('./アクション/退勤')(interaction);
-    if (action === 'location') return require('./アクション/現在地更新')(interaction);
+    if (action === 'on') return require('./アクション/出勤')(interaction, parsed);
+    if (action === 'off') return require('./アクション/退勤')(interaction, parsed);
+    if (action === 'location') return require('./アクション/現在地更新')(interaction, parsed);
   } catch (e) {
     logger.error(`[DriverMain] ${e}`);
   }
