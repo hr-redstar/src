@@ -15,8 +15,8 @@ module.exports = {
         const userId = interaction.user.id; // 相乗り希望者
         const guildId = interaction.guildId;
 
-        const location = interaction.fields.getTextInputValue('input:carpool:location') || '(未入力)';
-        const countStr = interaction.fields.getTextInputValue('input:carpool:count');
+        const location = interaction.fields.getTextInputValue('input|carpool|location') || '(未入力)';
+        const countStr = interaction.fields.getTextInputValue('input|carpool|count');
         const count = parseInt(countStr) || 1;
 
         // 配車データの読み込み

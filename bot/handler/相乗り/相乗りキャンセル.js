@@ -12,7 +12,7 @@ const { postOperatorLog } = require('../../utils/ログ/運営者ログ');
  * 相乗りキャンセルボタン押下時の処理
  */
 module.exports = {
-  customIdPrefix: 'carpool:cancel:',
+  customId: 'carpool|cancel',
   async execute(interaction, parsed) {
     return interactionTemplate(interaction, {
       ack: ACK.REPLY,
@@ -21,6 +21,7 @@ module.exports = {
         const type = parsed?.params?.role; // 'requester' or 'driver'
 
         const guildId = interaction.guildId;
+        const paths = require('../../utils/ストレージ/ストレージパス');
         const ridePath = `${paths.carpoolDir(guildId)}/${rideId}.json`;
         const rideData = await store.readJson(ridePath).catch(() => null);
 

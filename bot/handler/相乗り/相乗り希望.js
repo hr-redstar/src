@@ -142,7 +142,7 @@ async function handleDestModalTrigger(interaction, rideId, direction) {
     .setTitle('目的地・場所入力');
 
   const destInp = new TextInputBuilder()
-    .setCustomId('input:carpool:location')
+    .setCustomId('input|carpool|location')
     .setLabel('具体的な目的地・場所 (任意)')
     .setPlaceholder('例: 〇〇ホテル、△△交差点')
     .setStyle(TextInputStyle.Short)
@@ -150,7 +150,7 @@ async function handleDestModalTrigger(interaction, rideId, direction) {
 
   // ここで人数も一緒に聞くか、分けるか。仕様では「人数：」も入力。
   const countInp = new TextInputBuilder()
-    .setCustomId('input:carpool:count')
+    .setCustomId('input|carpool|count')
     .setLabel('乗車人数')
     .setStyle(TextInputStyle.Short)
     .setValue('1')

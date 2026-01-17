@@ -26,12 +26,12 @@ module.exports = async function (interaction) {
       const userId = interaction.user.id;
 
       // 入力値取得
-      const address = interaction.fields.getTextInputValue('input:ride:address');
-      const mark = interaction.fields.getTextInputValue('input:ride:mark');
-      const destination = interaction.fields.getTextInputValue('input:ride:to');
+      const address = interaction.fields.getTextInputValue('input|ride|address');
+      const mark = interaction.fields.getTextInputValue('input|ride|mark');
+      const destination = interaction.fields.getTextInputValue('input|ride|to');
 
       // ゲストモード判定
-      const isGuest = interaction.customId.includes('guest');
+      const isGuest = sub === 'guest_modal';
       // タイトル・タイプ設定
       const typeLabel = isGuest ? 'ゲスト送迎依頼' : '送迎依頼';
 
@@ -123,8 +123,8 @@ module.exports = async function (interaction) {
               .setTitle(routeInfo)
               .setDescription(
                 `${displayTime}\n` +
-                  `送迎者：送迎開始時間：未 ｜ 送迎終了時間：未\n` +
-                  `利用者：送迎開始時間：未 ｜ 送迎終了時間：未`
+                `送迎者：送迎開始時間：未 ｜ 送迎終了時間：未\n` +
+                `利用者：送迎開始時間：未 ｜ 送迎終了時間：未`
               )
               .setColor(0x3498db)
               .setTimestamp();
@@ -255,8 +255,8 @@ module.exports = async function (interaction) {
         .setTitle(`🚕 ${typeLabel}`)
         .setDescription(
           `マッチングしました！\n送迎者は <@${driverId}> です。\n\n` +
-            `${routeInfo}\n\n` +
-            `**ボイスチャンネル**\n${vcLink}`
+          `${routeInfo}\n\n` +
+          `**ボイスチャンネル**\n${vcLink}`
         )
         .setColor(0x00ff00)
         .setTimestamp();
@@ -276,8 +276,8 @@ module.exports = async function (interaction) {
             .setTitle(`🔔 新規${typeLabel}`)
             .setDescription(
               `新しい依頼が入りました！\n利用者は <@${userId}> です。\n\n` +
-                `${routeInfo}\n\n` +
-                `**ボイスチャンネル**\n${vcLink}`
+              `${routeInfo}\n\n` +
+              `**ボイスチャンネル**\n${vcLink}`
             )
             .setColor(0xffa500)
             .setTimestamp();

@@ -19,7 +19,7 @@ module.exports = async function (interaction, parsed) {
         const guildId = interaction.guildId;
         const userId = interaction.user.id;
 
-        const location = interaction.fields.getTextInputValue('input:driver:location');
+        const location = interaction.fields.getTextInputValue('input|driver|location');
 
         const profilePath = paths.driverProfileJson(guildId, userId);
         await store.updateJson(profilePath, (data) => {
@@ -53,7 +53,7 @@ module.exports = async function (interaction, parsed) {
           .setTitle('現在地の更新');
 
         const locInput = new TextInputBuilder()
-          .setCustomId('input:driver:location')
+          .setCustomId('input|driver|location')
           .setLabel('現在の場所')
           .setStyle(TextInputStyle.Short)
           .setRequired(true)

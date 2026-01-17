@@ -16,11 +16,11 @@ module.exports = async function (interaction) {
       const defaultMark = userData?.mark || '';
 
       const modal = new ModalBuilder()
-        .setCustomId('user:ride:guest:modal')
+        .setCustomId('user|ride|sub=guest_modal')
         .setTitle('ゲスト送迎依頼');
 
       const addressInp = new TextInputBuilder()
-        .setCustomId('input:ride:address')
+        .setCustomId('input|ride|address')
         .setLabel('店舗住所')
         .setStyle(TextInputStyle.Short)
         .setValue(defaultAddress)
@@ -28,7 +28,7 @@ module.exports = async function (interaction) {
         .setMaxLength(100);
 
       const markInp = new TextInputBuilder()
-        .setCustomId('input:ride:mark')
+        .setCustomId('input|ride|mark')
         .setLabel('駐車目印')
         .setStyle(TextInputStyle.Short)
         .setValue(defaultMark)
@@ -36,7 +36,7 @@ module.exports = async function (interaction) {
         .setMaxLength(100);
 
       const destInp = new TextInputBuilder()
-        .setCustomId('input:ride:to')
+        .setCustomId('input|ride|to')
         .setLabel('目的地')
         .setStyle(TextInputStyle.Short)
         .setValue('口頭で伝える')

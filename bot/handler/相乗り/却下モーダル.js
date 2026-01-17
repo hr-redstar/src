@@ -11,7 +11,7 @@ module.exports = {
       ack: ACK.REPLY,
       async run(interaction) {
         const userId = parsed?.params?.uid; // carpool|reject|sub=modal&rid={rideId}&uid={userId}
-        const reason = interaction.fields.getTextInputValue('input:reason');
+        const reason = interaction.fields.getTextInputValue('input|reason');
 
         const requester = await interaction.guild.members.fetch(userId).catch(() => null);
         if (requester) {

@@ -6,7 +6,7 @@ const { ACK } = interactionTemplate;
 const { MessageFlags } = require('discord.js');
 
 module.exports = {
-  customId: 'ps:select:userCheckPanelChannel',
+  customId: 'ps|select|panel=userCheck',
   type: 'channelSelect',
   async execute(interaction) {
     return interactionTemplate(interaction, {

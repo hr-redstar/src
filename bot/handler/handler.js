@@ -66,6 +66,11 @@ async function routeToPanelHandler(interaction, client) {
         const path = map[panel];
         if (path) return require(path);
       }
+      if (parsed.action === 'modal') {
+        const sub = parsed.params?.sub;
+        if (sub === 'guideInitial') return require('./パネル設置/アクション/案内パネル初期入力');
+        if (sub === 'guideContent') return require('./パネル設置/アクション/案内パネル内容確定');
+      }
       if (parsed.action === 'check') {
         return require('./パネル設置/アクション/状態確認');
       }
@@ -112,6 +117,7 @@ async function routeToPanelHandler(interaction, client) {
       if (parsed.action === 'thread') return require('./メモ管理/スレッド作成');
       return null;
     },
+    guide: () => require('./ガイド/メイン'),
   };
 
   const getHandler = ROUTES[parsed.namespace];

@@ -24,7 +24,7 @@ module.exports = {
                 .setTitle('却下理由入力');
 
             const reasonInp = new TextInputBuilder()
-                .setCustomId('input:reason')
+                .setCustomId('input|reason')
                 .setLabel('理由')
                 .setStyle(TextInputStyle.Paragraph)
                 .setRequired(true);

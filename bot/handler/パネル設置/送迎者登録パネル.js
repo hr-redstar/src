@@ -10,7 +10,7 @@ module.exports.sendDriverRegisterPanel = async (channel) => {
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId('driver:btn:register')
+      .setCustomId('reg|driver|sub=button')
       .setLabel('送迎者登録')
       .setStyle(ButtonStyle.Success)
   );

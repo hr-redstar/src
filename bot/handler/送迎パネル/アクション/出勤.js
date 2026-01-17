@@ -18,9 +18,9 @@ module.exports = async function (interaction, parsed) {
         const userId = interaction.user.id;
 
         // 入力値取得
-        const stopPlace = interaction.fields.getTextInputValue('input:driver:place');
-        const carInfo = interaction.fields.getTextInputValue('input:driver:car');
-        const capacity = interaction.fields.getTextInputValue('input:driver:capacity');
+        const stopPlace = interaction.fields.getTextInputValue('input|driver|place');
+        const carInfo = interaction.fields.getTextInputValue('input|driver|car');
+        const capacity = interaction.fields.getTextInputValue('input|driver|capacity');
 
         const data = {
           userId,
@@ -99,7 +99,7 @@ module.exports = async function (interaction, parsed) {
           .setTitle('今から行けます（送迎者）');
 
         const placeInput = new TextInputBuilder()
-          .setCustomId('input:driver:place')
+          .setCustomId('input|driver|place')
           .setLabel('停留場所')
           .setPlaceholder('例：駅南口ロータリー／コンビニ前')
           .setValue(String(defaultPlace))
@@ -108,7 +108,7 @@ module.exports = async function (interaction, parsed) {
           .setMaxLength(50);
 
         const carInput = new TextInputBuilder()
-          .setCustomId('input:driver:car')
+          .setCustomId('input|driver|car')
           .setLabel('車種')
           .setPlaceholder('例：白プリウス 1234')
           .setValue(String(defaultCar))
@@ -117,7 +117,7 @@ module.exports = async function (interaction, parsed) {
           .setMaxLength(50);
 
         const capacityInput = new TextInputBuilder()
-          .setCustomId('input:driver:capacity')
+          .setCustomId('input|driver|capacity')
           .setLabel('人数')
           .setPlaceholder('例：3人まで')
           .setValue(String(defaultCapacity))

@@ -25,11 +25,11 @@ async function buildUserCheckPanelMessage(guild, client) {
   const driverContent =
     drivers.length > 0
       ? drivers
-          .map(
-            (d) =>
-              `• <@${d.userId}>　区域：${d.area || '未設定'}　停留場所：${d.stop || '未設定'}　ニックネーム：${d.nickname || '未設定'}　車種：${d.car || '未設定'}　乗車人数：${d.capacity || '未設定'}`
-          )
-          .join('\n')
+        .map(
+          (d) =>
+            `• <@${d.userId}>　区域：${d.area || '未設定'}　停留場所：${d.stop || '未設定'}　ニックネーム：${d.nickname || '未設定'}　車種：${d.car || '未設定'}　乗車人数：${d.capacity || '未設定'}`
+        )
+        .join('\n')
       : '登録なし';
 
   const userContent =
@@ -51,7 +51,7 @@ async function buildUserCheckPanelMessage(guild, client) {
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId('ps:check')
+      .setCustomId('ps|check')
       .setLabel('自分の登録情報を確認')
       .setStyle(ButtonStyle.Primary)
   );

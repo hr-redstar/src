@@ -53,7 +53,7 @@ module.exports = async function (interaction, targetId) {
             }
           }
         }
-      } catch (err) {}
+      } catch (err) { }
 
       // 送迎中データ削除
       const activeRideDir = paths.activeDispatchDir(guildId);
@@ -108,7 +108,7 @@ module.exports = async function (interaction, targetId) {
             break;
           }
         }
-      } catch (err) {}
+      } catch (err) { }
 
       // --- VC Retention Logic ---
       const vcState = await loadVcState(guildId);
@@ -135,7 +135,7 @@ module.exports = async function (interaction, targetId) {
             .send({
               content: '✅ **送迎終了**\nこのチャンネルとチャット履歴は7日後に自動削除されます。',
             })
-            .catch(() => {});
+            .catch(() => { });
         }
 
         // Memo Channel Notification
@@ -152,17 +152,17 @@ module.exports = async function (interaction, targetId) {
                 components: [
                   new ActionRowBuilder().addComponents(
                     new ButtonBuilder()
-                      .setCustomId('ride:extend')
+                      .setCustomId('ride|control|sub=extend')
                       .setLabel('🧳 期間延長（+7日）')
                       .setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder()
-                      .setCustomId('ride:delete')
+                      .setCustomId('ride|control|sub=delete')
                       .setLabel('🗑️ 即時削除（管理者）')
                       .setStyle(ButtonStyle.Danger)
                   ),
                 ],
               })
-              .catch(() => {});
+              .catch(() => { });
           }
         }
       }

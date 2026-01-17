@@ -12,7 +12,7 @@ const { getRatingSummary } = require('../../../utils/ratingsStore');
 const { ACK } = interactionTemplate;
 
 module.exports = {
-  customId: 'ps:check',
+  customId: 'ps|check',
   type: 'button',
   async execute(interaction) {
     return interactionTemplate(interaction, {
@@ -41,11 +41,11 @@ module.exports = {
           components.push(
             new ActionRowBuilder().addComponents(
               new ButtonBuilder()
-                .setCustomId('user:goto:register')
+                .setCustomId('reg|user|sub=button')
                 .setLabel('利用者登録へ')
                 .setStyle(ButtonStyle.Primary),
               new ButtonBuilder()
-                .setCustomId('driver:goto:register')
+                .setCustomId('reg|driver|sub=button')
                 .setLabel('送迎者登録へ')
                 .setStyle(ButtonStyle.Secondary)
             )

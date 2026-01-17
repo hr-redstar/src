@@ -72,19 +72,19 @@ const PANEL_SETUP_IDS = {
 // パネル内部で使用するID（ここのファイル外では直接使わない）
 const INNER_ID = {
   // driver shift panel
-  DRIVER_NOW_AVAILABLE: 'driver:shift:now',
-  DRIVER_CLOCK_OUT: 'driver:shift:off',
+  DRIVER_NOW_AVAILABLE: 'ride|shift|sub=on',
+  DRIVER_CLOCK_OUT: 'ride|shift|sub=off',
 
   // driver reg
-  DRIVER_REGISTER: 'driver:reg:open',
+  DRIVER_REGISTER: 'reg|driver|sub=button',
 
   // user reg
-  USER_REGISTER: 'user:reg:open',
+  USER_REGISTER: 'reg|user|sub=button',
 
   // lists / moderation
-  DRIVERLIST_EDIT: 'driver:list:edit',
-  DRIVERLIST_DELETE: 'driver:list:delete',
-  USERCHECK_REFRESH: 'user:check:refresh',
+  DRIVERLIST_EDIT: 'admin|driver_list|sub=edit',
+  DRIVERLIST_DELETE: 'admin|driver_list|sub=delete',
+  USERCHECK_REFRESH: 'user|check|sub=refresh',
 };
 
 function isAdmin(interaction) {

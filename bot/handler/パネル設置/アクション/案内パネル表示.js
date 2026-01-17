@@ -20,7 +20,7 @@ module.exports = {
     const config = await loadConfig(interaction.guildId);
 
     const modal = new ModalBuilder()
-      .setCustomId('ps:modal:guideInitial')
+      .setCustomId('ps|modal|sub=guideInitial')
       .setTitle('案内パネルの設定');
 
     const oldDefaultDesc = '送迎システムの各種操作はこちらから行えます。';

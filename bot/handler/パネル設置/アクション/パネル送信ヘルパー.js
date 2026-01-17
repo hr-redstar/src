@@ -80,11 +80,11 @@ module.exports.sendSpecificPanel = async function (guild, channel, panelType) {
       });
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-          .setCustomId('guide:vc')
+          .setCustomId('guide|vc')
           .setLabel('VCの使い方')
           .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
-          .setCustomId('guide:memo')
+          .setCustomId('guide|memo')
           .setLabel('個人メモについて')
           .setStyle(ButtonStyle.Secondary)
       );

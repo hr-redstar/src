@@ -56,6 +56,9 @@ async function execute(interaction, parsed) {
     if (action === 'ride') {
       if (sub === 'request') return require('./アクション/送迎依頼')(interaction);
       if (sub === 'guest') return require('./アクション/ゲスト送迎依頼')(interaction);
+      if (sub === 'request_modal' || sub === 'guest_modal') {
+        return require('./アクション/送迎依頼モーダル')(interaction);
+      }
     }
     // 状態確認は パネル設置/アクション/状態確認.js を再利用
     if (action === 'check')

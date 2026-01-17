@@ -4,11 +4,11 @@ const { loadConfig } = require('../../utils/設定/設定マネージャ');
 const { createUserMemoChannel } = require('../../utils/createUserMemoChannel');
 
 module.exports = async (interaction) => {
-  const area = interaction.fields.getTextInputValue('driver:input:area');
-  const stop = interaction.fields.getTextInputValue('driver:input:stop');
-  const nickname = interaction.fields.getTextInputValue('driver:input:nickname');
-  const car = interaction.fields.getTextInputValue('driver:input:car');
-  const capacity = Number(interaction.fields.getTextInputValue('driver:input:capacity'));
+  const area = interaction.fields.getTextInputValue('input|driver|area');
+  const stop = interaction.fields.getTextInputValue('input|driver|stop');
+  const nickname = interaction.fields.getTextInputValue('input|driver|nickname');
+  const car = interaction.fields.getTextInputValue('input|driver|car');
+  const capacity = Number(interaction.fields.getTextInputValue('input|driver|capacity'));
 
   if (Number.isNaN(capacity)) {
     return interaction.reply({

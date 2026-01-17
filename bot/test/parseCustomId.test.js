@@ -19,29 +19,6 @@ describe('parseCustomId', () => {
     expect(result.params).toEqual({ sub: 'guide', cid: '123' });
   });
 
-  test('v1 parse (Legacy): ns:act:p1:p2', () => {
-    const raw = 'memo:thread:1week';
-    const result = parseCustomId(raw);
-    expect(result).toMatchObject({
-      namespace: 'memo',
-      action: 'thread',
-      params: { legacy: ['1week'] },
-      version: 1,
-    });
-  });
-
-  test('v1 parse with type: button:ns:act:p1', () => {
-    const raw = 'button:ps:setup:main';
-    const result = parseCustomId(raw);
-    expect(result).toMatchObject({
-      type: 'button',
-      namespace: 'ps',
-      action: 'setup',
-      params: { legacy: ['main'] },
-      version: 1,
-    });
-  });
-
   test('invalid formats return null', () => {
     expect(parseCustomId('')).toBeNull();
     expect(parseCustomId('onlyone')).toBeNull();

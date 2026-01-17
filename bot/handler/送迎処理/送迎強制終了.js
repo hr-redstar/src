@@ -69,7 +69,7 @@ module.exports = {
         }
 
         const select = new StringSelectMenuBuilder()
-          .setCustomId('admin:ride:force_end_execute')
+          .setCustomId('adm|ride|sub=force_end_execute')
           .setPlaceholder('強制終了する送迎を選択してください')
           .addOptions(options.slice(0, 25)); // 最大25件
 

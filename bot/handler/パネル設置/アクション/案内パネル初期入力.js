@@ -5,7 +5,7 @@ const interactionTemplate = require('../../共通/interactionTemplate');
 const { ACK } = interactionTemplate;
 
 module.exports = {
-  customId: 'ps:modal:guideInitial',
+  customId: 'ps|modal|sub=guideInitial',
   type: 'modal',
   async execute(interaction) {
     return interactionTemplate(interaction, {

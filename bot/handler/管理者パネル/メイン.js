@@ -268,10 +268,20 @@ async function execute(interaction, client, parsed) {
       return require('./アクション/履歴表示').execute(interaction, parsed);
     if (customId === 'adm|stats|sub=start')
       return require('./アクション/統計表示').execute(interaction, parsed);
+
+    // 強制終了
+    if (parsed.action === 'ride') {
+      if (parsed.params?.sub === 'force_end_menu') {
+        return require('../送迎処理/送迎強制終了').handleMenu(interaction, client);
+      }
+    }
   }
 
   // --- セレクトメニュー委譲 ---
   if (interaction.isAnySelectMenu()) {
+    if (parsed.action === 'ride' && parsed.params?.sub === 'force_end_execute') {
+      return require('../送迎処理/送迎強制終了').handleExecute(interaction, client);
+    }
     if (parsed.action === 'rating_check' && parsed.params?.sub === 'user_sel')
       return require('./アクション/口コミランク管理/口コミ確認').showStats(interaction);
     if (parsed.action === 'rank_set' && parsed.params?.sub === 'user_sel')

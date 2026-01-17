@@ -5,38 +5,38 @@ module.exports = async (interaction) => {
   // 既存データの読み込み
   const existingData = await loadDriver(interaction.guild.id, interaction.user.id);
 
-  const modal = new ModalBuilder().setCustomId('driver:modal:register').setTitle('送迎者登録');
+  const modal = new ModalBuilder().setCustomId('reg|driver|sub=modal').setTitle('送迎者登録');
 
   const area = new TextInputBuilder()
-    .setCustomId('driver:input:area')
+    .setCustomId('input|driver|area')
     .setLabel('区域')
     .setStyle(TextInputStyle.Short)
     .setRequired(true);
   if (existingData?.area) area.setValue(existingData.area);
 
   const stop = new TextInputBuilder()
-    .setCustomId('driver:input:stop')
+    .setCustomId('input|driver|stop')
     .setLabel('停留場所')
     .setStyle(TextInputStyle.Short)
     .setRequired(true);
   if (existingData?.stop) stop.setValue(existingData.stop);
 
   const nickname = new TextInputBuilder()
-    .setCustomId('driver:input:nickname')
+    .setCustomId('input|driver|nickname')
     .setLabel('ニックネーム')
     .setStyle(TextInputStyle.Short)
     .setRequired(false);
   if (existingData?.nickname) nickname.setValue(existingData.nickname);
 
   const car = new TextInputBuilder()
-    .setCustomId('driver:input:car')
+    .setCustomId('input|driver|car')
     .setLabel('車種')
     .setStyle(TextInputStyle.Short)
     .setRequired(false);
   if (existingData?.car) car.setValue(existingData.car);
 
   const capacity = new TextInputBuilder()
-    .setCustomId('driver:input:capacity')
+    .setCustomId('input|driver|capacity')
     .setLabel('乗車人数')
     .setStyle(TextInputStyle.Short)
     .setRequired(true);
