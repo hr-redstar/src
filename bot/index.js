@@ -24,57 +24,66 @@ const client = new Client({
 client.commands = new Collection();
 
 /**
- * command/ 配下のコマンドを読み込む（任意：interactionCreate 実装があるなら有効）
+ * command/ 配下のコマンドを非同期読み込み
  */
-function loadCommands() {
+async function loadCommands() {
   const commandsDir = path.join(__dirname, 'command');
   if (!fs.existsSync(commandsDir)) return;
 
-  const files = fs.readdirSync(commandsDir).filter((f) => f.endsWith('.js'));
-  for (const file of files) {
-    // 先頭が _ で始まるファイル、または特定のメタデータを持つものをスキップ可能にする
-    if (file.startsWith('_')) continue;
+  try {
+    const files = await fs.promises.readdir(commandsDir);
+    const jsFiles = files.filter((f) => f.endsWith('.js'));
 
-    const filePath = path.join(commandsDir, file);
-    const cmd = require(filePath);
+    for (const file of jsFiles) {
+      if (file.startsWith('_')) continue;
 
-    if (cmd.disabled) continue;
+      const filePath = path.join(commandsDir, file);
+      const cmd = require(filePath);
 
-    if (!cmd?.data?.name || typeof cmd.execute !== 'function') {
-      logger.warn(`⚠️ command 読み込みスキップ: ${file}`);
-      continue;
+      if (cmd.disabled) continue;
+
+      if (!cmd?.data?.name || typeof cmd.execute !== 'function') {
+        logger.warn(`⚠️ command 読み込みスキップ: ${file}`);
+        continue;
+      }
+      client.commands.set(cmd.data.name, cmd);
     }
-    client.commands.set(cmd.data.name, cmd);
+    logger.info(`📦 Commands loaded: ${client.commands.size}`);
+  } catch (err) {
+    logger.error('コマンド読み込みエラー', err);
   }
-
-  logger.info(`📦 Commands loaded: ${client.commands.size}`);
 }
 
 /**
- * event/ 配下のイベントを読み込む（ready.js / interactionCreate.js 等）
+ * event/ 配下のイベントを非同期読み込み
  */
-function loadEvents() {
+async function loadEvents() {
   const eventsDir = path.join(__dirname, 'event');
   if (!fs.existsSync(eventsDir)) {
     logger.warn('⚠️ event/ フォルダが見つかりません。');
     return;
   }
 
-  const files = fs.readdirSync(eventsDir).filter((f) => f.endsWith('.js'));
-  for (const file of files) {
-    const filePath = path.join(eventsDir, file);
-    const evt = require(filePath);
+  try {
+    const files = await fs.promises.readdir(eventsDir);
+    const jsFiles = files.filter((f) => f.endsWith('.js'));
 
-    if (!evt?.name || typeof evt.execute !== 'function') {
-      logger.warn(`⚠️ event 読み込みスキップ: ${file}`);
-      continue;
+    for (const file of jsFiles) {
+      const filePath = path.join(eventsDir, file);
+      const evt = require(filePath);
+
+      if (!evt?.name || typeof evt.execute !== 'function') {
+        logger.warn(`⚠️ event 読み込みスキップ: ${file}`);
+        continue;
+      }
+
+      if (evt.once) client.once(evt.name, (...args) => evt.execute(...args, client));
+      else client.on(evt.name, (...args) => evt.execute(...args, client));
     }
-
-    if (evt.once) client.once(evt.name, (...args) => evt.execute(...args, client));
-    else client.on(evt.name, (...args) => evt.execute(...args, client));
+    logger.info(`🧩 Events loaded: ${jsFiles.length}`);
+  } catch (err) {
+    logger.error('イベント読み込みエラー', err);
   }
-
-  logger.info(`🧩 Events loaded: ${files.length}`);
 }
 
 // エラーハンドリング
@@ -91,9 +100,16 @@ process.on('uncaughtException', (err) => {
   logger.debug('詳細(uncaughtException)', logger.formatError(err));
 });
 
-loadCommands();
-loadEvents();
+// メイン実行関数
+async function main() {
+  await loadCommands();
+  await loadEvents();
+  await client.login(token);
+}
 
-client.login(token);
+main().catch((err) => {
+  logger.error('起動時エラー', err);
+  process.exit(1);
+});
 
 module.exports = { client };
