@@ -253,25 +253,25 @@ async function execute(interaction, client, parsed) {
 
     // 口コミ確認フロー
     if (customId === 'adm|rating_check|sub=start')
-      return require('./アクション/口コミランク管理/口コミ確認').startFlow(interaction);
+      return require('../口コミランクパネル/アクション/口コミ確認').startFlow(interaction);
 
     // ランク階級登録
     if (customId === 'adm|rank_tiers|sub=start')
-      return require('./アクション/口コミランク管理/ランク階級登録').showModal(interaction, parsed);
+      return require('../口コミランクパネル/アクション/ランク階級登録').showModal(interaction, parsed);
 
     // ランク設定
     if (customId === 'adm|rank_set|sub=start')
-      return require('./アクション/口コミランク管理/ランク設定').startFlow(interaction);
+      return require('../口コミランクパネル/アクション/ランク設定').startFlow(interaction);
 
     // 履歴・統計
     if (customId === 'adm|history|sub=start')
       return require('./アクション/履歴表示').execute(interaction, parsed);
 
     if (customId === 'adm|stats|sub=start')
-      return require('./アクション/口コミランク管理/統計ダッシュボード').showDashboard(interaction);
+      return require('../口コミランクパネル/アクション/統計ダッシュボード').showDashboard(interaction);
 
     if (parsed.action === 'rating_check' && parsed.params?.sub === 'comments')
-      return require('./アクション/口コミランク管理/口コミ確認').showComments(interaction, parsed.params.uid, parseInt(parsed.params.page || 0));
+      return require('../口コミランクパネル/アクション/口コミ確認').showComments(interaction, parsed.params.uid, parseInt(parsed.params.page || 0));
 
     // 強制終了
     if (parsed.action === 'ride' && parsed.params?.sub === 'force_end_menu') {
@@ -312,11 +312,11 @@ async function execute(interaction, client, parsed) {
       return require('../送迎処理/送迎強制終了').handleExecute(interaction, client);
     }
     if (parsed.action === 'rating_check' && parsed.params?.sub === 'user_sel')
-      return require('./アクション/口コミランク管理/口コミ確認').showStats(interaction);
+      return require('../口コミランクパネル/アクション/口コミ確認').showStats(interaction);
     if (parsed.action === 'rank_set' && parsed.params?.sub === 'user_sel')
-      return require('./アクション/口コミランク管理/ランク設定').showTierSelect(interaction);
+      return require('../口コミランクパネル/アクション/ランク設定').showTierSelect(interaction);
     if (parsed.action === 'rank_set' && parsed.params?.sub === 'tier_sel')
-      return require('./アクション/口コミランク管理/ランク設定').handleTierPick(
+      return require('../口コミランクパネル/アクション/ランク設定').handleTierPick(
         interaction,
         parsed.params.uid,
         interaction.values[0]
@@ -326,7 +326,7 @@ async function execute(interaction, client, parsed) {
   // --- モーダル送信委譲 ---
   if (interaction.isModalSubmit()) {
     if (parsed.action === 'rank_tiers' && parsed.params?.sub === 'modal') {
-      return require('./アクション/口コミランク管理/ランク階級登録').handleModal(interaction, parsed);
+      return require('../口コミランクパネル/アクション/ランク階級登録').handleModal(interaction, parsed);
     }
   }
 
