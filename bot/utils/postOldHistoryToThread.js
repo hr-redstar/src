@@ -9,9 +9,9 @@ const { ChannelType, ThreadAutoArchiveDuration, EmbedBuilder } = require('discor
 async function postOldHistoryToThread(channel, history, role) {
   if (!history || history.length <= 1) return;
 
-  // 最新の1件(=末尾)を除く、古い履歴を対象にする
+  // 全ての履歴を対象にする（重複チェックがあるため安全）
   // historyは [oldest, ..., newest] の順
-  const targetHistories = history.slice(0, -1);
+  const targetHistories = history;
   if (targetHistories.length === 0) return;
 
   try {
@@ -100,7 +100,7 @@ function buildHistoryEmbed(item, role, rangeText) {
 }
 
 function formatDate(isoString) {
-  if (!isoString) return '不明';
+  if (!isoString) return '日時不明';
   return new Date(isoString).toLocaleString('ja-JP', {
     year: 'numeric',
     month: '2-digit',

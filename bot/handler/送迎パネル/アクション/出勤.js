@@ -47,14 +47,21 @@ module.exports = async function (interaction, parsed) {
         const myPosition = await getPosition(guildId, userId);
 
         if (!isAlreadyWaiting) {
-          const { EmbedBuilder } = require('discord.js');
-          const embed = new EmbedBuilder()
-            .setTitle(`現在の送迎車　${activeCount}台`)
-            .setColor(0x00ff00);
+          const buildPanelEmbed = require('../../../utils/embed/embedTemplate');
+          const embed = buildPanelEmbed({
+            title: '🚗 送迎車 出勤通知',
+            description: `送迎車が一台出勤しました。\n現在の待機台数：**${activeCount}** 台`,
+            color: 0x2ecc71,
+            client: interaction.client,
+            fields: [
+              { name: '📍 停留場所', value: stopPlace, inline: true },
+              { name: '📋 車種/人数', value: `${carInfo} (${capacity})`, inline: true }
+            ]
+          });
 
           await postGlobalLog({
             guild: interaction.guild,
-            content: '送迎車が一台出勤しました。',
+            content: '【出勤】送迎車がオンラインになりました。',
             embeds: [embed],
           }).catch(() => null);
 
@@ -83,7 +90,30 @@ module.exports = async function (interaction, parsed) {
         const userId = interaction.user.id;
         const guildId = interaction.guildId;
 
+        // 1. 待機中チェック
         const waitPath = `${paths.waitingDriversDir(guildId)}/${userId}.json`;
+        const isWaiting = (await store.readJson(waitPath).catch(() => null)) !== null;
+
+        // 2. 配車中チェック
+        const dispatchDir = paths.activeDispatchDir(guildId);
+        const dispatchFiles = await store.listKeys(dispatchDir).catch(() => []);
+        let isDispatching = false;
+        for (const fileKey of dispatchFiles) {
+          if (!fileKey.endsWith('.json')) continue;
+          const data = await store.readJson(fileKey).catch(() => null);
+          if (data?.driverId === userId) {
+            isDispatching = true;
+            break;
+          }
+        }
+
+        if (isWaiting || isDispatching) {
+          return interaction.reply({
+            content: '⚠️ 既に待機中、または送迎中のため再出勤できません。\n送迎終了後、または退勤後に再度お試しください。',
+            flags: 64,
+          });
+        }
+
         let currentData = await store.readJson(waitPath).catch(() => null);
 
         if (!currentData) {

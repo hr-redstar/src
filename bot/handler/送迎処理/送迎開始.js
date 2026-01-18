@@ -111,6 +111,21 @@ module.exports = async function (interaction, targetId) {
       const activePath = `${paths.activeDispatchDir(guildId)}/${rideId}.json`;
       await store.writeJson(activePath, ridingData);
 
+      // 運営者ログ (v1.3.8)
+      const { updateRideOperatorLog } = require('../../utils/ログ/rideLogManager');
+      await updateRideOperatorLog({
+        guild: interaction.guild,
+        rideId,
+        status: 'MATCHED',
+        data: {
+          driverId,
+          driverNickname: driverProfile.nickname,
+          userId: passengerId,
+          userName: userProfile.name,
+          area: route,
+        }
+      }).catch(() => null);
+
       // --- Private VC Creation ---
       const config = await loadConfig(guildId);
       let vcInfo = '';
@@ -198,7 +213,7 @@ module.exports = async function (interaction, targetId) {
       // パネル更新
       await updateRideListPanel(interaction.guild, interaction.client);
       // updateDriverPanel might fail if it relies on old logic, but keeping it for now
-      await updateDriverPanel(interaction.guild, interaction.client).catch(() => {});
+      await updateDriverPanel(interaction.guild, interaction.client).catch(() => { });
     },
   });
 };

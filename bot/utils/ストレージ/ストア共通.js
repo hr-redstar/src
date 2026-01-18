@@ -47,8 +47,8 @@ async function deleteFile(key) {
   return await backend.deleteFile(key);
 }
 
-async function listKeys(prefix) {
-  return await backend.listKeys(prefix);
+async function listKeys(prefix, options) {
+  return await backend.listKeys(prefix, options);
 }
 
 async function updateJson(key, defaultValue, updaterFn) {
@@ -89,23 +89,34 @@ async function listAllJsonObjects(root, excludePatterns = []) {
  * ギルドの送迎者一覧（詳細情報付き）を取得
  */
 async function loadDrivers(guildId) {
-  return await listAllJsonObjects(`GCS/${guildId}/送迎者`, [
-    '送迎者.json',
-    '一覧.json',
-    '出勤中.json',
-    'index.json',
-  ]);
+  const allKeys = await listKeys(`GCS/${guildId}/送迎者`, { recursive: true });
+  const profileKeys = allKeys.filter(k => k.endsWith('/登録情報.json'));
+
+  const results = [];
+  for (const key of profileKeys) {
+    const json = await readJson(key).catch(() => null);
+    if (json) {
+      results.push(json.current || json);
+    }
+  }
+  return results;
 }
 
 /**
  * ギルドの利用者一覧（詳細情報付き）を取得
  */
 async function loadUsers(guildId) {
-  return await listAllJsonObjects(`GCS/${guildId}/利用者`, [
-    '利用者.json',
-    '一覧.json',
-    'index.json',
-  ]);
+  const allKeys = await listKeys(`GCS/${guildId}/利用者`, { recursive: true });
+  const profileKeys = allKeys.filter(k => k.endsWith('/登録情報.json'));
+
+  const results = [];
+  for (const key of profileKeys) {
+    const json = await readJson(key).catch(() => null);
+    if (json) {
+      results.push(json.current || json);
+    }
+  }
+  return results;
 }
 
 module.exports = {

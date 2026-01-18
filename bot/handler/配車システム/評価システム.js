@@ -12,6 +12,8 @@ const paths = require('../../utils/ストレージ/ストレージパス');
 const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 const { formatDateShort } = require('../../utils/共通/日付フォーマット');
+const buildPanelEmbed = require('../../utils/embed/embedTemplate');
+const buildPanelMessage = require('../../utils/embed/panelMessageTemplate');
 
 /**
  * 評価システム - 送迎終了後の相互評価フロー
@@ -42,38 +44,42 @@ async function sendRatingDM(guild, dispatchData) {
   const dateStr = `${y}年${m}月${d}日`;
 
   // ルート詳細 (仕様 #16 準拠)
-  const routeDisplay = route || `【${driverPlace || '不明'}】→【${mark || '不明'}】→【${destination || '不明'}】`;
+  const routeDisplay = route || direction || '経路情報なし';
 
-  // 時間経過 (向かってます時間～送迎開始時間～送迎終了時間)
-  const headT = approachTime || '--:--';
-  const startT = driverStartTime || userStartTime || '--:--';
-  const endT = driverEndTime || userEndTime || '--:--';
-  const timeline = `${headT} ～ ${startT} ～ ${endT}`;
+  // 時間経過
+  const timeline = [
+    driverStartTime || userStartTime ? `⌚ ${driverStartTime || userStartTime}` : null,
+    driverEndTime || userEndTime ? `🏁 ${driverEndTime || userEndTime}` : null
+  ].filter(Boolean).join(' ～ ') || '--:--';
 
-  const passenger = await guild.client.users.fetch(userId || passengerId).catch(() => null);
+  const passenger = await guild.client.users.fetch(passengerId).catch(() => null);
   const driver = await guild.client.users.fetch(driverId).catch(() => null);
 
   // 利用者へのDM（送迎者を評価）
   const sendToPassenger = async (user) => {
     if (!user) return;
-    const embed = new EmbedBuilder()
-      .setTitle('送迎者・利用者口コミ評価')
-      .setDescription(`${dateStr}\n『${routeDisplay}』\n${timeline}\n\n今回の送迎者を評価してください。`)
-      .setColor(0xffd700);
+    const embed = buildPanelEmbed({
+      title: '送迎者・利用者口コミ評価',
+      description: `今回の送迎者を評価してください。\n\n📅 **${dateStr}**\n🗺️ **経路**: ${routeDisplay}\n⏱️ **状況**: ${timeline}`,
+      color: 0xffd700,
+      client: guild.client
+    });
 
     await user
-      .send({
-        embeds: [embed],
-        components: buildRatingButtons('driver', rideId || dispatchId),
-      })
+      .send(buildPanelMessage({
+        embed,
+        components: buildRatingButtons('driver', dispatchId)
+      }))
       .catch(() => null);
   };
 
   await sendToPassenger(passenger);
 
-  // 相乗り者にも評価依頼を送信
+  // 相乗り者にも評価依頼を送信 (v1.5.0)
+  const { carpoolUsers } = dispatchData;
   if (carpoolUsers && carpoolUsers.length > 0) {
     for (const cp of carpoolUsers) {
+      if (cp.userId === passengerId) continue; // メイン利用者と重複防止
       const cpUser = await guild.client.users.fetch(cp.userId).catch(() => null);
       await sendToPassenger(cpUser);
     }
@@ -81,19 +87,19 @@ async function sendRatingDM(guild, dispatchData) {
 
   // 送迎者へのDM（メイン利用者を評価）
   if (driver) {
-    const embed = new EmbedBuilder()
-      .setTitle('送迎者・利用者口コミ評価')
-      .setDescription(`${dateStr}\n『${routeDisplay}』\n${timeline}\n\n今回の利用者を評価してください。`)
-      .setColor(0xffd700);
+    const embed = buildPanelEmbed({
+      title: '送迎者・利用者口コミ評価',
+      description: `今回の利用者を評価してください。\n\n📅 **${dateStr}**\n🗺️ **経路**: ${routeDisplay}\n⏱️ **状況**: ${timeline}`,
+      color: 0xffd700,
+      client: guild.client
+    });
 
     await driver
-      .send({
-        embeds: [embed],
-        components: buildRatingButtons('user', rideId || dispatchId),
-      })
+      .send(buildPanelMessage({
+        embed,
+        components: buildRatingButtons('user', dispatchId)
+      }))
       .catch(() => null);
-
-    // 余裕があれば相乗り者の評価も送るべきだが、仕様上「利用者」と単数形に近い表記なので、まずはメイン利用者分。
   }
 }
 
@@ -101,37 +107,37 @@ async function sendRatingDM(guild, dispatchData) {
  * 評価用ボタンの構築
  */
 function buildRatingButtons(targetType, dispatchId) {
-  // 1行目: ⭐5, ⭐4 (Primary)
+  // 1行目: ⭐5, ⭐4
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=5`)
-      .setLabel('⭐⭐⭐⭐⭐')
+      .setLabel('⭐ 5')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=4`)
-      .setLabel('⭐⭐⭐⭐')
+      .setLabel('⭐ 4')
       .setStyle(ButtonStyle.Primary)
   );
-  // 2行目: ⭐3, ⭐2, ⭐1 (Secondary)
+  // 2行目: ⭐3, ⭐2, ⭐1
   const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=3`)
-      .setLabel('⭐⭐⭐')
+      .setLabel('⭐ 3')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=2`)
-      .setLabel('⭐⭐')
+      .setLabel('⭐ 2')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=1`)
-      .setLabel('⭐')
+      .setLabel('⭐ 1')
       .setStyle(ButtonStyle.Secondary)
   );
-  // 3行目: コメント (Success)
+  // 3行目: コメント
   const row3 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=comment`)
-      .setLabel('コメントも書きたい')
+      .setLabel('💬 口コミ・コメントを書く')
       .setStyle(ButtonStyle.Success)
   );
 
@@ -181,9 +187,14 @@ async function execute(interaction, client, parsed) {
         dispatchId,
         result.current
       );
+      const embed = buildPanelEmbed({
+        title: '✅ 評価をありがとうございます',
+        description: `満足度 **⭐ ${stars}** を記録しました。\n引き続き口コミ・コメントを送信することも可能です。`,
+        color: 0x2ecc71,
+        client: interaction.client
+      });
       await interaction.editReply({
-        content: `✅ 評価（⭐ ${stars}）を更新しました。ありがとうございました！`,
-        embeds: [],
+        embeds: [embed],
       });
     },
   });
@@ -210,8 +221,14 @@ async function handleModalSubmit(interaction, parsed) {
       const guild = interaction.guild || (await interaction.client.guilds.fetch(guildId));
       await postRatingToMemo(guild, targetType, dispatchId, result.current);
 
+      const embed = buildPanelEmbed({
+        title: '✅ 口コミをありがとうございます',
+        description: '貴重なフィードバックを承りました。\n今後のサービス品質向上のために活用させていただきます。',
+        color: 0x2ecc71,
+        client: interaction.client
+      });
       await interaction.editReply({
-        content: '✅ 口コミを送信しました。ご協力ありがとうございました！',
+        embeds: [embed],
       });
       if (interaction.message) {
         await interaction.message

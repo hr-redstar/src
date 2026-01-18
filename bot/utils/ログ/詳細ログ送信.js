@@ -1,112 +1,71 @@
-const { EmbedBuilder } = require('discord.js');
-const store = require('../ストレージ/ストア共通');
-const paths = require('../ストレージ/ストレージパス');
-const { loadConfig } = require('../設定/設定マネージャ');
+const buildPanelEmbed = require('../embed/embedTemplate');
 
 /**
- * 送迎者の出勤時の詳細情報を運営者・管理者に通知する
+ * 送迎者の出勤時の詳細情報を運営者・管理者に通知する (v1.8.0 Professional)
  */
 async function postDetailedAttendanceLog({ guild, user, data, type = 'on' }) {
-  const config = await loadConfig(guild.id);
-  const actionText = type === 'on' ? '出勤' : '退勤';
-  const color = type === 'on' ? 0x2ecc71 : 0xe74c3c;
+    const config = await loadConfig(guild.id);
+    const actionText = type === 'on' ? '出勤' : '退勤';
+    const color = type === 'on' ? 0x2ecc71 : 0xe74c3c;
+    const emoji = type === 'on' ? '🚀' : '🏁';
 
-  const now = new Date();
-  const nowStr = now.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
-  const timestamp = now;
+    const now = new Date();
+    const nowStr = now.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
 
-  // 退勤時の特別フォーマット
-  if (type === 'off') {
-    const startTime = data.clockInTime ? new Date(data.clockInTime) : null;
-    const timeRange = startTime
-      ? `${formatDateShort(startTime)} ～ ${formatDateShort(now)}`
-      : `不明 ～ ${formatDateShort(now)}`;
+    const embed = buildPanelEmbed({
+        title: `${emoji} 送迎者${actionText}詳細`,
+        color: color,
+        client: guild.client
+    });
 
-    const embed = new EmbedBuilder()
-      .setTitle('🚗 送迎者退勤詳細')
-      .setColor(color)
-      .addFields(
-        { name: 'ユーザー', value: `<@${user.id}> (${user.tag})`, inline: false },
-        { name: '車種・ナンバー', value: data.carInfo || '未設定', inline: true },
-        { name: '乗車人数', value: `${data.capacity || '未設定'}`, inline: true },
-        { name: '稼働時間', value: timeRange, inline: false },
-        { name: '送迎件数', value: `${data.rideCount || 0}件`, inline: false },
-        { name: '更新日時', value: nowStr, inline: false }
-      )
-      .setTimestamp(timestamp);
+    if (type === 'off') {
+        const startTime = data.clockInTime ? new Date(data.clockInTime) : null;
+        const timeRange = startTime
+            ? `\`${formatDateShort(startTime)} ～ ${formatDateShort(now)}\``
+            : '`不明`';
 
-    // 共通処理へ続くため、ここでsend処理を呼び出すか、あるいは embed 変数に代入して後続処理を利用する
-    // 後続の postOperatorLog 等を利用するため、embedを返す形にするのが良いが、ここは既存コードに合わせる
-    // 既存コードは embed を作成して下部で送信している
+        embed.addFields(
+            { name: '👤 対象者', value: `<@${user.id}> (${user.tag})`, inline: false },
+            { name: '📅 稼働期間', value: timeRange, inline: false },
+            { name: '📊 送迎実績', value: `\`${data.rideCount || 0}\` 件`, inline: true },
+            { name: '🚗 車両情報', value: `${data.carInfo || '未設定'}`, inline: true },
+            { name: '👥 最大定員', value: `${data.capacity || '未設定'} 名`, inline: true }
+        );
+    } else {
+        // 出勤時
+        embed.addFields(
+            { name: '👤 対象者', value: `<@${user.id}> (${user.tag})`, inline: false },
+            { name: '📍 停留場所', value: `${data.stopPlace || '未設定'}`, inline: true },
+            { name: '🚗 車両情報', value: `${data.carInfo || '未設定'}`, inline: true },
+            { name: '👥 最大定員', value: `${data.capacity || '未設定'} 名`, inline: true }
+        );
+    }
 
-    // 1. 運営者ログ
+    embed.setFooter({ text: `記録日時: ${nowStr} ｜ v1.8.0 Detailed Log` });
+
+    // 1. 運営者ログ (通常のテキストチャンネル)
     const { postOperatorLog } = require('./運営者ログ');
     await postOperatorLog({ guild, embeds: [embed] }).catch(() => null);
 
-    // 2. 管理者ログスレッド
+    // 2. 管理者ログスレッド (特定のスレッド)
     const threadId = config.logs?.adminLogThread;
     if (threadId) {
-      const thread = await guild.channels.fetch(threadId).catch(() => null);
-      if (thread && thread.isThread()) {
-        const content = `[詳細ログ] 送迎者が待機を終了しました。`;
-        await thread.send({ content, embeds: [embed] }).catch(() => null);
-      }
+        const thread = await guild.channels.fetch(threadId).catch(() => null);
+        if (thread && thread.isTextBased()) {
+            const content = `[詳細ログ] 送迎者が待機を${type === 'on' ? '開始' : '終了'}しました。`;
+            await thread.send({ content, embeds: [embed] }).catch(() => null);
+        }
     }
-    return; // 退勤時はここで終了
-  }
-
-  // 出勤時のフォーマット (既存維持)
-  // 稼働時間の計算
-  let workingTime = '計測中';
-  if (data.clockInTime) {
-    const startTime = new Date(data.clockInTime);
-    const diffMs = now - startTime;
-    const hours = Math.floor(diffMs / (1000 * 60 * 60));
-    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    workingTime = `${hours}時間${minutes}分`;
-  }
-
-  const embed = new EmbedBuilder()
-    .setTitle(`🚗 送迎者${actionText}詳細`)
-    .setColor(color)
-    .addFields(
-      { name: 'ユーザー', value: `<@${user.id}> (${user.tag})`, inline: false },
-      { name: '停留場所', value: data.stopPlace || '未設定', inline: true },
-      { name: '車種・ナンバー', value: data.carInfo || '未設定', inline: true },
-      { name: '乗車人数', value: `${data.capacity || '未設定'}`, inline: true },
-      { name: '稼働時間', value: workingTime, inline: true },
-      { name: '更新日時', value: nowStr, inline: false }
-    )
-    .setTimestamp(timestamp);
-
-  // 1. 運営者ログ (通常のテキストチャンネル)
-  const { postOperatorLog } = require('./運営者ログ');
-  await postOperatorLog({ guild, embeds: [embed] }).catch(() => null);
-
-  // 2. 管理者ログスレッド (特定のスレッド)
-  const threadId = config.logs?.adminLogThread;
-  if (threadId) {
-    const thread = await guild.channels.fetch(threadId).catch(() => null);
-    if (thread && thread.isThread()) {
-      // さらに詳細な情報をテキストで追加可能
-      const content =
-        type === 'on'
-          ? `[詳細ログ] 送迎者が待機を開始しました。`
-          : `[詳細ログ] 送迎者が待機を終了しました。`;
-
-      await thread.send({ content, embeds: [embed] }).catch(() => null);
-    }
-  }
 }
 
 function formatDateShort(date) {
-  return date.toLocaleString('ja-JP', {
-    month: 'numeric',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Asia/Tokyo',
-  });
+    return date.toLocaleString('ja-JP', {
+        month: 'numeric',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Asia/Tokyo',
+    });
 }
 
 module.exports = { postDetailedAttendanceLog };

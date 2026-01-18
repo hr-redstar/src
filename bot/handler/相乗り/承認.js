@@ -53,7 +53,7 @@ module.exports = {
                 // 相取りユーザー追加
                 if (!rideData.carpoolUsers) rideData.carpoolUsers = [];
                 if (rideData.carpoolUsers.some((u) => u.userId === userId)) {
-                    return interaction.followUp({ content: '⚠️ 既に承認済みです。', ephemeral: true });
+                    return interaction.followUp({ content: '⚠️ 既に承認済みです。', flags: 64 });
                 }
 
                 rideData.carpoolUsers.push({
@@ -64,12 +64,16 @@ module.exports = {
                     approvedAt: new Date().toISOString(),
                 });
 
-                // 運営者ログの同期 (更新: 青 - 相乗り追加更新)
-                const { syncOperationLog } = require('../../utils/ログ/operationLogHelper');
-                const opLogId = await syncOperationLog(guild, rideData);
-                if (opLogId) {
-                    rideData.operationLogMessageId = opLogId;
-                }
+                // 運営者ログの同期 (v1.7.0: 相乗り追加による更新)
+                const { updateRideOperatorLog } = require('../../utils/ログ/rideLogManager');
+                await updateRideOperatorLog({
+                    guild: interaction.guild,
+                    rideId: rideId,
+                    status: rideData.status === 'in-progress' ? 'STARTED' : 'DEPARTED',
+                    data: {
+                        area: newRoute,
+                    }
+                }).catch(() => null);
 
                 await store.writeJson(activePath, rideData);
 

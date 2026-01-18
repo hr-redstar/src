@@ -241,12 +241,19 @@ module.exports = async function (interaction, client, parsed) {
         // run関数の構造上、メッセージ送信後にIDを取得して保存する
       }
 
-      // 運営者ログの同期 (新規作成: 赤)
-      const { syncOperationLog } = require('../../../utils/ログ/operationLogHelper');
-      const opLogId = await syncOperationLog(interaction.guild, dispatchData);
-      if (opLogId) {
-        dispatchData.operationLogMessageId = opLogId;
-      }
+      // 運営者ログの同期 (v1.7.0: MATCHED)
+      const { updateRideOperatorLog } = require('../../../utils/ログ/rideLogManager');
+      await updateRideOperatorLog({
+        guild: interaction.guild,
+        rideId: rideId,
+        status: 'MATCHED',
+        data: {
+          driverId: driverId,
+          userId: userId,
+          area: routeInfo,
+          matchedAt: dispatchData.startedAt,
+        }
+      }).catch(() => null);
 
       await store.writeJson(activePath, dispatchData);
 

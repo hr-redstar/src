@@ -10,6 +10,8 @@ const CID = {
   SEL_TIER: 'adm|rank_set|sub=tier_sel', // uid が続く想定
 };
 
+const buildPanelEmbed = require('../../../../utils/embed/embedTemplate');
+
 module.exports = {
   CID,
 
@@ -25,7 +27,7 @@ module.exports = {
     return interaction.reply({
       content: '👤 設定対象のユーザーを選択してください。',
       components: [row],
-      ephemeral: true,
+      flags: 64,
     });
   },
 
@@ -92,7 +94,7 @@ module.exports = {
 
         const targetUser = await interaction.guild.members
           .fetch(targetUserId)
-          .catch(() => ({ displayName: targetUserId }));
+          .catch(() => ({ displayName: targetUserId, user: { id: targetUserId } }));
 
         await postAdminActionLog({
           guild: interaction.guild,
@@ -101,8 +103,16 @@ module.exports = {
           description: `ユーザー：<@${targetUserId}>\nランク：**${tierName === 'None' ? 'なし' : tierName}**`,
         });
 
+        const embed = buildPanelEmbed({
+          title: '✅ ユーザーランクを更新しました',
+          description: `<@${targetUserId}> のランクを **${tierName === 'None' ? '未設定' : tierName}** に更新しました。`,
+          color: 0x2ecc71,
+          client: interaction.client
+        });
+
         await interaction.editReply({
-          content: `✅ **${targetUser.displayName}** のランクを **${tierName === 'None' ? '未設定' : tierName}** に更新しました。`,
+          content: null,
+          embeds: [embed],
           components: [],
         });
       },

@@ -73,6 +73,9 @@ const ROUTES = {
                         : require('./配車システム/評価システム').execute,
             };
         }
+        if (parsed.action === 'forceOff') {
+            return require('./送迎処理/強制退勤');
+        }
         return require('./配車システム/配車依頼フロー');
     },
     memo: (parsed) => {

@@ -89,29 +89,31 @@ module.exports = {
                   case 'admin':
                     return buildAdminPanelMessage(guild, config, client);
                   case 'driverPanel': {
-                    const driverIds = await store
-                      .readJson(paths.guildDriverIndexJson(guild.id), [])
-                      .catch(() => []);
-                    let activeCount = 0;
-                    for (const id of driverIds) {
-                      const profile = await store
-                        .readJson(paths.driverProfileJson(guild.id, id))
-                        .catch(() => null);
-                      if (profile?.current?.available) activeCount++;
-                    }
+                    // 待機中の送迎者数をカウント
+                    const { getQueue } = require('../utils/配車/待機列マネージャ');
+                    const queue = await getQueue(guild.id);
+                    const waitingCount = queue ? queue.length : 0;
+
+                    // 送迎中（実車中）の送迎車数をカウント
+                    const activeDispatchDir = paths.activeDispatchDir(guild.id);
+                    const activeFiles = await store.listKeys(activeDispatchDir).catch(() => []);
+                    const workingCount = activeFiles.filter((f) => f.endsWith('.json')).length;
+
+                    const activeCount = waitingCount + workingCount;
                     return buildDriverPanelMessage(guild, activeCount, client);
                   }
                   case 'userPanel': {
-                    const driverIds = await store
-                      .readJson(paths.guildDriverIndexJson(guild.id), [])
-                      .catch(() => []);
-                    let activeCount = 0;
-                    for (const id of driverIds) {
-                      const profile = await store
-                        .readJson(paths.driverProfileJson(guild.id, id))
-                        .catch(() => null);
-                      if (profile?.current?.available) activeCount++;
-                    }
+                    // 待機中の送迎者数をカウント
+                    const { getQueue } = require('../utils/配車/待機列マネージャ');
+                    const queue = await getQueue(guild.id);
+                    const waitingCount = queue ? queue.length : 0;
+
+                    // 送迎中（実車中）の送迎車数をカウント
+                    const activeDispatchDir = paths.activeDispatchDir(guild.id);
+                    const activeFiles = await store.listKeys(activeDispatchDir).catch(() => []);
+                    const workingCount = activeFiles.filter((f) => f.endsWith('.json')).length;
+
+                    const activeCount = waitingCount + workingCount;
                     return buildUserPanelMessage(guild, activeCount, client);
                   }
                   case 'driverRegister':

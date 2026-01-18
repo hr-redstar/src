@@ -12,21 +12,13 @@ function buildButtonMap() {
   // ここに他カテゴリの handlers も足していく想定
   const all = [...(panelSetup.handlers ?? [])];
   for (const h of all) {
+    if (!h) continue;
     const key = h.customId || h.id;
     if (key && typeof h.execute === 'function') map.set(key, h);
   }
   return map;
 }
 const buttonMap = buildButtonMap();
-
-async function safeReply(interaction, payload) {
-  try {
-    if (interaction.deferred || interaction.replied) return await interaction.editReply(payload);
-    return await interaction.reply(payload);
-  } catch (err) {
-    logger.error('safeReply 失敗', { error: err.message });
-  }
-}
 
 const { resolvePanelHandler } = require('./panelRouter');
 
@@ -47,16 +39,23 @@ async function routeToPanelHandler(interaction, client) {
   return exec(interaction, client, parsed);
 }
 
+const { logAdminInteraction } = require('../utils/log/adminInteractionLogger');
+
 async function handleInteraction(interaction, client) {
   try {
+    // 全インタラクションの開始を管理ログに記録 (監査用) - 非同期で実行し、メイン処理をブロックしない
+    logAdminInteraction(interaction, 'START').catch((err) => {
+      logger.error('管理者ログ送信エラー(START)', { error: err.message });
+    });
+
+    const { MessageFlags } = require('discord.js');
+
     logger.debug('handlerルーティング', {
       customId: interaction.customId,
       type: interaction.type,
-      user: `${interaction.user?.tag}(${interaction.user?.id})`,
+      user: interaction.user ? `${interaction.user.tag}(${interaction.user.id})` : 'unknown',
       guild: interaction.guildId,
     });
-
-    // ====== ★ 追加ここまで ★ ======
 
     // Slash Command
     if (interaction.isChatInputCommand()) {
@@ -84,12 +83,8 @@ async function handleInteraction(interaction, client) {
             customId: interaction.customId,
             error: err.message,
           });
-          if (!interaction.replied && !interaction.deferred) {
-            return safeReply(interaction, {
-              content: '処理中にエラーが発生しました。',
-              flags: MessageFlags.Ephemeral,
-            });
-          }
+          // 管理ログへもエラー通知
+          await logAdminInteraction(interaction, 'ERROR', { message: `HandlerMap Error: ${err.message}` });
           return;
         }
       }
@@ -107,14 +102,16 @@ async function handleInteraction(interaction, client) {
 
     // それ以外の無視
   } catch (err) {
+    // 致命的エラーを管理ログに記録
+    await logAdminInteraction(interaction, 'ERROR', {
+      message: `Fatal Error: ${err.message}`,
+    });
+
     logger.error('💥 interaction処理で致命的な例外が発生しました', {
       customId: interaction.customId,
       error: err.stack,
     });
-    return safeReply(interaction, {
-      content: '❌ 処理中に予期せぬエラーが発生しました。',
-      flags: MessageFlags.Ephemeral,
-    });
+    // ここでの safeReply も削除。ACK 責務は各ハンドラのテンプレートへ統合済み。
   }
 }
 

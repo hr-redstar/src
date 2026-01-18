@@ -20,53 +20,69 @@ function buildVcControlEmbed(data) {
         userEndTime,
         carpoolUsers = [],
         route,
+        status
     } = data;
 
     const now = new Date();
     const dateStr = `${now.getMonth() + 1}/${now.getDate()}`;
 
     // 最終的なルート表示
-    const currentRoute = route || `【${driverPlace}】→【${mark}】→【${destination}】`;
-    // タイトル：月日 HH:mm~終了時間 ルート
-    // 終了時間は driverEndTime と userEndTime 両方が入った時のみ? 
-    // 仕様では「マッチング時間~送迎終了時間」
+    const currentRoute = route || `【${driverPlace || '不明'}】→【${mark || '不明'}】→【${destination || '不明'}】`;
+    const mTime = matchTime || '--:--';
     const endTimeDisplay = (driverEndTime && userEndTime) ? (driverEndTime) : '--:--';
-    const title = `${dateStr} ${matchTime}~${endTimeDisplay} ${currentRoute}`;
+    const title = `🚗 送迎管理：${currentRoute}`;
 
     const descriptionParts = [];
 
-    // 1行目: 送迎者・利用者メンション
-    descriptionParts.push(`送迎者：<@${driverId}>　利用者：<@${userId}>`);
+    // ステータス表示
+    let statusLabel = '📋 マッチング済み';
+    let color = 0xffd700; // Gold (Active)
 
-    // 2行目: マッチング・向かってます
-    descriptionParts.push(`マッチング時間：${matchTime}　向かっています：${approachTime || '--:--'}`);
-    descriptionParts.push(''); // 空行
+    if (status === 'completed') {
+        statusLabel = '✅ 送迎完了';
+        color = 0x95a5a6; // Gray
+    } else if (driverStartTime || userStartTime) {
+        statusLabel = '🚀 送迎中';
+        color = 0x2ecc71; // Green
+    } else if (approachTime) {
+        statusLabel = '🚙 向かっています';
+        color = 0x3498db; // Blue
+    }
 
-    // 3-4行目: 送迎者・利用者の開始/終了時間
-    descriptionParts.push(`送迎者　送迎開始時間：${driverStartTime || '--:--'} ｜ 送迎終了時間：${driverEndTime || '--:--'}`);
-    descriptionParts.push(`利用者　送迎開始時間：${userStartTime || '--:--'} ｜ 送迎終了時間：${userEndTime || '--:--'}`);
+    descriptionParts.push(`**現在の状況：${statusLabel}**`);
+    descriptionParts.push(`日程：${dateStr} | マッチング：${mTime} | 終了：${endTimeDisplay}`);
+    descriptionParts.push('');
+
+    // 送迎対象者情報
+    const passengerId = userId || '未定';
+    descriptionParts.push(`👤 **主要メンバー**`);
+    descriptionParts.push(`> 送迎者：<@${driverId}>`);
+    descriptionParts.push(`> 利用者：${passengerId.startsWith('<@') ? passengerId : `<@${passengerId}>`}`);
+    descriptionParts.push('');
+
+    // 各自のタイムスタンプ
+    descriptionParts.push(`⏱️ **進捗ログ**`);
+    descriptionParts.push(`> 向かっています：${approachTime || '--:--'}`);
+    descriptionParts.push(`> 送迎者開始：${driverStartTime || '--:--'} | 終了：${driverEndTime || '--:--'}`);
+    descriptionParts.push(`> 利用者開始：${userStartTime || '--:--'} | 終了：${userEndTime || '--:--'}`);
 
     // 相乗り者がいる場合の処理
     if (carpoolUsers && carpoolUsers.length > 0) {
-        descriptionParts.push(''); // 空行
+        descriptionParts.push('');
+        descriptionParts.push(`👥 **相乗り利用者 (${carpoolUsers.length}名)**`);
         carpoolUsers.forEach((u, index) => {
             const idx = index + 1;
-            descriptionParts.push(`相乗り希望者${idx}が来ました。`);
-            descriptionParts.push(`【${u.location || '方面・目的地'}】<@${u.userId}>`);
-            descriptionParts.push(`相乗り${idx}　相乗り開始時間：${u.startTime || '--:--'} ｜ 相乗り終了時間：${u.endTime || '--:--'}`);
+            descriptionParts.push(`> ${idx}. <@${u.userId}> (${u.location || '方面・目的地'})`);
+            descriptionParts.push(`> 　 開始：${u.startTime || '--:--'} | 終了：${u.endTime || '--:--'}`);
         });
     }
 
     const embed = new EmbedBuilder()
         .setTitle(title.substring(0, 256))
         .setDescription(descriptionParts.join('\n'))
-        .setColor(0x3498db)
-        .setTimestamp();
-
-    // 完了状態の色
-    if (data.status === 'completed') {
-        embed.setColor(0x95a5a6); // Gray
-    }
+        .setColor(color)
+        .setTimestamp()
+        .setFooter({ text: '送迎管理システム Professional Edition' });
 
     return embed;
 }

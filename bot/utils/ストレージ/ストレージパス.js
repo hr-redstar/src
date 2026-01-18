@@ -120,10 +120,14 @@ module.exports = {
   driverProfileJson,
   driverRideHistoryJson,
   driverRatingJson,
+  driverRatingSummaryJson,
+  driverRoot, // Added
 
   userProfileJson,
   userRideHistoryJson,
   userRatingJson,
+  userRatingSummaryJson,
+  userRoot, // Added
 
   waitingDriversDir,
   waitingUsersDir,
@@ -133,3 +137,10 @@ module.exports = {
   auditLogsDir,
   statsJson,
 };
+
+function driverRatingSummaryJson(guildId, userId) {
+  return `${driverRoot(guildId)}/${userId}/口コミ/summary.json`;
+}
+function userRatingSummaryJson(guildId, userId) {
+  return `${userRoot(guildId)}/${userId}/口コミ/summary.json`;
+}

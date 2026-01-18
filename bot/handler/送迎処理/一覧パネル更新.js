@@ -4,7 +4,7 @@ const { sendOrUpdatePanel } = require('../共通/パネル送信');
 const { loadConfig, saveConfig } = require('../../utils/設定/設定マネージャ');
 const store = require('../../utils/ストレージ/ストア共通');
 
-module.exports = async function updateRideListPanel(guild, client) {
+async function updateRideListPanel(guild, client) {
   const config = await loadConfig(guild.id);
   const panel = config.panels?.rideList;
 
@@ -26,4 +26,6 @@ module.exports = async function updateRideListPanel(guild, client) {
     config.panels.rideList.messageId = newMessageId;
     await saveConfig(guild.id, config);
   }
-};
+}
+
+module.exports = { updateRideListPanel };

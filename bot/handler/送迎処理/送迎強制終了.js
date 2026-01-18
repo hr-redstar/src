@@ -68,15 +68,23 @@ module.exports = {
           return interaction.editReply({ content: '有効な送迎データが見つかりませんでした。' });
         }
 
+        const buildPanelEmbed = require('../../../utils/embed/embedTemplate');
+        const embed = buildPanelEmbed({
+          title: '🛑 管理者：送迎強制終了実行',
+          description: '進行中の送迎を強制的に終了させ、VCやデータをクリーンアップします。\n対象の送迎を選択してください。',
+          color: 0xe74c3c,
+          client: interaction.client
+        });
+
         const select = new StringSelectMenuBuilder()
           .setCustomId('adm|ride|sub=force_end_execute')
-          .setPlaceholder('強制終了する送迎を選択してください')
+          .setPlaceholder('対象の送迎を選択...')
           .addOptions(options.slice(0, 25)); // 最大25件
 
         const row = new ActionRowBuilder().addComponents(select);
 
         await interaction.editReply({
-          content: '強制終了させる送迎を選択してください。\n(選択すると即座に終了処理が行われます)',
+          embeds: [embed],
           components: [row],
         });
       },
@@ -122,22 +130,20 @@ module.exports = {
           }
         }
 
-        // 3. ログ出力 (運営者ログ)
-        const { loadConfig } = require('../../utils/設定/設定マネージャ');
-        const config = await loadConfig(guildId);
-        if (config.logs?.operatorChannel) {
-          const ch = await interaction.guild.channels
-            .fetch(config.logs.operatorChannel)
-            .catch(() => null);
-          if (ch) {
-            const logAuth = interaction.user;
-            await ch
-              .send(
-                `👮 **送迎強制終了**\n実行者: <@${logAuth.id}>\nRideID: \`${rideId}\`\nDriver: <@${rideData.driverId}>\nPassenger: <@${rideData.passengerId}>`
-              )
-              .catch(() => null);
+        // 3. ログ出力 (運営者ログ v1.7.0)
+        const { updateRideOperatorLog } = require('../../../utils/ログ/rideLogManager');
+        await updateRideOperatorLog({
+          guild: interaction.guild,
+          rideId: rideId,
+          status: 'FORCED',
+          data: {
+            driverId: rideData.driverId,
+            userId: rideData.passengerId,
+            area: rideData.route || rideData.direction || rideData.area,
+            count: rideData.count,
+            endedAt: new Date().toISOString(),
           }
-        }
+        }).catch(() => null);
 
         // 4. パネル更新
         // 送迎一覧パネル更新

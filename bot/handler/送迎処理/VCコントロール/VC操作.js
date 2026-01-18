@@ -40,7 +40,7 @@ module.exports = async function (interaction, parsed) {
         if (!vcData) {
           return interaction.followUp({
             content: '⚠️ このチャンネルのデータが見つかりません。',
-            ephemeral: true,
+            flags: 64,
           });
         }
 
@@ -80,14 +80,21 @@ module.exports = async function (interaction, parsed) {
             dispatchData.isExtended = true;
             await store.writeJson(activePath, dispatchData);
 
-            const { syncOperationLog } = require('../../utils/ログ/operationLogHelper');
-            await syncOperationLog(interaction.guild, dispatchData);
+            const { updateRideOperatorLog } = require('../../../utils/ログ/rideLogManager');
+            await updateRideOperatorLog({
+              guild: interaction.guild,
+              rideId: rid,
+              status: 'ENDED',
+              data: {
+                isExtended: true,
+              },
+            }).catch(() => null);
           }
         }
       } catch (error) {
         console.error('削除延長エラー:', error);
         await interaction
-          .followUp({ content: '⚠️ エラーが発生しました。', ephemeral: true })
+          .followUp({ content: '⚠️ エラーが発生しました。', flags: 64 })
           .catch(() => null);
       }
       return;

@@ -64,7 +64,7 @@ async function execute(interaction, parsed) {
 
             await interaction.editReply({
                 embeds: [embed],
-                ephemeral: true,
+                flags: 64,
             });
         },
     });

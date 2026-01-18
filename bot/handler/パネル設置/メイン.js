@@ -3,8 +3,8 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 const { loadConfig, saveConfig } = require('../../utils/設定/設定マネージャ');
 const { sendOrUpdatePanel } = require('../共通/パネル送信');
-const interactionTemplate = require('../共通/interactionTemplate');
-const { ACK } = interactionTemplate;
+const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
 const buildPanelSetupEmbed = require('./埋め込み作成');
 
 /**
@@ -12,7 +12,7 @@ const buildPanelSetupEmbed = require('./埋め込み作成');
  * パネル設置用の管理パネルを送信・更新する
  */
 async function sendPanelSetupPanel(interaction) {
-  const run = async (interaction) => {
+  const handlerRun = async (interaction) => {
     const guild = interaction.guild;
     const config = await loadConfig(guild.id);
     const client = interaction.client;
@@ -71,14 +71,14 @@ async function sendPanelSetupPanel(interaction) {
     if (!interaction.deferred && !interaction.replied) {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     }
-    return run(interaction);
+    return handlerRun(interaction);
   }
 
-  // Component の場合は interactionTemplate を利用
-  return interactionTemplate(interaction, {
-    ack: ACK.REPLY,
+  // Component の場合は autoInteractionTemplate を利用
+  return autoInteractionTemplate(interaction, {
+    ack: ACK.AUTO,
     adminOnly: true,
-    run,
+    run: handlerRun,
   });
 }
 

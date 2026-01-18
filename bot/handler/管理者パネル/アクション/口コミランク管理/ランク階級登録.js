@@ -9,6 +9,8 @@ const CID = {
   MODAL_RANK_TIERS: 'adm|rank_tiers|sub=modal',
 };
 
+const buildPanelEmbed = require('../../../../utils/embed/embedTemplate');
+
 module.exports = {
   CID,
   /**
@@ -36,7 +38,7 @@ module.exports = {
   async handleModal(interaction, parsed) {
     return autoInteractionTemplate(interaction, {
       adminOnly: true,
-      ack: ACK.REPLY,
+      ack: ACK.AUTO,
       async run(interaction) {
         const raw = interaction.fields.getTextInputValue('tiers');
         const tiers = raw
@@ -56,8 +58,15 @@ module.exports = {
           description: `登録された階級：\n${tiers.join(', ')}`,
         });
 
+        const embed = buildPanelEmbed({
+          title: '✅ ランク階級を更新しました',
+          description: `合計 **${tiers.length}** 階級を登録しました。\n\n**階級一覧**:\n\`${tiers.join(' > ')}\``,
+          color: 0x2ecc71,
+          client: interaction.client
+        });
+
         await interaction.editReply({
-          content: `✅ ランク階級を登録しました（${tiers.length}階級）。\n\`${tiers.join(' > ')}\``,
+          embeds: [embed],
         });
       },
     });

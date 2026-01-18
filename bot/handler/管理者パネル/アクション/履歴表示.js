@@ -1,8 +1,13 @@
+// handler/管理者パネル/アクション/履歴表示.js
+
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
 const store = require('../../../utils/ストレージ/ストア共通');
 const paths = require('../../../utils/ストレージ/ストレージパス');
 const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
+const buildPanelEmbed = require('../../../utils/embed/embedTemplate');
+const buildPanelMessage = require('../../../utils/embed/panelMessageTemplate');
+const { ButtonBuilder, ButtonStyle } = require('discord.js');
 
 /**
  * 履歴・評価表示ハンドラー
@@ -11,33 +16,47 @@ module.exports = {
   async execute(interaction, client, parsed) {
     const sub = parsed?.params?.sub || 'start';
 
-    if (sub === 'recent') return showRecentHistory(interaction);
-    if (sub === 'audit') return showAuditLogs(interaction);
-    if (sub === 'detail') return showHistoryMonthSelect(interaction);
-    if (sub === 'month_sel') return showHistoryDaySelect(interaction);
-    if (sub === 'day_sel') return showHistoryResult(interaction);
-
+    // 全てのルートを autoInteractionTemplate で保護
     return autoInteractionTemplate(interaction, {
       adminOnly: true,
-      ack: ACK.REPLY,
+      ack: ACK.AUTO,
       async run(interaction) {
-        const { ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+        if (sub === 'recent') return showRecentHistory(interaction);
+        if (sub === 'rating') return showRatingList(interaction);
+        if (sub === 'audit') return showAuditLogs(interaction);
+        if (sub === 'detail') return showHistoryMonthSelect(interaction);
+        if (sub === 'month_sel') return showHistoryDaySelect(interaction);
+        if (sub === 'day_sel') return showHistoryResult(interaction);
+
+        // デフォルト（sub=start）
+        const embed = buildPanelEmbed({
+          title: '📜 送迎履歴・システムログ',
+          description: '表示したい履歴・ログの種類を選択してください。',
+          color: 0x3498db,
+          client: interaction.client
+        });
+
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setCustomId('adm|history|sub=recent')
-            .setLabel('🕒 配車履歴 (最近10件)')
+            .setLabel('🕒 最近の配車履歴')
             .setStyle(ButtonStyle.Primary),
+          new ButtonBuilder()
+            .setCustomId('adm|history|sub=rating')
+            .setLabel('⭐ 口コミ・評価一覧')
+            .setStyle(ButtonStyle.Success),
           new ButtonBuilder()
             .setCustomId('adm|history|sub=audit')
             .setLabel('📜 システムログ')
-            .setStyle(ButtonStyle.Success),
+            .setStyle(ButtonStyle.Secondary),
           new ButtonBuilder()
             .setCustomId('adm|history|sub=detail')
-            .setLabel('📅 配車履歴 (月別)')
+            .setLabel('📅 月別履歴検索')
             .setStyle(ButtonStyle.Secondary)
         );
+
         await interaction.editReply({
-          content: '表示したい履歴・ログの種類を選択してください。',
+          embeds: [embed],
           components: [row],
         });
       },
@@ -47,46 +66,46 @@ module.exports = {
 };
 
 /**
- * 直近10件の履歴を表示
+ * 直近10件の履歴を表示 (v1.8.0)
  */
 async function showRecentHistory(interaction) {
-  return autoInteractionTemplate(interaction, {
-    adminOnly: true,
-    ack: ACK.REPLY,
-    async run(interaction) {
-      const guildId = interaction.guildId;
-      const now = new Date();
-      const historyDir = paths.dispatchHistoryDir(guildId, now.getFullYear(), now.getMonth() + 1);
+  const guildId = interaction.guildId;
+  const now = new Date();
+  const historyDir = paths.dispatchHistoryDir(guildId, now.getFullYear(), now.getMonth() + 1);
 
-      const files = await store.listKeys(historyDir).catch(() => []);
-      const jsonFiles = files
-        .filter((f) => f.endsWith('.json'))
-        .slice(-10)
-        .reverse();
+  const files = await store.listKeys(historyDir).catch(() => []);
+  const jsonFiles = files
+    .filter((f) => f.endsWith('.json'))
+    .slice(-10)
+    .reverse();
 
-      const embed = new EmbedBuilder().setTitle('🕒 最近の配車履歴 (最新10件)').setColor(0x3498db);
-
-      if (jsonFiles.length === 0) {
-        embed.setDescription('最近の履歴データは見つかりません。');
-      } else {
-        const lines = [];
-        for (const fileKey of jsonFiles) {
-          const data = await store.readJson(fileKey).catch(() => null);
-          if (data) {
-            const time = new Date(data.createdAt).toLocaleTimeString('ja-JP', {
-              hour: '2-digit',
-              minute: '2-digit',
-            });
-            lines.push(
-              `\`${time}\` <@${data.driverId}> ➔ <@${data.passengerId}> (${data.direction || '詳細不明'})`
-            );
-          }
-        }
-        embed.setDescription(lines.join('\n'));
-      }
-      return interaction.editReply({ embeds: [embed] });
-    },
+  const embed = buildPanelEmbed({
+    title: '🕒 最近の配車履歴 (最新10件)',
+    color: 0x3498db,
+    client: interaction.client
   });
+
+  if (jsonFiles.length === 0) {
+    embed.setDescription('最近の履歴データは見つかりません。');
+  } else {
+    const lines = [];
+    for (const fileKey of jsonFiles) {
+      const data = await store.readJson(fileKey).catch(() => null);
+      if (data) {
+        const time = data.createdAt ? new Date(data.createdAt).toLocaleTimeString('ja-JP', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }) : '--:--';
+
+        const statusIcon = data.status === 'completed' ? '✅' : '🚨';
+        lines.push(
+          `${statusIcon} \`${time}\` <@${data.driverId}> ➔ <@${data.passengerId}>\n> 🗺️ ${data.direction || '詳細不明'}`
+        );
+      }
+    }
+    embed.setDescription(lines.join('\n\n') || '有効な履歴データが読み込めませんでした。');
+  }
+  return interaction.editReply({ embeds: [embed] });
 }
 
 /**
@@ -107,11 +126,17 @@ async function showHistoryMonthSelect(interaction) {
     .setPlaceholder('年月を選択してください')
     .addOptions(options);
 
+  const embed = buildPanelEmbed({
+    title: '📅 履歴検索 (年月選択)',
+    description: '履歴を確認したい **年月** を選択してください。',
+    color: 0x3498db,
+    client: interaction.client
+  });
+
   const row = new ActionRowBuilder().addComponents(select);
-  return interaction.reply({
-    content: '📅 履歴を確認したい **年月** を選択してください。',
+  return interaction.editReply({
+    embeds: [embed],
     components: [row],
-    flags: 64,
   });
 }
 
@@ -119,90 +144,93 @@ async function showHistoryMonthSelect(interaction) {
  * 日選択の表示
  */
 async function showHistoryDaySelect(interaction) {
-  return autoInteractionTemplate(interaction, {
-    adminOnly: true,
-    ack: ACK.UPDATE,
-    async run(interaction) {
-      const [y, m] = interaction.values[0].split('-');
-      const guildId = interaction.guildId;
-      // dispatchHistoryDir（全体履歴）のディレクトリを走査して、その月にある「日」を特定するのは
-      // 構造上難しいため（フラットに全ファイルがあるため）、ここでは単純に1〜31を表示するか入力にする
-      // ※ 今回は簡略化のため、当月分を想定して最近の日付を表示するか、全て表示する
+  const [y, m] = interaction.values[0].split('-');
+  const guildId = interaction.guildId;
 
-      const options = [];
-      for (let d = 1; d <= 31; d++) {
-        options.push({ label: `${d}日`, value: `${y}-${m}-${d}` });
-      }
+  const options = [];
+  for (let d = 1; d <= 31; d++) {
+    options.push({ label: `${d}日`, value: `${y}-${m}-${d}` });
+  }
 
-      const select = new StringSelectMenuBuilder()
-        .setCustomId('adm|history|sub=day_sel')
-        .setPlaceholder('日付を選択してください')
-        .addOptions(options.slice(0, 25)); // Discord制限
+  const select = new StringSelectMenuBuilder()
+    .setCustomId('adm|history|sub=day_sel')
+    .setPlaceholder('日付を選択してください')
+    .addOptions(options.slice(0, 25)); // Discord制限
 
-      const row = new ActionRowBuilder().addComponents(select);
-      await interaction.editReply({
-        content: `📅 **${y}年${m}月** のどの日付を確認しますか？`,
-        components: [row],
-      });
-    },
+  const embed = buildPanelEmbed({
+    title: `📅 履歴検索 (${y}年${m}月)`,
+    description: `**${y}年${m}月** のどの日付を確認しますか？`,
+    color: 0x3498db,
+    client: interaction.client
+  });
+
+  const row = new ActionRowBuilder().addComponents(select);
+  await interaction.editReply({
+    embeds: [embed],
+    components: [row],
   });
 }
 
 /**
- * 指定日の結果を表示
+ * 指定日の結果を表示 (v1.8.0)
  */
 async function showHistoryResult(interaction) {
-  return autoInteractionTemplate(interaction, {
-    adminOnly: true,
-    ack: ACK.UPDATE,
-    async run(interaction) {
-      const [y, m, d] = interaction.values[0].split('-');
-      const guildId = interaction.guildId;
-      const historyDir = paths.dispatchHistoryDir(guildId, parseInt(y), parseInt(m));
+  const [y, m, d] = interaction.values[0].split('-');
+  const guildId = interaction.guildId;
+  const historyDir = paths.dispatchHistoryDir(guildId, parseInt(y), parseInt(m));
 
-      const allFiles = await store.listKeys(historyDir).catch(() => []);
-      const datePrefix = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-
-      // ファイル名が YYYY-MM-DD_... または timestamp から始まる想定。
-      // 確実なのは中身をチェックすることだが、数が多いと重い。
-      // ここでは簡易的に「全て」読み込んでフィルタする。
-      const results = [];
-      for (const fileKey of allFiles) {
-        if (!fileKey.endsWith('.json')) continue;
-        const data = await store.readJson(fileKey).catch(() => null);
-        if (data) {
-          const cDate = new Date(data.createdAt);
-          if (cDate.getFullYear() == y && cDate.getMonth() + 1 == m && cDate.getDate() == d) {
-            results.push(data);
-          }
-        }
+  const allFiles = await store.listKeys(historyDir).catch(() => []);
+  const results = [];
+  for (const fileKey of allFiles) {
+    if (!fileKey.endsWith('.json')) continue;
+    const data = await store.readJson(fileKey).catch(() => null);
+    if (data) {
+      const cDate = new Date(data.createdAt);
+      if (cDate.getFullYear() == y && cDate.getMonth() + 1 == m && cDate.getDate() == d) {
+        results.push(data);
       }
+    }
+  }
 
-      const embed = new EmbedBuilder().setTitle(`📅 送迎履歴: ${y}/${m}/${d}`).setColor(0x00ff00);
-
-      if (results.length === 0) {
-        embed.setDescription('指定された日の履歴はありません。');
-      } else {
-        results.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-        const lines = results.map((r) => {
-          const startTime = new Date(r.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-          const endTime = r.completedAt ? new Date(r.completedAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '未完';
-          const carpoolCount = r.carpoolUsers ? r.carpoolUsers.reduce((sum, u) => sum + (u.count || 1), 0) : 0;
-          const carpoolStr = carpoolCount > 0 ? ` (+相乗り${carpoolCount}名)` : '';
-
-          return `\`${startTime}-${endTime}\` <@${r.driverId}> ➔ <@${r.passengerId}>${carpoolStr}\n   ┗ 🗺️ ${r.route || r.direction || '不明'}`;
-        });
-        embed.setDescription(lines.join('\n\n'));
-        embed.addFields({ name: '統計', value: `総走行件数: ${results.length}件`, inline: false });
-      }
-
-      await interaction.editReply({ content: null, embeds: [embed], components: [] });
-    },
+  const embed = buildPanelEmbed({
+    title: `📅 送迎履歴: ${y}/${m}/${d}`,
+    color: 0x2ecc71, // Green
+    client: interaction.client
   });
+
+  if (results.length === 0) {
+    embed.setDescription('指定された日の履歴はありません。').setColor(0x95a5a6);
+  } else {
+    results.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+    let totalPassengers = 0;
+    const lines = results.map((r) => {
+      const startTime = r.createdAt ? new Date(r.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+      const endTime = r.completedAt ? new Date(r.completedAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '運行中';
+      const statusIcon = r.status === 'completed' ? '✅' : (r.status === 'matched' || r.status === 'in-progress' ? '🚕' : '🚨');
+
+      const carpoolCount = r.carpoolUsers ? r.carpoolUsers.reduce((sum, u) => sum + (u.count || 1), 0) : 0;
+      const count = (r.count || 1) + carpoolCount;
+      totalPassengers += count;
+
+      const carpoolStr = carpoolCount > 0 ? ` (+相乗り${carpoolCount}名)` : '';
+
+      return `${statusIcon} \`${startTime}-${endTime}\` <@${r.driverId}> ➔ <@${r.passengerId}>${carpoolStr}\n> 🗺️ ${r.route || r.direction || '不明'} (${count}名)`;
+    });
+
+    embed.setDescription(lines.join('\n\n'));
+    embed.addFields({
+      name: '📊 日計統計',
+      value: `▫️ 総走行件数: **${results.length}** 件\n▫️ 合計利用者: **${totalPassengers}** 名`,
+      inline: false
+    });
+  }
+
+  await interaction.editReply({ embeds: [embed], components: [] });
 }
 
 /**
- * 最近の評価一覧を表示
+ * 最近の評価一覧を表示 (v1.8.0)
  */
 async function showRatingList(interaction) {
   const guildId = interaction.guildId;
@@ -222,7 +250,11 @@ async function showRatingList(interaction) {
   allFiles.sort((a, b) => b.path.localeCompare(a.path));
   const recentFiles = allFiles.slice(0, 10);
 
-  const embed = new EmbedBuilder().setTitle('⭐ 最近の口コミ・評価 (最新10件)').setColor(0xffd700);
+  const embed = buildPanelEmbed({
+    title: '⭐ 最近の口コミ・評価 (最新10件)',
+    color: 0xffd700,
+    client: interaction.client
+  });
 
   if (recentFiles.length === 0) {
     embed.setDescription('評価データが見つかりません。');
@@ -232,67 +264,63 @@ async function showRatingList(interaction) {
       const data = await store.readJson(item.path).catch(() => null);
       if (data && data.current) {
         const stars = data.current.stars ? '⭐'.repeat(data.current.stars) : '💬';
-        const comment = data.current.comment ? `\n   ┗ "${data.current.comment}"` : '';
+        const comment = data.current.comment ? `\n> 「${data.current.comment}」` : '';
         let targetDisplay = '不明';
         const dispatchId = item.path.split('/').pop().replace('.json', '');
 
+        // 履歴から対象者を特定
         const now = new Date();
-        const historyPath = `${paths.dispatchHistoryDir(guildId, now.getFullYear(), now.getMonth() + 1)}/${dispatchId}.json`;
-        const dispatchData = await store.readJson(historyPath).catch(() => null);
+        const historyDir = paths.dispatchHistoryDir(guildId, now.getFullYear(), now.getMonth() + 1);
+        const dispatchData = await store.readJson(`${historyDir}/${dispatchId}.json`).catch(() => null);
 
         if (dispatchData) {
-          const targetId =
-            item.type === '送迎者' ? dispatchData.driverId : dispatchData.passengerId;
+          const targetId = item.type === '送迎者' ? dispatchData.driverId : dispatchData.passengerId;
           targetDisplay = `<@${targetId}>`;
         }
+
         lines.push(
-          `【${item.type}評】${targetDisplay} ➔ ${stars} (by <@${data.raterId}>)${comment}`
+          `**${item.type}評** ${targetDisplay} へ ${stars}\n▫️ 投稿者: <@${data.raterId}>${comment}`
         );
       }
     }
-    embed.setDescription(lines.join('\n'));
+    embed.setDescription(lines.join('\n\n') || '評価データが読み込めませんでした。');
   }
-  return interaction.editReply({ embeds: [embed] });
+  return interaction.editReply({ embeds: [embed], components: [] });
 }
 
 /**
- * システム監査ログの表示
+ * システム監査ログの表示 (v1.8.0)
  */
 async function showAuditLogs(interaction) {
-  return autoInteractionTemplate(interaction, {
-    adminOnly: true,
-    ack: ACK.REPLY,
-    async run(interaction) {
-      const { findAuditLogs } = require('../../../utils/ストレージ/監査ログストア');
-      const guildId = interaction.guildId;
+  const { findAuditLogs } = require('../../../utils/ストレージ/監査ログストア');
+  const guildId = interaction.guildId;
 
-      const options = {
-        limit: 10,
-      };
+  const logs = await findAuditLogs(guildId, { limit: 12 }).catch(() => []);
 
-      const logs = await findAuditLogs(guildId, options).catch(() => []);
-
-      const embed = new EmbedBuilder().setTitle('📜 システム監査ログ (最新10件)').setColor(0x2ecc71);
-
-      if (logs.length === 0) {
-        embed.setDescription('監査ログは見つかりませんでした。');
-      } else {
-        const lines = logs.map((log) => {
-          const time = new Date(log.time).toLocaleTimeString('ja-JP', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-          });
-          const severity =
-            log.severity === 'ERROR' ? '❌' : log.severity === 'WARN' ? '⚠️' : 'ℹ️';
-          const tag = `[${log.tag}]`;
-          const actor = log.actor ? ` (by <@${log.actor}>)` : '';
-          return `\`${time}\` ${severity}${tag} ${log.message}${actor}`;
-        });
-        embed.setDescription(lines.join('\n'));
-      }
-
-      return interaction.editReply({ embeds: [embed] });
-    },
+  const embed = buildPanelEmbed({
+    title: '📜 システム監査ログ',
+    color: 0x95a5a6, // Gray
+    client: interaction.client
   });
+
+  if (logs.length === 0) {
+    embed.setDescription('監査ログは見つかりませんでした。');
+  } else {
+    const lines = logs.map((log) => {
+      const time = log.time ? new Date(log.time).toLocaleTimeString('ja-JP', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      }) : '--:--';
+      const severity =
+        log.severity === 'ERROR' ? '❌' : log.severity === 'WARN' ? '⚠️' : '▫️';
+      const actorInfo = log.actor ? `(by <@${log.actor}>)` : '';
+
+      return `${severity} \`${time}\` **[${log.tag}]** ${log.message} ${actorInfo}`;
+    });
+    embed.setDescription(lines.join('\n'));
+    embed.setFooter({ text: '最新12件を表示中 ｜ 管理監査用' });
+  }
+
+  return interaction.editReply({ embeds: [embed], components: [] });
 }

@@ -104,6 +104,18 @@ module.exports = async function (interaction, targetId) {
             }
             // ------------------------------------------
 
+            const { updateRideOperatorLog } = require('../../utils/ログ/rideLogManager');
+            await updateRideOperatorLog({
+              guild: interaction.guild,
+              rideId: rideData.rideId || rideData.dispatchId,
+              status: 'ENDED',
+              data: {
+                driverId: driverId,
+                userId: targetId,
+                area: rideData.route || rideData.direction,
+              }
+            }).catch(() => null);
+
             await store.deleteFile(fileKey).catch(() => null);
             break;
           }

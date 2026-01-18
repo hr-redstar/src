@@ -48,6 +48,10 @@ const CID = {
 
   // Sub Panels
   BTN_RANK_MANAGE: 'adm|rank_manage|sub=start',
+
+  // Operator Role (v1.3.6)
+  BTN_OPERATOR_ROLE: 'adm|role|type=operator',
+  SEL_OPERATOR_ROLE: 'adm|role|type=operator_sel',
 };
 
 // ===== Display helpers =====
@@ -101,9 +105,6 @@ function buildAdminPanelEmbed(guild, cfg, client) {
   return buildPanelEmbed({
     title: '管理者パネル',
     description: `
----------------------------------
-管理者パネル
-
 **送迎者ロール**
 ${mentionRoles(roles.drivers)}
 **メンションロール**
@@ -127,8 +128,6 @@ ${mentionCategory(cats.userMemo)}
 
 **グローバルログ**
 ${mentionChannel(logs.globalChannel)}
-**グローバルログスレッド**
-${mentionChannel(logs.globalLogThread)}
 
 **運営者ログチャンネル**
 ${mentionChannel(logs.operatorChannel)}
@@ -139,7 +138,7 @@ ${mentionChannel(logs.adminLogThread)}
 **相乗りチャンネル**
 ${mentionChannel(cfg.rideShareChannel)}
 
-**方面リスト**
+**方面リスト登録**
 \`\`\`
 ${(cfg.directions || []).join('\n') || '未登録'}
 \`\`\`
@@ -152,59 +151,55 @@ ${(cfg.directions || []).join('\n') || '未登録'}
 function buildAdminPanelComponents() {
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
+      .setCustomId(CID.BTN_OPERATOR_ROLE)
+      .setLabel('運営者ロール登録')
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
       .setCustomId(CID.BTN_DRIVER_ROLE)
       .setLabel('送迎者ロール登録')
-      .setStyle(ButtonStyle.Primary),
+      .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId(CID.BTN_USER_ROLE)
       .setLabel('利用者ロール登録')
-      .setStyle(ButtonStyle.Primary),
+      .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId(CID.BTN_PRIORITY_ROLE)
       .setLabel('優先配車ロール設定')
-      .setStyle(ButtonStyle.Primary)
+      .setStyle(ButtonStyle.Success)
   );
   const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(CID.BTN_PV_CATEGORY)
       .setLabel('プライベートvcカテゴリー')
-      .setStyle(ButtonStyle.Secondary),
+      .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId(CID.BTN_MEMO_CATEGORY)
       .setLabel('ユーザーメモカテゴリー')
-      .setStyle(ButtonStyle.Secondary)
+      .setStyle(ButtonStyle.Primary)
   );
   const row3 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(CID.BTN_GLOBAL_LOG)
       .setLabel('グローバルログ登録')
-      .setStyle(ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId(CID.BTN_GLOBAL_THREAD)
-      .setLabel('グローバル用スレッド作成')
-      .setStyle(ButtonStyle.Success),
+      .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(CID.BTN_STAFF_LOG)
       .setLabel('運用者ログ登録')
-      .setStyle(ButtonStyle.Success),
+      .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(CID.BTN_ADMIN_THREAD)
       .setLabel('管理者用スレッド作成')
-      .setStyle(ButtonStyle.Success)
+      .setStyle(ButtonStyle.Secondary)
   );
   const row4 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(CID.BTN_CARPOOL_CH)
       .setLabel('相乗りチャンネル設定')
-      .setStyle(ButtonStyle.Danger),
+      .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId(CID.BTN_EDIT_DIRECTIONS)
-      .setLabel('方面リスト編集')
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId(CID.BTN_RANK_MANAGE)
-      .setLabel('🏆 評価・統計・履歴')
-      .setStyle(ButtonStyle.Secondary)
+      .setLabel('方面リスト登録')
+      .setStyle(ButtonStyle.Primary)
   );
 
   return [row1, row2, row3, row4];
@@ -239,21 +234,26 @@ async function updateAdminPanelMessage(guild, cfg, client) {
 }
 
 async function execute(interaction, client, parsed) {
-  const { customId } = interaction;
+  const { customId, MessageFlags } = interaction;
 
   // --- 外部委譲・特殊ボタン・サブパネル ---
   if (interaction.isButton()) {
     // 口コミランク管理パネルの表示
     if (customId === 'adm|rank_manage|sub=start') {
-      const { buildRatingRankPanelMessage } = require('./口コミランクパネル構築');
-      return interaction.reply({ ...buildRatingRankPanelMessage(interaction.guild), ephemeral: true });
+      return autoInteractionTemplate(interaction, {
+        adminOnly: true,
+        ack: ACK.REPLY,
+        async run(interaction) {
+          const { buildRatingRankPanelMessage } = require('./口コミランクパネル構築');
+          const panel = buildRatingRankPanelMessage(interaction.guild);
+          await interaction.editReply(panel);
+        }
+      });
     }
 
     // 口コミ確認フロー
     if (customId === 'adm|rating_check|sub=start')
       return require('./アクション/口コミランク管理/口コミ確認').startFlow(interaction);
-    if (parsed.action === 'rating_check' && parsed.params?.sub === 'comments')
-      return require('./アクション/口コミランク管理/口コミ確認').showComments(interaction, parsed.params.uid, parseInt(parsed.params.page) || 0);
 
     // ランク階級登録
     if (customId === 'adm|rank_tiers|sub=start')
@@ -266,19 +266,48 @@ async function execute(interaction, client, parsed) {
     // 履歴・統計
     if (customId === 'adm|history|sub=start')
       return require('./アクション/履歴表示').execute(interaction, parsed);
+
     if (customId === 'adm|stats|sub=start')
-      return require('./アクション/統計表示').execute(interaction, parsed);
+      return require('./アクション/口コミランク管理/統計ダッシュボード').showDashboard(interaction);
+
+    if (parsed.action === 'rating_check' && parsed.params?.sub === 'comments')
+      return require('./アクション/口コミランク管理/口コミ確認').showComments(interaction, parsed.params.uid, parseInt(parsed.params.page || 0));
 
     // 強制終了
-    if (parsed.action === 'ride') {
-      if (parsed.params?.sub === 'force_end_menu') {
-        return require('../送迎処理/送迎強制終了').handleMenu(interaction, client);
-      }
+    if (parsed.action === 'ride' && parsed.params?.sub === 'force_end_menu') {
+      return require('../送迎処理/送迎強制終了').handleMenu(interaction, client);
+    }
+
+    // パネル設置 (v1.6.2)
+    if (parsed.action === 'panel_setup') {
+      return require('../パネル設置/アクション/パネル設置フロー').execute(interaction, client, parsed);
+    }
+
+    // 方面リスト登録 (Modal)
+    if (customId === CID.BTN_EDIT_DIRECTIONS) {
+      const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+      const cfg = await loadConfig(interaction.guildId);
+      const modal = new ModalBuilder().setCustomId(CID.MODAL_EDIT_DIRECTIONS).setTitle('方面リスト編集');
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId('directions')
+            .setLabel('方面（改行区切り）')
+            .setStyle(TextInputStyle.Paragraph)
+            .setPlaceholder('立川方面\n八王子市内\n相模原方面\nその他')
+            .setValue(cfg.directions?.join('\n') || '')
+            .setRequired(true)
+        )
+      );
+      return await interaction.showModal(modal);
     }
   }
 
   // --- セレクトメニュー委譲 ---
   if (interaction.isAnySelectMenu()) {
+    if (parsed.action === 'panel_setup') {
+      return require('../パネル設置/アクション/パネル設置フロー').execute(interaction, client, parsed);
+    }
     if (parsed.action === 'ride' && parsed.params?.sub === 'force_end_execute') {
       return require('../送迎処理/送迎強制終了').handleExecute(interaction, client);
     }
@@ -305,7 +334,7 @@ async function execute(interaction, client, parsed) {
   if (interaction.isButton() || interaction.isAnySelectMenu()) {
     return autoInteractionTemplate(interaction, {
       adminOnly: true,
-      ack: ACK.REPLY,
+      ack: ACK.AUTO,
       async run(interaction) {
         const { values } = interaction;
         const cfg = await loadConfig(interaction.guildId);
@@ -394,27 +423,21 @@ async function execute(interaction, client, parsed) {
               return interaction.editReply({ content: `❌ スレッド作成失敗: ${err.message}` });
             }
 
+          case CID.BTN_RANK_MANAGE: {
+            const { buildRatingRankPanelMessage } = require('./口コミランクパネル構築');
+            const panel = buildRatingRankPanelMessage(interaction.guild);
+            return interaction.editReply(panel);
+          }
+          case CID.BTN_OPERATOR_ROLE:
+            content = '🛡 **運営者ロール** を選択してください。（1つのみ）\n※設定すると、管理者パネルや各台帳スレッドが非公開化されます。';
+            row = buildRoleSelect(CID.SEL_OPERATOR_ROLE, '運営者ロールを選択', cfg.operatorRoleId ? [cfg.operatorRoleId] : [], 1);
+            break;
+
           // Row 4
           case CID.BTN_CARPOOL_CH:
             content = '🚕 **相乗りチャンネル** を選択してください。';
             row = buildChannelSelect(CID.SEL_CARPOOL_CH, 'チャンネルを選択', [ChannelType.GuildText], [cfg.rideShareChannel]);
             break;
-          case CID.BTN_EDIT_DIRECTIONS: {
-            const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
-            const modal = new ModalBuilder().setCustomId(CID.MODAL_EDIT_DIRECTIONS).setTitle('方面リスト編集');
-            modal.addComponents(
-              new ActionRowBuilder().addComponents(
-                new TextInputBuilder()
-                  .setCustomId('directions')
-                  .setLabel('方面（改行区切り）')
-                  .setStyle(TextInputStyle.Paragraph)
-                  .setPlaceholder('立川方面\n八王子市内\n相模原方面\nその他')
-                  .setValue(cfg.directions?.join('\n') || '')
-                  .setRequired(true)
-              )
-            );
-            return await interaction.showModal(modal);
-          }
 
           // --- 設定保存 (Secondary Select Menus) ---
           case CID.SEL_DRIVER_ROLE:
@@ -485,6 +508,30 @@ async function execute(interaction, client, parsed) {
             cfg.panels.carpoolPanel.channelId = values[0];
             await finalize(interaction, cfg, '相乗りチャンネル更新', { rideShareChannel: '相乗り通知先' }, client);
             return;
+
+          case CID.SEL_OPERATOR_ROLE: {
+            const roleId = values[0] || null;
+            cfg.operatorRoleId = roleId;
+            await saveConfig(interaction.guildId, cfg);
+
+            // 即座に秘匿化を適用
+            const { applyVisibility } = require('../../utils/共通/visibilityManager');
+
+            // 1. 管理者パネルチャンネル
+            const adminPanelChannel = interaction.channel;
+            await applyVisibility(adminPanelChannel, roleId);
+
+            // 2. ユーザー確認パネルチャンネル
+            if (cfg.panels?.userCheckPanel?.channelId) {
+              const userCheckChannel = await interaction.guild.channels.fetch(cfg.panels.userCheckPanel.channelId).catch(() => null);
+              if (userCheckChannel) {
+                await applyVisibility(userCheckChannel, roleId);
+              }
+            }
+
+            await finalize(interaction, cfg, '運営者ロール更新', { operatorRoleId: '運営者ロール' }, client);
+            return;
+          }
         }
 
         if (row) return interaction.editReply({ content, components: [row] });

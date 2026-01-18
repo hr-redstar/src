@@ -1,70 +1,92 @@
-const { EmbedBuilder } = require('discord.js');
+const buildPanelEmbed = require('./embed/embedTemplate');
 
 /**
- * 送迎者用 登録情報Embedを生成
+ * 送迎者用 登録情報Embedを生成 (v2.0.0)
  */
 function buildDriverRegistrationEmbed(registrationJson, user) {
-  const embed = new EmbedBuilder()
-    .setTitle('📋 送迎者 登録情報')
-    .setColor(0x2ecc71) // Green
-    .setTimestamp()
-    .setThumbnail(user.displayAvatarURL());
+  const current = registrationJson?.current || {};
 
-  // 基本情報
-  embed.addFields({
-    name: '👤 基本情報',
-    value: `ユーザー：${user.tag}\n登録区分：送迎者`,
-    inline: false,
+  // ランク・評価情報の取得
+  const rank = current.rank || 'ブロンズ'; // デフォルト
+  const rating = current.rating || 0;
+  const ratingCount = current.ratingCount || 0;
+  const stars = '⭐'.repeat(Math.round(rating)) || 'ー';
+
+  const embed = buildPanelEmbed({
+    title: '📋 送迎者 登録情報',
+    color: 0x2ecc71, // Green
+    client: user.client,
+    thumbnail: user.displayAvatarURL(),
+    fields: [
+      {
+        name: '👤 基本情報',
+        value: `ユーザー：${user.tag}\n登録区分：送迎者`,
+        inline: false,
+      },
+      {
+        name: '📊 評価・ランク',
+        value: `👑 **${rank}**\n${stars} (${rating.toFixed(2)} / ${ratingCount}件)`,
+        inline: false,
+      },
+      {
+        name: '📌 現在の登録情報',
+        value: [
+          `**ニックネーム**: ${current.nickname || '未設定'}`,
+          `**車種**: ${current.car || '未設定'}`,
+          `**区域**: ${current.area || '未設定'}`,
+          `**停留場所**: ${current.stop || '未設定'}`,
+          `**乗車人数**: ${current.capacity || '未設定'}人`,
+          `**登録日時**: ${formatDate(current.registeredAt)}`,
+        ].join('\n'),
+        inline: false
+      }
+    ]
   });
-
-  // 現在の登録情報
-  if (registrationJson?.current) {
-    const current = registrationJson.current;
-    const info = [
-      `**ニックネーム**: ${current.nickname || '未設定'}`,
-      `**車種**: ${current.car || '未設定'}`,
-      `**区域**: ${current.area || '未設定'}`,
-      `**停留場所**: ${current.stop || '未設定'}`,
-      `**乗車人数**: ${current.capacity || '未設定'}人`,
-      `**登録日時**: ${formatDate(current.registeredAt)}`,
-    ].join('\n');
-
-    embed.addFields({ name: '📌 現在の登録情報', value: info, inline: false });
-  }
 
   addHistoryFields(embed, registrationJson.history, 'driver');
   return embed;
 }
 
 /**
- * 利用者用 登録情報Embedを生成
+ * 利用者用 登録情報Embedを生成 (v2.0.0)
  */
 function buildUserRegistrationEmbed(registrationJson, user) {
-  const embed = new EmbedBuilder()
-    .setTitle('📋 利用者 登録情報')
-    .setColor(0x3498db) // Blue
-    .setTimestamp()
-    .setThumbnail(user.displayAvatarURL());
+  const current = registrationJson?.current || {};
 
-  // 基本情報
-  embed.addFields({
-    name: '👤 基本情報',
-    value: `ユーザー：${user.tag}\n登録区分：利用者`,
-    inline: false,
+  // ランク・評価情報の取得
+  const rank = current.rank || 'ブロンズ';
+  const rating = current.rating || 0;
+  const ratingCount = current.ratingCount || 0;
+  const stars = '⭐'.repeat(Math.round(rating)) || 'ー';
+
+  const embed = buildPanelEmbed({
+    title: '📋 利用者 登録情報',
+    color: 0x3498db, // Blue
+    client: user.client,
+    thumbnail: user.displayAvatarURL(),
+    fields: [
+      {
+        name: '👤 基本情報',
+        value: `ユーザー：${user.tag}\n登録区分：利用者`,
+        inline: false,
+      },
+      {
+        name: '📊 評価・ランク',
+        value: `👑 **${rank}**\n${stars} (${rating.toFixed(2)} / ${ratingCount}件)`,
+        inline: false,
+      },
+      {
+        name: '📌 現在の登録情報',
+        value: [
+          `**店舗名 / ニックネーム**: ${current.storeName || '未設定'}`,
+          `**店舗住所**: ${current.address || '未設定'}`,
+          `**駐車目印**: ${current.mark || '未設定'}`,
+          `**登録日時**: ${formatDate(current.registeredAt)}`,
+        ].join('\n'),
+        inline: false
+      }
+    ]
   });
-
-  // 現在の登録情報
-  if (registrationJson?.current) {
-    const current = registrationJson.current;
-    const info = [
-      `**店舗名 / ニックネーム**: ${current.storeName || '未設定'}`,
-      `**店舗住所**: ${current.address || '未設定'}`,
-      `**駐車目印**: ${current.mark || '未設定'}`,
-      `**登録日時**: ${formatDate(current.registeredAt)}`,
-    ].join('\n');
-
-    embed.addFields({ name: '📌 現在の登録情報', value: info, inline: false });
-  }
 
   addHistoryFields(embed, registrationJson.history, 'user');
   return embed;

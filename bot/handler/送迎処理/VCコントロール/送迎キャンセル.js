@@ -17,14 +17,14 @@ module.exports = async function handleRideCancel(interaction, rideId) {
     const dispatchData = await store.readJson(activePath).catch(() => null);
 
     if (!dispatchData) {
-      return interaction.followUp({ content: '⚠️ 送迎データが見つかりません。', ephemeral: true });
+      return interaction.followUp({ content: '⚠️ 送迎データが見つかりません。', flags: 64 });
     }
 
     // ドライバーのみキャンセル可能
     if (interaction.user.id !== dispatchData.driverId) {
       return interaction.followUp({
         content: '⚠️ 送迎者のみがキャンセルできます。',
-        ephemeral: true,
+        flags: 64,
       });
     }
 
@@ -68,6 +68,21 @@ module.exports = async function handleRideCancel(interaction, rideId) {
       console.error('利用中一覧更新エラー (キャンセル時):', err);
     }
 
+    // 運営者ログの同期 (v1.7.0: CANCELLED)
+    const { updateRideOperatorLog } = require('../../../utils/ログ/rideLogManager');
+    await updateRideOperatorLog({
+      guild: interaction.guild,
+      rideId: rideId,
+      status: 'CANCELLED',
+      data: {
+        driverId: dispatchData.driverId,
+        userId: dispatchData.userId,
+        area: dispatchData.direction || dispatchData.route || dispatchData.area,
+        count: dispatchData.count,
+        endedAt: new Date().toISOString(),
+      }
+    }).catch(() => null);
+
     // 利用者にDM通知
     try {
       const userMember = await guild.members.fetch(dispatchData.userId).catch(() => null);
@@ -80,11 +95,11 @@ module.exports = async function handleRideCancel(interaction, rideId) {
       console.log('利用者へのキャンセル通知失敗', e);
     }
 
-    await interaction.followUp({ content: '✅ 送迎をキャンセルしました。', ephemeral: true });
+    await interaction.followUp({ content: '✅ 送迎をキャンセルしました。', flags: 64 });
   } catch (error) {
     console.error('送迎キャンセルエラー:', error);
     await interaction
-      .followUp({ content: '⚠️ エラーが発生しました。', ephemeral: true })
+      .followUp({ content: '⚠️ エラーが発生しました。', flags: 64 })
       .catch(() => null);
   }
 };

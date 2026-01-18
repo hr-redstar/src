@@ -6,69 +6,40 @@ const { updateAdminPanelMessage } = require('../管理者パネル/メイン');
  * 案内パネルのメッセージ（Embed群）を構築する
  */
 async function buildGuidePanelMessage(guild, config, client) {
+  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
+  const buildPanelMessage = require('../../utils/embed/panelMessageTemplate');
+
   const guildId = guild.id;
   const makeLink = (p) =>
     p && p.channelId && p.messageId
       ? `📌 <#${p.channelId}>\n🔗 [パネルを開く](https://discord.com/channels/${guildId}/${p.channelId}/${p.messageId})`
       : '⚠️ 未設置';
 
-  const embeds = [];
+  const embed = buildPanelEmbed({
+    title: '📘 送迎システム 総合案内',
+    description: '送迎システムの各種パネルへのリンクとガイドです。目的のパネルにアクセスして操作を行ってください。',
+    color: 0x3498db,
+    client,
+    fields: [
+      {
+        name: '🚗 送迎者（ドライバー）向け',
+        value: `【送迎者登録】\n${makeLink(config.panels?.driverRegister)}\n\n【送迎者パネル】\n${makeLink(config.panels?.driverPanel)}`,
+        inline: true
+      },
+      {
+        name: '👤 利用者（ゲスト）向け',
+        value: `【利用者登録】\n${makeLink(config.panels?.userRegister)}\n\n【利用者パネル】\n${makeLink(config.panels?.userPanel)}`,
+        inline: true
+      },
+      {
+        name: '🔐 送迎マッチング後の流れ',
+        value: `マッチングが成立すると、専用のプライベートVCチャンネルが作成されます。\n\n📁 カテゴリー：${config.categories?.privateVc ? `<#${config.categories.privateVc}>` : '**未設定**'}\n📘 ガイド：<#${config.channels?.operatorLog || config.logs?.operatorChannel || '未設定'}>`,
+        inline: false
+      }
+    ]
+  });
 
-  // メインEmbed
-  embeds.push(
-    new EmbedBuilder()
-      .setTitle('案内パネル')
-      .setDescription('送迎システムの各種操作はこちらから行えます。')
-      .setColor(0x3498db)
-  );
-
-  // 送迎者向け
-  embeds.push(
-    new EmbedBuilder()
-      .setTitle('🚗 送迎者向け')
-      .addFields(
-        {
-          name: '送迎者登録パネル',
-          value: makeLink(config.panels?.driverRegister),
-        },
-        {
-          name: '送迎者パネル',
-          value: makeLink(config.panels?.driverPanel),
-        }
-      )
-      .setColor(0x2ecc71)
-  );
-
-  // 利用者向け
-  embeds.push(
-    new EmbedBuilder()
-      .setTitle('👤 利用者向け')
-      .addFields(
-        {
-          name: '利用者登録パネル',
-          value: makeLink(config.panels?.userRegister),
-        },
-        {
-          name: '利用者パネル',
-          value: makeLink(config.panels?.userPanel),
-        }
-      )
-      .setColor(0xf1c40f)
-  );
-
-  // 送迎マッチング後
-  embeds.push(
-    new EmbedBuilder()
-      .setTitle('🔐 送迎マッチング後')
-      .setDescription(
-        `送迎がマッチングされると、指定されたカテゴリー内に\n送迎者と利用者専用のプライベートVCチャンネルが作成されます。\n\n` +
-          `📁 カテゴリー：${config.categories?.privateVc ? `<#${config.categories.privateVc}>` : '**未設定**'}\n` +
-          `📘 使い方：<#${config.channels?.operatorLog || config.logs?.operatorChannel || '未設定'}>（※プライベートVCガイド）`
-      )
-      .setColor(0x9b59b6)
-  );
-
-  return { embeds };
+  return buildPanelMessage({ embed });
 }
 
 /**

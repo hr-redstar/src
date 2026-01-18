@@ -16,18 +16,25 @@ module.exports = {
   type: 'button',
   async execute(interaction) {
     return interactionTemplate(interaction, {
-      ack: ACK.REPLY,
+      ack: ACK.UPDATE,
       async run(interaction) {
         const guildId = interaction.guildId;
         const userId = interaction.user.id;
 
         const paths = require('../../../utils/ストレージ/ストレージパス');
-        const userProfile = await store
+        const _userProfile = await store
           .readJson(paths.userProfileJson(guildId, userId))
           .catch(() => null);
-        const driverProfile = await store
+        const _driverProfile = await store
           .readJson(paths.driverProfileJson(guildId, userId))
           .catch(() => null);
+
+        // current プロパティがある場合はそれを採用 (ヒストリー構造対応)
+        const userProfile = _userProfile?.current || _userProfile;
+        const driverProfile = _driverProfile?.current || _driverProfile;
+
+        const isUserRegistered = userProfile && userProfile.name;
+        const isDriverRegistered = driverProfile && driverProfile.nickname;
 
         const embed = new EmbedBuilder()
           .setTitle('🔍 登録状態確認')
@@ -36,7 +43,7 @@ module.exports = {
 
         const components = [];
 
-        if (!userProfile && !driverProfile) {
+        if (!isUserRegistered && !isDriverRegistered) {
           embed.setDescription('登録情報が見つかりませんでした。先に登録を行ってください。');
           components.push(
             new ActionRowBuilder().addComponents(
@@ -55,7 +62,7 @@ module.exports = {
           const userRanks = config.ranks?.userRanks || {};
 
           let desc = '';
-          if (userProfile) {
+          if (isUserRegistered) {
             const rank = userRanks[userId] || '設定なし';
             const rating = await getRatingSummary(guildId, userId, 'user');
             const stars = rating?.average ? '⭐'.repeat(Math.round(rating.average)) + ` (${rating.average})` : '未評価';
@@ -63,9 +70,9 @@ module.exports = {
             desc += `**【👤 利用者情報】**\n`;
             desc += `ニックネーム: \`${userProfile.name}\`\n`;
             desc += `ランク: \`${rank}\` / 評価: ${stars}\n`;
-            desc += `送迎目印: \`${userProfile.mark}\`\n\n`;
+            desc += `送迎目印: \`${userProfile.mark || '未設定'}\`\n\n`;
           }
-          if (driverProfile) {
+          if (isDriverRegistered) {
             const rank = userRanks[userId] || '設定なし';
             const rating = await getRatingSummary(guildId, userId, 'driver');
             const stars = rating?.average ? '⭐'.repeat(Math.round(rating.average)) + ` (${rating.average})` : '未評価';
@@ -73,7 +80,7 @@ module.exports = {
             desc += `**【🚗 送迎者情報】**\n`;
             desc += `ニックネーム: \`${driverProfile.nickname}\`\n`;
             desc += `ランク: \`${rank}\` / 評価: ${stars}\n`;
-            desc += `待機場所: \`${driverProfile.stopPlace || driverProfile.stop}\`\n`;
+            desc += `待機場所: \`${driverProfile.stopPlace || driverProfile.stop || '未設定'}\`\n`;
             desc += `乗車定員: \`${driverProfile.capacity}\`名\n`;
           }
           embed.setDescription(desc);

@@ -1,133 +1,125 @@
 # 🚗 送迎者Bot（Discord）
 
-送迎者と利用者をマッチングし、配車・送迎・相乗り・評価までを一貫して管理する Discord 専用送迎支援 Bot です。
+送迎者と利用者をマッチングし、配車・送迎・相乗り・評価までを一貫して管理するDiscord専用の送迎支援Botです。
 
-本 Bot は **Linux 環境を基準** に設計されており、Windows / macOS でのテストも可能ですが、最終的な動作保証は Linux（Google Cloud Run）とします。
+本Botは **Linux環境を基準** に設計されています。Windows / macOSでの開発・検証は可能ですが、最終的な動作保証はLinux（Google Cloud Run）となります。
+
+---
 
 ## 📌 主な機能
 
-### 送迎者向け
-- 待機開始 / 退勤
-- 現在地登録
-- 送迎開始・終了操作
-- 相乗り対応
+### 🚗 送迎者向け
+- **出勤（待機開始） / 退勤**: 自身の稼働状況をリアルタイムに管理。
+- **現在地・停留場所登録**: マッチング精度向上のための位置情報管理。
+- **送迎開始 / 終了操作**: シンプルなボタン操作でステータスを遷移。
+- **相乗り対応**: リアルタイムな乗車人数管理と承認フロー。
 
-### 利用者向け
-- 配車依頼（自分 / ゲスト）
-- 送迎状況確認
-- 相乗り申請
+### 👤 利用者向け
+- **柔軟な配車依頼**: 種別（キャスト / ゲスト）、方面・人数・目的地の指定。
+- **プライベート連絡チャンネル**: マッチング成立時に専用VC / テキストを自動生成。
+- **1件1Embed更新型ログ**: 送迎1件につき1メッセージを更新して追跡。
+- **スレッド型登録台帳**: 1人1メッセージで常に最新状態を保持し、大規模運用に対応。
+- **口コミ評価システム**: 送迎終了後に相互評価DMを送信し、ランクパネルに反映。
 
-### 管理者向け
-- 各種パネル設置
-- 送迎履歴管理
-- 評価・ランク管理
-- 管理ログ出力
+### 🛠 管理者向け
+- **各種パネル設置**: 管理者・送迎・利用者用パネルの簡単設置。
+- **送迎履歴・統計管理**: 運用データの蓄積と可視化。
+- **評価・ランク管理**: ユーザーごとの品質・貢献度管理。
+- **強制退勤・状態クリーンアップ**: トラブル時や退勤忘れのセーフティ機能。
+
+## 🏆 Primary Features (v2.0.0 Professional)
+
+本システムは、送迎オペレーションの「可視化」と「信頼性向上」を極限まで高めたプロフェッショナル版です。
+
+### 📊 プロフェッショナル履歴＆監査
+- **1-Ride-1-Embed 運行ログ**: 一つの送迎につき一つのメッセージが更新され続ける、スマートな追跡システム。
+- **ヒストリカルデータ分析**: 過去の配車記録や稼働統計を、管理画面から瞬時に検索・閲覧。
+- **詳細出勤ログ**: ドライバーの稼働時間、車両情報、定員設定などを自動記録。
+
+### ⭐ 評価・ランキングシステム
+- **相互評価と信頼スコア**: 送迎終了後の相互レビューにより、サーバー内の信頼度を可視化。
+- **階級（ランク）制度**: 評価実績に応じたランク（ブロンズ、シルバー等）をプロフィールに自動反映。
+- **口コミランクパネル**: サーバー内の活動ランキングをリアルタイム表示。
+
+### 🚗 高度な配車管理
+- **相乗り (Carpool) 完全対応**: 途中乗車・ルート変更のリクエストをワンタップで処理。
+- **スマートマッチング**: ドライバーの現在地とステータスを考慮した最適化マッチング。
+
+---
 
 ## 🧩 技術仕様
+- **Runtime**: Node.js（discord.js v14）
+- **Storage**: ファイルベース（JSON）
+- **Deployment**: Google Cloud Run（Linux）
+- **CI/CD**: GitHub Actions
+- **Interaction**: Custom ID v2 (`namespace|action|params`)
 
-- **Runtime**: Node.js (Discord.js v14)
-- **Database**: ファイルベースストレージ (JSON)
-- **Deployment**: Google Cloud Run (Linux) + GitHub Actions
-- **Interaction**: Custom ID v2 仕様 (`namespace|action|params`)
+---
 
-### ディレクトリ構成（例）
-```
+## 📁 ディレクトリ構成
+```text
 bot/
 ├─ index.js           # エントリーポイント
-├─ handler/           # インタラクションハンドラ
-├─ utils/             # ユーティリティ (parseCustomId等)
-├─ storage/           # データアクセサ
-├─ data/              # ※ Git管理外 (ローカルデータ)
-├─ node_modules/      # ※ Git管理外
+├─ handler/           # Interaction ハンドラ群
+├─ utils/             # 共通ユーティリティ
+├─ storage/           # ストレージ抽象化
+├─ data/              # ※ Git管理外（ローカルデータ）
 ├─ .env               # ※ Git管理外
 └─ ...
 ```
 
+---
+
 ## 🔐 セキュリティ・環境変数
+⚠️ **Discord Bot Tokenは絶対にGit管理しないでください。**
+- `.env` にのみ記載し、本番環境では Secret Manager 等を使用してください。
+- 流出時は直ちに Reset してください。
 
-**⚠️ 重要: Discord Bot Token は絶対に Git 管理しない**
-
-- トークンは `.env` にのみ記載
-- 本番環境（Cloud Run）では Secret Manager 経由で注入
-- トークンが流出した場合は、直ちに Discord Developer Portal で再発行（Reset Token）を行ってください。
-
-### .env の例
-```ini
+**.env 例**
+```env
 DISCORD_TOKEN=your_token_here
 ```
 
-## 📖 開発者ガイド
-
-プロジェクトの詳細な構成やコーディング規約については、[DEV.md](DEV.md) を参照してください。
+---
 
 ## 💻 開発環境の統一方針
-
-チーム開発における環境差異を防ぐため、以下の設定を推奨・必須とします。
-
-### エディタ
-- **Visual Studio Code (必須)**
+### エディタ設定 (Visual Studio Code)
 - **文字コード**: UTF-8
 - **改行コード**: LF
-- **フォーマッタ**: Prettier (保存時自動整形 推奨)
+- **フォーマッタ**: Prettier
 
-### VS Code 設定推奨例 (.vscode/settings.json)
-```json
-{
-  "editor.formatOnSave": true,
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "files.encoding": "utf8",
-  "files.eol": "\n"
-}
-```
+### 実行環境
+- **基準**: Linux（Cloud Run）
+- **テスト**: Windows / macOS / Linux （※Windowsでの動作は「保証」ではありません）
 
-### 実行環境 (Bot Server)
-- **基準**: Linux 系 OS (Google Cloud Run)
-- **テスト**: Windows / macOS / Linux
-  - ※ 確認しやすさを優先して Windows/macOS での動作確認も可としますが、**「Windowsで動く」は動作保証になりません**。最終的な正の挙動は Linux です。
+---
 
-## 🚀 セットアップ手順
-
-開発を開始するには以下の手順を実行してください。
-
+## 🚀 セットアップ
 ```bash
-# プロジェクトディレクトリへ移動
 cd bot
-
-# 依存関係のインストール
 npm install
-
-# 環境変数の設定
 cp .env.example .env
-# .env を編集して DISCORD_TOKEN を設定してください
-
-# 開発サーバー起動
 npm run dev
 ```
 
-### コード品質チェック
-ESLint と Prettier を導入しています。コミット前に実行することを推奨します。
-
+### 品質チェック
 ```bash
-# リントチェック
 npm run lint
-
-# フォーマット
 npm run format
 ```
 
-## ☁️ デプロイ構成 (Google Cloud Run)
-
-本プロジェクトは **CI/CD 前提** で運用されます。
-
-- **本番環境**: Google Cloud Run (Linux)
-- **デプロイ**: GitHub Actions (main ブランチへの push で自動デプロイ)
-- **データ永続化**: Cloud Run はステートレスなため、コンテナ再起動でローカルファイルは初期化されます（JSONストレージは一時的なキャッシュや、永続化不要なデータのみに使用）。
+---
 
 ## 📐 実装ルール
+- **パス操作**: `path.join()` を必ず使用。
+- **ファイル名**: 大文字・小文字を厳密に管理（Linux基準）。
+- **Custom ID**: `namespace|action|params` 形式を厳守。
+- **インタラクション応答 (v1.6.1+)**:
+    - すべてのパネル操作は `autoInteractionTemplate` を経由すること。
+    - **deferReply** を原則とし、`deferUpdate` は（エフェメラルパネルの更新において不整合の原因となるため）原則使用禁止。
+    - 応答はすべて `interaction.editReply()` で統一し、3秒ルールを確実に回避する。
 
-1. **パス操作**: 必ず `path.join()` を使用する（OS間のパス区切り文字の違いを吸収するため）。
-2. **ファイル名**: 大文字・小文字を厳密に管理する（Linux では `file.js` と `File.js` は別物です）。
-3. **Custom ID**: 新仕様 `namespace|action|params` を遵守し、`utils/parseCustomId` を利用してパースする。
+---
 
 ## 📜 ライセンス
-(Private / Custom License)
+Private / Custom License

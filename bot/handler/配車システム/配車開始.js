@@ -90,6 +90,23 @@ async function startDispatch({ guild, driver, passenger, type, direction, count 
   const activePath = `${paths.activeDispatchDir(guild.id)}/${dispatchId}.json`;
   await store.writeJson(activePath, dispatchData);
 
+  // 運営者ログ (v1.3.8)
+  const { updateRideOperatorLog } = require('../../utils/ログ/rideLogManager');
+  await updateRideOperatorLog({
+    guild,
+    rideId: dispatchId,
+    status: 'MATCHED',
+    data: {
+      driverId: driver.userId,
+      driverNickname: driver.nickname,
+      userId: passenger.id,
+      userName: passenger.username,
+      area: direction,
+      count: count,
+      matchedAt: dispatchData.createdAt,
+    }
+  }).catch(() => null);
+
   // チャンネル内メッセージ送信
   const embed = new EmbedBuilder()
     .setTitle('🚕 配車中（連絡用チャンネル）')

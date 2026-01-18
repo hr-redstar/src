@@ -14,7 +14,7 @@ module.exports = function buildPanelEmbed({ title, description, client, color })
 
   const embed = new EmbedBuilder()
     .setTitle(`📋 ${title}`)
-    .setDescription(description)
+    .setDescription(description || null)
     .setFooter({
       text: `${username}｜${new Date().toLocaleString('ja-JP')}`,
       iconURL: avatarURL,

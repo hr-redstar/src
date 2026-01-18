@@ -71,4 +71,33 @@ async function aggregateUserRatings(guildId, userId) {
   return stats;
 }
 
-module.exports = { aggregateUserRatings };
+/**
+ * サーバー全体のランキングデータを取得する
+ */
+async function getGuildRanking(guildId, role = 'driver') {
+  const drivers = await store.loadDrivers(guildId);
+  const users = await store.loadUsers(guildId);
+  const targetList = role === 'driver' ? drivers : users;
+
+  const ranking = [];
+
+  for (const member of targetList) {
+    const stats = await aggregateUserRatings(guildId, member.userId);
+    if (stats.totalCount > 0) {
+      ranking.push({
+        userId: member.userId,
+        nickname: member.current?.nickname || member.userId,
+        average: stats.average,
+        count: stats.totalCount,
+        commentCount: stats.commentCount
+      });
+    }
+  }
+
+  // 平均点降順 -> 件数降順 でソート
+  ranking.sort((a, b) => b.average - a.average || b.count - a.count);
+
+  return ranking;
+}
+
+module.exports = { aggregateUserRatings, getGuildRanking };

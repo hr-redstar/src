@@ -266,7 +266,8 @@ async function execute(interaction, parsed) {
         }
 
         // パネル更新
-        const { updateUserCheckPanel } = require('./ユーザー確認パネル');
+        const { updateUserCheckPanel, upsertRegistrationLedger } = require('./ユーザー確認パネル');
+        await upsertRegistrationLedger(interaction.guild, 'user', registrationData).catch(() => null);
         await updateUserCheckPanel(interaction.guild, interaction.client).catch(() => null);
 
         // --- NEW: 履歴まとめ期間の選択を促す ---

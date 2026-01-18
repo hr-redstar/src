@@ -1,4 +1,6 @@
-﻿const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+﻿// handler/送迎パネル/埋め込み作成.js
+
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 const buildPanelMessage = require('../../utils/embed/panelMessageTemplate');
 
@@ -51,113 +53,90 @@ function buildDriverPanelMessage(guild, activeCount = 0, client) {
 
 /**
  * 送迎一覧パネルのメッセージペイロードを生成
+ * (v1.6.5: Context-Resilient & Self-Sufficient)
  */
-async function buildRideListPanelMessage(guild, client) {
+async function buildRideListPanelMessage(guild, client, context = {}) {
     const guildId = guild.id;
     const store = require('../../utils/ストレージ/ストア共通');
     const paths = require('../../utils/ストレージ/ストレージパス');
+    const { getQueue } = require('../../utils/配車/待機列マネージャ');
 
     const botClient = client || guild.client;
+
+    // 1. 待機中の送迎車
+    let driverWaitingList = context.driverWaitingList;
+    if (driverWaitingList === undefined) {
+        const queue = await getQueue(guildId).catch(() => []);
+        driverWaitingList = queue.length > 0
+            ? queue.map((d, i) => `${i + 1}. <@${d.userId}>`).join('\n')
+            : '現在待機中の送迎車はありません。';
+    }
+
+    // 2. 待機中の利用者 (未マッチングの依頼)
+    let waitingList = context.waitingList;
+    if (waitingList === undefined) {
+        const userKeys = await store.listKeys(paths.waitingUsersDir(guildId)).catch(() => []);
+        let userListStrings = [];
+        for (const key of userKeys) {
+            if (!key.endsWith('.json')) continue;
+            const data = await store.readJson(key).catch(() => null);
+            if (data && data.userId) {
+                userListStrings.push(`<@${data.userId}> (${data.direction || '不明'})`);
+            }
+        }
+        waitingList = userListStrings.length > 0
+            ? userListStrings.join('\n')
+            : '待機中のユーザーはいません。';
+    }
+
+    // 3. 送迎中の車両 (配車中一覧)
+    let ridingList = context.ridingList;
+    if (ridingList === undefined) {
+        const activeKeys = await store.listKeys(paths.activeDispatchDir(guildId)).catch(() => []);
+        let activeListStrings = [];
+        for (const key of activeKeys) {
+            if (!key.endsWith('.json')) continue;
+            const data = await store.readJson(key).catch(() => null);
+            if (data && data.driverId && data.passengerId) {
+                activeListStrings.push(`🚖 <@${data.driverId}> ➡️ <@${data.passengerId}> (${data.direction || '不明'})`);
+            }
+        }
+        ridingList = activeListStrings.length > 0
+            ? activeListStrings.join('\n')
+            : '現在送迎中の車両はありません。';
+    }
+
     const embed = buildPanelEmbed({
-        title: '送迎一覧パネル',
-        description: '現在の待機状況と送迎中のステータスを表示します。',
+        title: '📋 送迎・待機状況 一覧',
+        description: '現在の送迎車の待機状況と、進行中の送迎ステータスをリアルタイムで表示します。',
+        color: 0x3498db,
         client: botClient,
+        fields: [
+            {
+                name: '🚗 待機中の送迎車',
+                value: driverWaitingList.includes('<@')
+                    ? driverWaitingList
+                    : `\`${driverWaitingList}\``,
+                inline: false
+            },
+            {
+                name: '👤 待機中の利用者',
+                value: waitingList.includes('<@')
+                    ? waitingList
+                    : `\`${waitingList}\``,
+                inline: false
+            },
+            {
+                name: '🚕 送迎中の車両',
+                value: ridingList.includes('<@')
+                    ? ridingList
+                    : `\`${ridingList}\``,
+                inline: false
+            }
+        ]
     });
 
-    // 1. 待機中の送迎者の取得 (FIFO順)
-    const driverWaitingDir = paths.waitingDriversDir(guildId);
-    let driverWaitingList = '現在待機中の送迎車はありません。';
-    try {
-        const driverFiles = await store.listKeys(driverWaitingDir).catch(() => []);
-        const jsonFiles = driverFiles.filter((f) => f.endsWith('.json'));
-
-        if (jsonFiles.length > 0) {
-            const drivers = [];
-            for (const fileKey of jsonFiles) {
-                const data = await store.readJson(fileKey).catch(() => null);
-                if (data) drivers.push(data);
-            }
-            // タイムスタンプの古い順（FIFO）
-            drivers.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-
-            if (drivers.length > 0) {
-                const lines = drivers.map((d, i) => {
-                    const time = new Date(d.timestamp).toLocaleTimeString('ja-JP', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                    });
-                    return `第${i + 1}位｜${time}｜<@${d.userId}>｜${d.stopPlace || '不明'}｜${d.carInfo || '不明'}`;
-                });
-                driverWaitingList = lines.join('\n');
-            }
-        }
-    } catch (e) { }
-
-    // 2. 待機中の取得 (利用者)
-    const userWaitingDir = paths.waitingUsersDir(guildId);
-    let waitingList = '待機中のユーザーはいません。';
-    try {
-        const waitingFiles = await store.listKeys(userWaitingDir).catch(() => []);
-        const filteredFiles = waitingFiles.filter((f) => f.endsWith('.json'));
-        if (filteredFiles.length > 0) {
-            const users = [];
-            for (const fileKey of filteredFiles) {
-                const data = await store.readJson(fileKey).catch(() => null);
-                if (data) users.push(data);
-            }
-            users.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-
-            const lines = users.map((data) => {
-                const time = new Date(data.timestamp).toLocaleTimeString('ja-JP', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                });
-                return `${time}｜<@${data.userId}>${data.guest ? ' (ゲスト)' : ''}｜${data.from}`;
-            });
-            if (lines.length > 0) waitingList = lines.join('\n');
-        }
-    } catch (e) { }
-
-    // 3. 送迎中（配車中）の取得
-    const ridingDir = paths.activeDispatchDir(guildId);
-    let ridingList = '現在送迎中の車両はありません。';
-    try {
-        const ridingFiles = await store.listKeys(ridingDir).catch(() => []);
-        const filteredFiles = ridingFiles.filter((f) => f.endsWith('.json'));
-        if (filteredFiles.length > 0) {
-            const lines = [];
-            for (const fileKey of filteredFiles) {
-                const data = await store.readJson(fileKey).catch(() => null);
-                if (data) {
-                    const status = data.status === 'departing' ? '実車中' : '配車済';
-                    const carpoolCount = data.carpoolUsers?.length || 0;
-                    const carpoolText = carpoolCount > 0 ? ` (+相乗り${carpoolCount}組)` : '';
-                    lines.push(
-                        `【${status}】<@${data.driverId}> ➔ <@${data.passengerId}> (${data.direction})${carpoolText}`
-                    );
-                }
-            }
-            if (lines.length > 0) ridingList = lines.join('\n');
-        }
-    } catch (e) { }
-
-    embed
-        .setDescription(
-            `
-現在の待機状況と送迎中のステータスを表示します。
-
-🚗 **待機中の送迎車（FIFO順）**
-順位｜待機開始｜名前｜待機場所｜車種
-${driverWaitingList}
-
-👤 **待機中 (利用者)**
-${waitingList}
-
-🚕 **送迎中**
-${ridingList}
-    `
-        )
-        .setFooter({ text: `送迎bot｜${new Date().toLocaleString('ja-JP')}` });
+    embed.setFooter({ text: `最終更新：${new Date().toLocaleString('ja-JP')} ｜ Professional Edition` });
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -171,6 +150,10 @@ ${ridingList}
         new ButtonBuilder()
             .setCustomId('adm|ride|sub=force_end_menu')
             .setLabel('送迎強制終了')
+            .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+            .setCustomId('dispatch|forceOff|sub=menu')
+            .setLabel('🛑 ドライバー強制退勤')
             .setStyle(ButtonStyle.Danger)
     );
 

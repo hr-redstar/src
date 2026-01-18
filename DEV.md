@@ -14,7 +14,7 @@ src/
 │  ├─ utils/            # 共通ユーティリティ
 │  ├─ storage/          # データアクセス層
 │  ├─ index.js          # エントリーポイント
-│  └─ .eslintrc.cjs     # リント設定
+│  └─ eslint.config.mjs # リント設定 (v9 Flag Config)
 ├─ 仕様書/               # プロジェクト全体の仕様ドキュメント
 └─ README.md            # プロジェクト概要
 ```

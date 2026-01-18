@@ -1,224 +1,150 @@
+// handler/パネル設置/アクション/パネル設置フロー.js
+// v1.6.2 (Professional Setup Flow)
+
 const {
     ActionRowBuilder,
     StringSelectMenuBuilder,
     ChannelSelectMenuBuilder,
     ChannelType,
-    EmbedBuilder,
-    ComponentType,
 } = require('discord.js');
-const { PANEL_SETUP_IDS } = require('../共通/_panelSetupCommon');
 const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
+const buildPanelEmbed = require('../../../utils/embed/embedTemplate');
+const { deployPanel } = require('./パネル送信ヘルパー');
 
-// 各パネルの送信ロジックをインポート (既存のファイルから)
-// ※ 既存のハンドラファイルを再利用するか、またはここにロジックを集約するか。
-// 既存のハンドラは `run(interaction)` 形式で書かれており、直接呼び出すのは少し扱いづらいかもしれないが、
-// 共通化のために、ここでは「パネルEmbedを作成して送信する」部分だけを抽出・実行する形が望ましい。
-// しかし、今は既存の `require('../アクション/送迎者パネル.js')(interaction)` などを呼ぶと、
-// interaction.reply などを呼んでしまう恐れがある。
-// したがって、ここでは各パネルの Embed 作成関数などをインポートして利用するのがベストだが、
-// 多くのファイルは `handler(interaction)` としてエクスポートされている。
-// 簡易的に、このファイル内で各パネルの内容を定義（または既存処理を模倣）して送信する。
-// 本来は `buildUpdate` 系関数を外出しすべき。
-
-// 今回は「パネル設置」処理自体をここで行う。
-// 各パネルのEmbed生成ロジックは既存ファイル (e.g. `送迎パネル/メイン.js` の `buildDriverPanelMessage`) を流用したい。
-// しかし `送迎パネル/メイン.js` は `updateDriverPanel` しか export していない場合がある。
-// 確認が必要だが、まずはフローの実装を進める。
-
-// パネル種別の定義
-const PANEL_TYPES = [
-    { label: '送迎者パネル', value: 'driver_panel', description: '出勤/退勤操作など' },
-    { label: '利用者パネル', value: 'user_panel', description: '送迎依頼など' },
-    { label: '送迎一覧パネル', value: 'ride_list_panel', description: '現在の送迎状況一覧' },
-    { label: '送迎者登録パネル', value: 'driver_reg_panel', description: '新規送迎者登録用' },
-    { label: '利用者登録パネル', value: 'user_reg_panel', description: '新規利用登録用' },
-    { label: '口コミランクパネル', value: 'rating_rank_panel', description: '口コミランキング表示' },
-    { label: '管理者パネル', value: 'admin_panel', description: '設定・管理用' },
-    { label: '案内パネル', value: 'guide_panel', description: '🔰使い方などの案内' },
-];
-
+/**
+ * パネル設置の対話型フロー (v1.6.2)
+ */
 module.exports = {
-    // 1. Dynamic Router (handler.js routeToPanelHandler経由)
     async execute(interaction, client, parsed) {
-        // ID: ps|setup|sub=start / type / channel
-        // ps:setup:start (Legacy)
-        const subAction = (parsed.params && parsed.params.sub) || (parsed.rest && parsed.rest[0]);
+        // ステップ判定: adm|panel_setup|step=... or ps|send|panel=...
+        let step = parsed?.params?.step || 'select_type';
 
-        if (subAction === 'start') return handleSetupStart(interaction);
-        if (subAction === 'type') return handleTypeSelect(interaction);
-        if (subAction === 'channel') return handleChannelSelect(interaction, parsed);
-    },
+        // 直送 (ps|send|panel=driver 等) の互換性
+        if (parsed.action === 'send' && parsed.params.panel) {
+            step = 'select_channel';
+            // interaction.values に期待される形式をセット
+            interaction.values = [parsed.params.panel];
+        }
 
-    // 2. Static Handlers (buttonMap経由)
-    startHandler: {
-        customId: PANEL_SETUP_IDS.SETUP_START,
-        execute: handleSetupStart,
-    },
-    typeHandler: {
-        customId: PANEL_SETUP_IDS.SETUP_TYPE_MENU,
-        execute: handleTypeSelect,
+        return autoInteractionTemplate(interaction, {
+            adminOnly: true,
+            ack: ACK.AUTO,
+
+            async run(interaction) {
+                if (step === 'select_type') return showPanelTypeSelect(interaction);
+                if (step === 'select_channel') return showChannelSelect(interaction, parsed);
+                if (step === 'deploy') return handleDeploy(interaction, parsed);
+
+                throw new Error(`未知のステップです: ${step}`);
+            },
+        });
     },
 };
 
 /**
- * 1. 設置開始: パネル種別選択メニューを表示
+ * 1. パネル種別選択 (Professional UI)
  */
-async function handleSetupStart(interaction) {
-    const menu = new StringSelectMenuBuilder()
-        .setCustomId(PANEL_SETUP_IDS.SETUP_TYPE_MENU)
-        .setPlaceholder('設置するパネルの種類を選択')
-        .addOptions(PANEL_TYPES);
+async function showPanelTypeSelect(interaction) {
+    const embed = buildPanelEmbed({
+        title: '🧩 パネルの新規設置',
+        description: '設置したい **パネルの種類** を選択してください。\n各パネルは設置後に自動的にサーバー設定と同期されます。',
+        fields: [
+            { name: '💡 Tip', value: '既に設置済みのパネルがある場合、新しい場所に設置し直すと古いパネル情報は自動的に更新されます。' }
+        ],
+        color: 0x3498db, // Business Blue
+        client: interaction.client,
+    });
 
-    const row = new ActionRowBuilder().addComponents(menu);
+    const select = new StringSelectMenuBuilder()
+        .setCustomId('adm|panel_setup|step=select_channel')
+        .setPlaceholder('パネルを選択してください')
+        .addOptions([
+            { label: '🚗 送迎者パネル', value: 'driver_panel', description: '出勤・退勤・状態管理用' },
+            { label: '🙋 利用者パネル', value: 'user_panel', description: '送迎依頼・受付用' },
+            { label: '📋 送迎一覧パネル', value: 'ride_list_panel', description: '現在の稼働状況を表示' },
+            { label: '📝 送迎者登録パネル', value: 'driver_reg_panel', description: '新規送迎者の申請・登録用' },
+            { label: '👤 利用者登録パネル', value: 'user_reg_panel', description: '新規利用者の申請・登録用' },
+            { label: '🏆 口コミランクパネル', value: 'rating_rank_panel', description: '評価・統計・ランキング閲覧' },
+            { label: '⚙️ 管理者パネル', value: 'admin_panel', description: 'システム全体の設定・ログ管理' },
+            { label: '🔰 案内パネル', value: 'guide_panel', description: '利用マニュアル・使い方の案内' },
+        ]);
 
-    await interaction.reply({
-        content: '設置するパネルの種類を選択してください。',
+    const row = new ActionRowBuilder().addComponents(select);
+
+    await interaction.editReply({
+        embeds: [embed],
         components: [row],
-        ephemeral: true,
     });
 }
 
 /**
- * 2. 種別選択後: チャンネル選択メニューを表示
+ * 2. 設置先チャンネル選択
  */
-async function handleTypeSelect(interaction) {
-    const selectedType = interaction.values[0];
+async function showChannelSelect(interaction, parsed) {
+    const panelType = interaction.values?.[0];
+    if (!panelType) throw new Error('パネル種別が選択されていません。');
 
-    // 選択されたタイプを一時的に保持する必要があるが、
-    // ChannelSelectMenu の CustomId に埋め込むか、state を使うか。
-    // 今回は CustomId に埋め込むには長いので、
-    // 次のステップで interaction.message の参照や、キャッシュ利用などが考えられるが、
-    // 一番簡単なのは、仮のデータストアや、ChannelSelectMenuのプレースホルダーは使えないので、
-    // メモリキャッシュ(Map)を使う、あるいは `ps:setup:selectChannel:${selectedType}` のようにIDに埋め込む。
-    // ID長制限(100文字)には余裕がある。
+    const typeLabels = {
+        driver_panel: '送迎者パネル',
+        user_panel: '利用者パネル',
+        ride_list_panel: '送迎一覧パネル',
+        driver_reg_panel: '送迎者登録パネル',
+        user_reg_panel: '利用者登録パネル',
+        rating_rank_panel: '口コミランクパネル',
+        admin_panel: '管理者パネル',
+        guide_panel: '案内パネル',
+    };
 
-    const channelMenu = new ChannelSelectMenuBuilder()
-        .setCustomId(`${PANEL_SETUP_IDS.SETUP_CHANNEL_MENU}&type=${selectedType}`)
-        .setPlaceholder('設置先のチャンネルを選択')
+    const embed = buildPanelEmbed({
+        title: '📍 設置先チャンネルの選択',
+        description: `**${typeLabels[panelType] || panelType}** を設置するチャンネルを選択してください。`,
+        color: 0xf1c40f, // Warning/Action Gold
+        client: interaction.client,
+    });
+
+    const select = new ChannelSelectMenuBuilder()
+        .setCustomId(`adm|panel_setup|step=deploy&type=${panelType}`)
+        .setPlaceholder('設置先のチャンネルを選択してください')
         .setChannelTypes(ChannelType.GuildText);
 
-    const row = new ActionRowBuilder().addComponents(channelMenu);
+    const row = new ActionRowBuilder().addComponents(select);
 
-    await interaction.update({
-        content: `**${PANEL_TYPES.find((t) => t.value === selectedType)?.label}** を設置するチャンネルを選択してください。`,
+    await interaction.editReply({
+        embeds: [embed],
         components: [row],
-        ephemeral: true,
     });
 }
 
 /**
- * 3. チャンネル選択後: パネル送信 & ログ & 完了通知
+ * 3. デプロイ実行 (Final Step)
  */
-async function handleChannelSelect(interaction, parsed) {
-    await interaction.deferUpdate(); // 先にACK
+async function handleDeploy(interaction, parsed) {
+    const panelType = parsed.params.type;
+    const channelId = interaction.values?.[0];
 
-    const selectedChannelId = interaction.values[0];
-    const channel = interaction.guild.channels.cache.get(selectedChannelId);
+    if (!panelType || !channelId) throw new Error('必要なパラメータが不足しています。');
 
-    // CustomIDからパネル種別を取り出す
-    // v2: ps|setup|sub=channel&type=driver_panel
-    // v1: ps:setup:channel:driver_panel
-    const panelType = (parsed.params && parsed.params.type) || (parsed.rest && parsed.rest[1]);
+    // デプロイの実行
+    await deployPanel({
+        guild: interaction.guild,
+        channelId,
+        panelType,
+        user: interaction.user,
+    });
 
-    if (!channel) {
-        return interaction.followUp({ content: '⚠️ チャンネルが見つかりません。', ephemeral: true });
-    }
+    const embed = buildPanelEmbed({
+        title: '✅ パネル設置完了',
+        description: `<#${channelId}> にパネルを正常に設置しました。`,
+        color: 0x2ecc71, // Success Green
+        client: interaction.client,
+    });
 
-    try {
-        // パネル送信処理
-        await sendPanel(interaction.guild, channel, panelType);
+    await interaction.editReply({
+        embeds: [embed],
+        components: [],
+    });
 
-        // ログ送信 (設定がある場合のみ、無ければサイレント)
-        await sendAdminLog(interaction, channel, panelType);
-
-        // 完了通知 (60秒後に消える)
-        const replyMsg = await interaction.followUp({
-            content: `✅ <#${channel.id}> に **${PANEL_TYPES.find((t) => t.value === panelType)?.label}** を設置しました。`,
-            ephemeral: false, // 通常メッセージ
-        });
-
-        setTimeout(() => {
-            replyMsg.delete().catch(() => { });
-        }, 60000);
-    } catch (error) {
-        console.error('パネル設置エラー:', error);
-        await interaction.followUp({
-            content: `⚠️ エラーが発生しました: ${error.message}`,
-            ephemeral: true,
-        });
-    }
-}
-
-/**
- * パネル送信ロジックの振り分け
- */
-async function sendPanel(guild, channel, panelType) {
-    // 各パネルのビルド関数をインポートして送信
-    // ここでは簡易的に実装するか、既存のハンドラを呼び出す
-
-    // NOTE: 既存のハンドラは "interaction" を引数に取ることが多いので、
-    // 既存コードをリファクタリングして "channelに送信する関数" を分離するのが理想的。
-    // しかし、大規模な変更を避けるため、ここではswitch文で各パネルのメッセージを構築する。
-
-    let embeds = [];
-    let components = [];
-
-    switch (panelType) {
-        case 'driver_panel':
-            const { buildDriverPanelMessage } = require('../../送迎パネル/メイン');
-            // ※ 送迎パネル/メイン.js が build関数をexportしているか要確認。
-            // していない場合は、既存の送信ロジックを模倣する。
-            // user request history を見ると buildDriverPanelMessage は存在しないかも？
-            // 確認：送迎パネル/メイン.js
-            // Step 1031 (送迎開始.js) requires { updateDriverPanel } from '../送迎パネル/メイン'.
-            // I should verify imports. If not available, I will simulate it.
-
-            // 下記は仮実装。実際にはファイルのexportを確認して呼ぶ。
-            // 時間がない場合は、重要なパネルだけ実装し、他はTODOにする手もあるが、
-            // ユーザーは「パネル設置フロー」を求めているので、全対応が望ましい。
-
-            // 一旦、ここでエラーにならないよう、簡易呼び出しを試みる。
-            // もしメソッドがなければエラーになるので、try-catchで捕捉済み。
-
-            // 既存の実装パターン: `handler.js` -> `require(path)(interaction)`
-            // それらのファイルの中身を見ると、 `interaction.channel.send` している。
-            // なので、channelオブジェクトだけ渡して送信させるのは難しい（interaction依存）。
-
-            // ★解決策:
-            // 今回は、主要なパネルの「メッセージ生成ロジック」をこのファイル内に（あるいはHelperとして）再定義するか、
-            // 元ファイルを修正して `buildMessage` をexportさせるのが正しい。
-            // 時間効率を考え、ここで switch文内に埋め込むのが早いか。
-
-            await require('./パネル送信ヘルパー').sendSpecificPanel(guild, channel, panelType);
-            break;
-
-        case 'user_panel':
-        case 'ride_list_panel':
-        case 'driver_reg_panel':
-        case 'user_reg_panel':
-        case 'rating_rank_panel':
-        case 'admin_panel':
-            await require('./パネル送信ヘルパー').sendSpecificPanel(guild, channel, panelType);
-            break;
-
-        default:
-            throw new Error('未対応のパネル種別です');
-    }
-}
-
-async function sendAdminLog(interaction, channel, panelType) {
-    const { loadConfig } = require('../../../utils/設定/設定マネージャ');
-    const config = await loadConfig(interaction.guildId);
-    const logThreadId = config.channels?.adminLogThread;
-
-    if (!logThreadId) return; // 設定なければサイレント終了
-
-    const thread = await interaction.guild.channels.fetch(logThreadId).catch(() => null);
-    if (thread) {
-        const typeLabel = PANEL_TYPES.find((t) => t.value === panelType)?.label || panelType;
-        await thread.send({
-            content: `🛠️ **パネル設置ログ**\n実行者: <@${interaction.user.id}>\n設置パネル: ${typeLabel}\n設置先: <#${channel.id}>`,
-        });
-    }
+    // 1分後にメッセージを削除 (Ephemeral でも editReply したものは削除可能)
+    setTimeout(() => interaction.deleteReply().catch(() => { }), 60_000);
 }

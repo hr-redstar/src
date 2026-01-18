@@ -11,100 +11,86 @@ function ensureDir(dir) {
 }
 
 async function migrate() {
-  console.log('--- データ移行開始 ---');
+  console.log('--- 旧データ構造から新構造(GCS/...)への移行開始 ---');
 
-  // 1. GCS フォルダ以下の移行
-  if (fs.existsSync(gcsDataDir)) {
-    console.log('GCSフォルダからの移行を開始します...');
-    const guilds = fs.readdirSync(gcsDataDir);
-    for (const guildId of guilds) {
-      const srcGuildDir = path.join(gcsDataDir, guildId);
-      const destGuildDir = path.join(baseDataDir, guildId);
-
-      if (fs.statSync(srcGuildDir).isDirectory()) {
-        ensureDir(destGuildDir);
-        moveRecursive(srcGuildDir, destGuildDir);
-      }
-    }
-    // GCSフォルダを削除（空なら）
-    try {
-      // fs.rmSync(gcsDataDir, { recursive: true, force: true });
-      console.log('GCSフォルダからの移動が完了しました。');
-    } catch (e) {
-      console.error('GCSフォルダ削除失敗:', e);
-    }
+  if (!fs.existsSync(baseDataDir)) {
+    console.log('Data directory not found:', baseDataDir);
+    return;
   }
 
-  // 2. drivers フォルダから 送迎者 への移行とマージ
-  const guilds = fs.readdirSync(baseDataDir);
-  for (const guildId of guilds) {
-    const guildDir = path.join(baseDataDir, guildId);
-    if (!fs.statSync(guildDir).isDirectory()) continue;
+  const items = fs.readdirSync(baseDataDir);
+  for (const item of items) {
+    if (item === 'GCS') continue;
 
-    const oldDriversDir = path.join(guildDir, 'drivers');
-    const newDriversDir = path.join(guildDir, '送迎者');
+    const srcGuildDir = path.join(baseDataDir, item);
+    if (!fs.statSync(srcGuildDir).isDirectory()) continue; // Skip files in root
 
+    const guildId = item;
+    const destGuildDir = path.join(gcsDataDir, guildId);
+    ensureDir(destGuildDir);
+
+    console.log(`\n📦 HUDDLE: Guild ${guildId}`);
+
+    // 1. config.json の移動
+    const oldConfig = path.join(srcGuildDir, 'config.json');
+    if (fs.existsSync(oldConfig)) {
+      const newConfig = path.join(destGuildDir, 'config.json');
+      if (!fs.existsSync(newConfig)) {
+        fs.copyFileSync(oldConfig, newConfig);
+        console.log(`  ✅ config.json を移行しました`);
+      } else {
+        console.log(`  ⏩ config.json は既に存在するためスキップ`);
+      }
+    }
+
+    // 2. drivers フォルダ (旧: drivers/userId.json) -> 送迎者/userId/登録情報.json
+    const oldDriversDir = path.join(srcGuildDir, 'drivers');
     if (fs.existsSync(oldDriversDir)) {
-      console.log(`ギルド ${guildId} の drivers フォルダを処理します...`);
-      ensureDir(newDriversDir);
       const files = fs.readdirSync(oldDriversDir);
       for (const file of files) {
         if (!file.endsWith('.json')) continue;
         const userId = file.replace('.json', '');
-        const oldFilePath = path.join(oldDriversDir, file);
-        const newProfileDir = path.join(newDriversDir, userId);
-        const newFilePath = path.join(newProfileDir, '登録情報.json');
+        const srcFile = path.join(oldDriversDir, file);
 
-        console.log(`  送迎者 ${userId} のデータを移行/マージします...`);
-        ensureDir(newProfileDir);
+        const destDir = path.join(destGuildDir, '送迎者', userId);
+        const destFile = path.join(destDir, '登録情報.json');
 
-        const oldData = JSON.parse(fs.readFileSync(oldFilePath, 'utf8'));
-        let mergedData = oldData;
-
-        if (fs.existsSync(newFilePath)) {
-          const existingNewData = JSON.parse(fs.readFileSync(newFilePath, 'utf8'));
-          // 新しい方のデータに history がない場合、古い方の history と current を優先
-          if (!existingNewData.current && oldData.current) {
-            mergedData = oldData;
-          } else if (existingNewData.current && oldData.current) {
-            // 両方ある場合は、日付が新しい方を current にするなどの処理が必要だが、
-            // 基本的に history が付いている oldData (drivers/以下) が本物と思われる
-            mergedData = oldData;
-          } else {
-            // 新しいファイルが旧形式（フラット）なら、旧形式データをラップ
-            // (今回は drivers/ 以下が既に current/history 構造なのでそれを尊重)
-          }
+        ensureDir(destDir);
+        if (!fs.existsSync(destFile)) {
+          // データ構造が違う場合はここで変換が必要だが、
+          // "昔のdata階層" が drivers/userId.json で中身が { current: {...}, history: [...] } ならそのまま使える
+          // もし中身がフラットなら、ここで構造変更も可能。今回はそのままコピーする。
+          const content = fs.readFileSync(srcFile);
+          fs.writeFileSync(destFile, content);
+          console.log(`  🚗 Driver ${userId} 移行完了`);
         }
+      }
+    }
 
-        fs.writeFileSync(newFilePath, JSON.stringify(mergedData, null, 2), 'utf8');
-        // 元ファイルを削除（安全のため一旦リネームに留めるか、削除するか）
-        // fs.unlinkSync(oldFilePath);
+    // 3. users フォルダ (旧: users/userId.json) -> 利用者/userId/登録情報.json
+    const oldUsersDir = path.join(srcGuildDir, 'users');
+    if (fs.existsSync(oldUsersDir)) {
+      const files = fs.readdirSync(oldUsersDir);
+      for (const file of files) {
+        if (!file.endsWith('.json')) continue;
+        const userId = file.replace('.json', '');
+        const srcFile = path.join(oldUsersDir, file);
+
+        const destDir = path.join(destGuildDir, '利用者', userId);
+        const destFile = path.join(destDir, '登録情報.json');
+
+        ensureDir(destDir);
+        if (!fs.existsSync(destFile)) {
+          const content = fs.readFileSync(srcFile);
+          fs.writeFileSync(destFile, content);
+          console.log(`  👤 User ${userId} 移行完了`);
+        }
       }
     }
   }
 
-  console.log('--- データ移行完了 ---');
-}
-
-function moveRecursive(src, dest) {
-  const items = fs.readdirSync(src);
-  for (const item of items) {
-    const srcPath = path.join(src, item);
-    const destPath = path.join(dest, item);
-
-    if (fs.statSync(srcPath).isDirectory()) {
-      ensureDir(destPath);
-      moveRecursive(srcPath, destPath);
-    } else {
-      // ファイル移動
-      if (fs.existsSync(destPath)) {
-        console.log(`  スキップ (既存): ${item}`);
-      } else {
-        fs.renameSync(srcPath, destPath);
-        console.log(`  移動: ${item}`);
-      }
-    }
-  }
+  console.log('\n--- データ移行完了 ---');
+  console.log('確認後、旧フォルダは手動で削除・バックアップしてください。');
 }
 
 migrate();

@@ -20,7 +20,19 @@ async function updateDriverPanel(guild, client) {
   // 待機中の送迎者数をカウント
   const { getQueue } = require('../../utils/配車/待機列マネージャ');
   const queue = await getQueue(guild.id);
-  const activeCount = queue.length;
+  const waitingCount = queue ? queue.length : 0;
+
+  // 送迎中（実車中）の送迎車数をカウント
+  const activeDispatchDir = paths.activeDispatchDir(guild.id);
+  const activeFiles = await store.listKeys(activeDispatchDir).catch(() => []);
+  const workingCount = activeFiles.filter((f) => f.endsWith('.json')).length;
+
+  const activeCount = waitingCount + workingCount;
+
+  logger.debug(
+    `[DriverPanel] Active Drivers: ${activeCount} (Waiting: ${waitingCount}, Working: ${workingCount})`,
+    { guildId: guild.id }
+  );
 
   const newMessageId = await sendOrUpdatePanel({
     channel,

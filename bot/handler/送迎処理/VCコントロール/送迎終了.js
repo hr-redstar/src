@@ -22,7 +22,7 @@ module.exports = async function handleRideComplete(interaction, rideId) {
     const dispatchData = await store.readJson(activePath).catch(() => null);
 
     if (!dispatchData) {
-      return interaction.followUp({ content: '⚠️ 送迎データが見つかりません。', ephemeral: true });
+      return interaction.followUp({ content: '⚠️ 送迎データが見つかりません。', flags: 64 });
     }
 
     const now = new Date();
@@ -34,25 +34,25 @@ module.exports = async function handleRideComplete(interaction, rideId) {
     if (!isDriver && !isUser && carpoolIndex === -1) {
       return interaction.followUp({
         content: '⚠️ この送迎の関係者のみが操作できます。',
-        ephemeral: true,
+        flags: 64,
       });
     }
 
     // 時刻を記録
     if (isDriver) {
       if (dispatchData.driverEndTime)
-        return interaction.followUp({ content: '⚠️ 既に終了済みです。', ephemeral: true });
+        return interaction.followUp({ content: '⚠️ 既に終了済みです。', flags: 64 });
       dispatchData.driverEndTime = timeStr;
       await interaction.channel.send(`※送迎終了：送迎者 <@${interaction.user.id}> (${timeStr})`);
     } else if (isUser) {
       if (dispatchData.userEndTime)
-        return interaction.followUp({ content: '⚠️ 既に終了済みです。', ephemeral: true });
+        return interaction.followUp({ content: '⚠️ 既に終了済みです。', flags: 64 });
       dispatchData.userEndTime = timeStr;
       await interaction.channel.send(`※送迎終了：利用者 <@${interaction.user.id}> (${timeStr})`);
     } else {
       // 相乗り者
       if (dispatchData.carpoolUsers[carpoolIndex].endTime)
-        return interaction.followUp({ content: '⚠️ 既に終了済みです。', ephemeral: true });
+        return interaction.followUp({ content: '⚠️ 既に終了済みです。', flags: 64 });
       dispatchData.carpoolUsers[carpoolIndex].endTime = timeStr;
       await interaction.channel.send(`※送迎終了：相乗り者${carpoolIndex + 1} <@${interaction.user.id}> (${timeStr})`);
     }
@@ -61,13 +61,9 @@ module.exports = async function handleRideComplete(interaction, rideId) {
     const allCarpoolFinished = (dispatchData.carpoolUsers || []).every(u => u.endTime);
     const isFinished = dispatchData.driverEndTime && dispatchData.userEndTime && allCarpoolFinished;
 
-    // 運営者ログの同期 (更新: 青/黒)
-    const { syncOperationLog } = require('../../../utils/ログ/operationLogHelper');
-    // まだ完了していない場合は青、完了したら黒になるはず (helper側で判定)
-    const opLogId = await syncOperationLog(interaction.guild, dispatchData);
-    if (opLogId) {
-      dispatchData.operationLogMessageId = opLogId;
-    }
+    // 運営者ログの同期 (v1.7.0: 最終ステータス更新)
+    // 個別の「終了」押下時はVCコントロールEmbedの更新(後述)のみ行い、
+    // 全員完了時(isFinished)に 1-Ride-1-Embed を「ENDED」へ移行させる。
 
     // データを保存
     if (isFinished) {
@@ -212,6 +208,21 @@ module.exports = async function handleRideComplete(interaction, rideId) {
       await interaction.channel.setName(updatedName).catch(() => null);
     }
 
+    // 運営者ログ (v1.7.0: ENDED)
+    const { updateRideOperatorLog } = require('../../../utils/ログ/rideLogManager');
+    await updateRideOperatorLog({
+      guild: interaction.guild,
+      rideId: rideId,
+      status: 'ENDED',
+      data: {
+        driverId: dispatchData.driverId,
+        userId: dispatchData.userId,
+        area: dispatchData.direction || dispatchData.route || dispatchData.area,
+        count: dispatchData.count,
+        endedAt: now.toISOString(),
+      }
+    }).catch(() => null);
+
     // --- 終了メッセージ送信 (削除延長ボタン付き) ---
     const completionEmbed = new EmbedBuilder()
       .setTitle('送迎終了しました')
@@ -246,7 +257,7 @@ module.exports = async function handleRideComplete(interaction, rideId) {
   } catch (error) {
     console.error('送迎終了エラー:', error);
     await interaction
-      .followUp({ content: '⚠️ エラーが発生しました。', ephemeral: true })
+      .followUp({ content: '⚠️ エラーが発生しました。', flags: 64 })
       .catch(() => null);
   }
 };

@@ -18,7 +18,7 @@ module.exports = async function handleRideStart(interaction, rideId) {
     const dispatchData = await store.readJson(activePath).catch(() => null);
 
     if (!dispatchData) {
-      return interaction.followUp({ content: '⚠️ 送迎データが見つかりません。', ephemeral: true });
+      return interaction.followUp({ content: '⚠️ 送迎データが見つかりません。', flags: 64 });
     }
 
     const now = new Date();
@@ -30,25 +30,25 @@ module.exports = async function handleRideStart(interaction, rideId) {
     if (!isDriver && !isUser && carpoolIndex === -1) {
       return interaction.followUp({
         content: '⚠️ この送迎の関係者のみが操作できます。',
-        ephemeral: true,
+        flags: 64,
       });
     }
 
     // 時刻を記録
     if (isDriver) {
       if (dispatchData.driverStartTime)
-        return interaction.followUp({ content: '⚠️ 既に開始済みです。', ephemeral: true });
+        return interaction.followUp({ content: '⚠️ 既に開始済みです。', flags: 64 });
       dispatchData.driverStartTime = timeStr;
       await interaction.channel.send(`※送迎開始：送迎者 <@${interaction.user.id}> (${timeStr})`);
     } else if (isUser) {
       if (dispatchData.userStartTime)
-        return interaction.followUp({ content: '⚠️ 既に開始済みです。', ephemeral: true });
+        return interaction.followUp({ content: '⚠️ 既に開始済みです。', flags: 64 });
       dispatchData.userStartTime = timeStr;
       await interaction.channel.send(`※送迎開始：利用者 <@${interaction.user.id}> (${timeStr})`);
     } else {
       // 相乗り者
       if (dispatchData.carpoolUsers[carpoolIndex].startTime)
-        return interaction.followUp({ content: '⚠️ 既に開始済みです。', ephemeral: true });
+        return interaction.followUp({ content: '⚠️ 既に開始済みです。', flags: 64 });
       dispatchData.carpoolUsers[carpoolIndex].startTime = timeStr;
       await interaction.channel.send(`※送迎開始：相乗り者${carpoolIndex + 1} <@${interaction.user.id}> (${timeStr})`);
     }
@@ -59,12 +59,16 @@ module.exports = async function handleRideStart(interaction, rideId) {
       dispatchData.status = 'in-progress';
     }
 
-    // 運営者ログの同期 (更新: 青)
-    const { syncOperationLog } = require('../../../utils/ログ/operationLogHelper');
-    const opLogId = await syncOperationLog(interaction.guild, dispatchData);
-    if (opLogId) {
-      dispatchData.operationLogMessageId = opLogId;
-    }
+    // 運営者ログの同期 (v1.7.0: STARTED)
+    const { updateRideOperatorLog } = require('../../../utils/ログ/rideLogManager');
+    await updateRideOperatorLog({
+      guild: interaction.guild,
+      rideId: rideId,
+      status: 'STARTED',
+      data: {
+        startedAt: now.toISOString(),
+      },
+    }).catch(() => null);
 
     // データを保存
     await store.writeJson(activePath, dispatchData);
@@ -105,7 +109,7 @@ module.exports = async function handleRideStart(interaction, rideId) {
   } catch (error) {
     console.error('送迎開始エラー:', error);
     await interaction
-      .followUp({ content: '⚠️ エラーが発生しました。', ephemeral: true })
+      .followUp({ content: '⚠️ エラーが発生しました。', flags: 64 })
       .catch(() => null);
   }
 };

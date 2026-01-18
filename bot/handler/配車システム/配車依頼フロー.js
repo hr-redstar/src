@@ -19,8 +19,10 @@ module.exports = {
     const direction = parsed?.params?.dir || '';
     const count = parsed?.params?.cnt || '';
 
+    const isModalTrigger = step === 'dest_modal_trigger' || step === 'carpool_join';
+
     return autoInteractionTemplate(interaction, {
-      ack: (parsed?.params?.sub || 'type') === 'type' ? ACK.REPLY : ACK.AUTO,
+      ack: isModalTrigger ? ACK.NONE : (step === 'type' ? ACK.REPLY : ACK.AUTO),
       async run(interaction) {
         if (step === 'type') {
           return showTypeSelection(interaction);
@@ -30,6 +32,9 @@ module.exports = {
         }
         if (step === 'dest_input') {
           return showDestInput(interaction, type, direction);
+        }
+        if (step === 'dest_modal_trigger') {
+          return handleDestModalTrigger(interaction, type, direction);
         }
         if (step === 'dest_modal') {
           return handleDestModal(interaction, type, direction);
@@ -67,10 +72,13 @@ module.exports = {
  * STEP 1: 種別選択 [キャスト] or [ゲスト]
  */
 async function showTypeSelection(interaction) {
-  const embed = new EmbedBuilder()
-    .setTitle('🚕 配車依頼 - 種別選択')
-    .setDescription('ご乗車される方の種別を選択してください。')
-    .setColor(0x0099ff);
+  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
+  const embed = buildPanelEmbed({
+    title: '🚕 配車依頼 - 種別選択',
+    description: 'ご乗車される方の種別を選択してください。',
+    color: 0x3498db,
+    client: interaction.client
+  });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -93,12 +101,16 @@ async function showDirectionSelection(interaction, type) {
   const config = await loadConfig(interaction.guildId);
   const directions = config.directions || ['立川方面', '八王子市内', '相模原方面', 'その他'];
 
-  const embed = new EmbedBuilder()
-    .setTitle('🚕 配車依頼 - 方面選択')
-    .setDescription(
-      `種別: **${type === 'cast' ? 'キャスト' : 'ゲスト'}**\n\n目的地（方面）を選択してください。`
-    )
-    .setColor(0x0099ff);
+  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
+  const embed = buildPanelEmbed({
+    title: '🗺️ 配車依頼 - 方面選択',
+    description: '目的地（方面）を選択してください。',
+    fields: [
+      { name: '👤 依頼種別', value: type === 'cast' ? 'キャスト' : 'ゲスト', inline: true }
+    ],
+    color: 0x3498db,
+    client: interaction.client
+  });
 
   // ボタンが多すぎる場合はセレクトメニューに切り替えるが、まずはボタンで実装
   const rows = [];
@@ -134,12 +146,17 @@ async function showDirectionSelection(interaction, type) {
  * STEP 2.5: 目的地ボタン表示
  */
 async function showDestInput(interaction, type, direction) {
-  const embed = new EmbedBuilder()
-    .setTitle('🚕 配車依頼 - 目的地入力')
-    .setDescription(
-      `種別: **${type === 'cast' ? 'キャスト' : 'ゲスト'}**\n方面: **${direction}**\n\n具体的な目的地を入力してください（任意）。\n※入力が難しい場合は、そのままボタンを押して「次へ」進めます。`
-    )
-    .setColor(0x0099ff);
+  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
+  const embed = buildPanelEmbed({
+    title: '🎯 配車依頼 - 目的地入力',
+    description: '具体的な目的地を入力してください（任意）。\n※入力が難しい場合は、そのまますすめることも可能です。',
+    fields: [
+      { name: '👤 依頼種別', value: type === 'cast' ? 'キャスト' : 'ゲスト', inline: true },
+      { name: '🗺️ 指定方面', value: direction, inline: true }
+    ],
+    color: 0x3498db,
+    client: interaction.client
+  });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -194,12 +211,18 @@ async function handleDestModal(interaction, type, direction) {
  * STEP 3: 人数選択
  */
 async function showCountSelection(interaction, type, direction, dest) {
-  const embed = new EmbedBuilder()
-    .setTitle('🚕 配車依頼 - 人数選択')
-    .setDescription(
-      `種別: **${type === 'cast' ? 'キャスト' : 'ゲスト'}**\n方面: **${direction}**\n目的地: **${dest || '(未入力)'}**\n\n乗車人数を選択してください。`
-    )
-    .setColor(0x0099ff);
+  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
+  const embed = buildPanelEmbed({
+    title: '👥 配車依頼 - 人数選択',
+    description: 'ご乗車される人数を選択してください。',
+    fields: [
+      { name: '👤 種別', value: type === 'cast' ? 'キャスト' : 'ゲスト', inline: true },
+      { name: '🗺️ 方面', value: direction, inline: true },
+      { name: '📍 目的地', value: dest || '(未入力)', inline: false }
+    ],
+    color: 0x3498db,
+    client: interaction.client
+  });
 
   const row = new ActionRowBuilder().addComponents(
     [1, 2, 3, 4, 5].map((n) =>
@@ -224,12 +247,19 @@ async function showCountSelection(interaction, type, direction, dest) {
  * STEP 4: 最終確認
  */
 async function showConfirmation(interaction, type, direction, count, dest) {
-  const embed = new EmbedBuilder()
-    .setTitle('🚕 配車依頼 - 最終確認')
-    .setDescription(
-      `以下の内容で配車を依頼します。よろしいですか？\n\n・種別: **${type === 'cast' ? 'キャスト' : 'ゲスト'}**\n・方面: **${direction}**\n・目的地: **${dest || '(未入力)'}**\n・人数: **${count}人**`
-    )
-    .setColor(0xffff00);
+  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
+  const embed = buildPanelEmbed({
+    title: '🚕 配車依頼 - 最終確認',
+    description: '以下の内容で配車を依頼します。内容に間違いがないかご確認ください。',
+    fields: [
+      { name: '👤 種別', value: type === 'cast' ? 'キャスト' : 'ゲスト', inline: true },
+      { name: '🗺️ 方面', value: direction, inline: true },
+      { name: '📍 目的地', value: dest || '(未入力)', inline: false },
+      { name: '👥 人数', value: `${count}名`, inline: true }
+    ],
+    color: 0xf1c40f, // Yellow/Gold for confirmation
+    client: interaction.client
+  });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -263,30 +293,18 @@ async function executeDispatch(interaction, type, direction, count, dest) {
   }
 
   // マッチング成功
-  const { incrementStat } = require('../../utils/ストレージ/統計ストア');
-  await incrementStat(interaction.guildId, 'ride_matched').catch(() => null);
-
-  const { startDispatch } = require('./配車開始');
-  const dispatchId = await startDispatch({
-    guild: interaction.guild,
-    driver,
-    passenger: interaction.user,
-    type,
-    direction: dest ? `${direction} / ${dest}` : direction,
-    count,
+  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
+  const embed = buildPanelEmbed({
+    title: '✅ 配車マッチング成功！',
+    description: `<@${driver.userId}> さんが配車されました。\n専用の連絡チャンネルを作成しました。`,
+    fields: [
+      { name: '👤 種別', value: type === 'cast' ? 'キャスト' : 'ゲスト', inline: true },
+      { name: '🗺️ 方面/目的地', value: dest ? `${direction} / ${dest}` : direction, inline: true },
+      { name: '👥 人数', value: `${count}名`, inline: true }
+    ],
+    color: 0x2ecc71,
+    client: interaction.client
   });
-
-  const embed = new EmbedBuilder()
-    .setTitle('✅ 配車マッチング成功！')
-    .setDescription(
-      `<@${driver.userId}> さんが配車されました。\n専用の連絡チャンネルを作成しました。`
-    )
-    .addFields(
-      { name: '種別', value: type === 'cast' ? 'キャスト' : 'ゲスト', inline: true },
-      { name: '方面/目的地', value: dest ? `${direction} / ${dest}` : direction, inline: true },
-      { name: '人数', value: `${count}人`, inline: true }
-    )
-    .setColor(0x00ff00);
 
   await interaction.editReply({ embeds: [embed], components: [] });
 
@@ -321,10 +339,18 @@ async function handleHeading(interaction, dispatchId) {
   data.headingAt = now.toISOString();
   await store.writeJson(activePath, data);
 
-  const embed = EmbedBuilder.from(interaction.message.embeds[0]);
-  // 2番目のフィールド（index 1）が「向かっています」
-  embed.spliceFields(1, 1, { name: '向かっています', value: timeStr, inline: true });
-  embed.setColor(0x3498db);
+  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
+  const embed = buildPanelEmbed({
+    title: '🚙 向かっています',
+    description: `送迎者が目的地へ向かっています。もう少々お待ちください。`,
+    fields: [
+      { name: '👤 依頼者', value: data.passengerTag || `<@${data.passengerId}>`, inline: true },
+      { name: '🗺️ 方面/目的地', value: data.direction, inline: true },
+      { name: '⏱️ 向かっています', value: timeStr, inline: false }
+    ],
+    color: 0x3498db, // Blue
+    client: interaction.client
+  });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -368,14 +394,34 @@ async function handleRideStart(interaction, dispatchId) {
 
   await store.writeJson(activePath, data);
 
-  const embed = EmbedBuilder.from(interaction.message.embeds[0]);
-  // フィールド更新: 送迎者：index 2, 利用者：index 4
-  if (rolePrefix === '送迎者') {
-    embed.spliceFields(2, 1, { name: '送迎者 送迎開始', value: timeStr, inline: true });
-  } else {
-    embed.spliceFields(4, 1, { name: '利用者 送迎開始', value: timeStr, inline: true });
+  // 運営者ログ (v1.3.8)
+  if (data.driverStartTime && data.userStartTime) {
+    const { updateRideOperatorLog } = require('../../utils/ログ/rideLogManager');
+    await updateRideOperatorLog({
+      guild: interaction.guild,
+      rideId: dispatchId,
+      status: 'STARTED',
+      data: {
+        driverId: data.driverId,
+        userId: data.passengerId,
+        area: data.direction,
+      }
+    }).catch(() => null);
   }
-  embed.setColor(0xffff00);
+
+  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
+  const embed = buildPanelEmbed({
+    title: '🚀 送迎開始',
+    description: `送迎が開始されました。安全運転でお願いいたします。`,
+    fields: [
+      { name: '👤 依頼者', value: data.passengerTag || `<@${data.passengerId}>`, inline: true },
+      { name: '🚗 送迎者', value: `<@${data.driverId}>`, inline: true },
+      { name: '⏱️ 送迎者開始', value: data.driverStartTime || '--:--', inline: true },
+      { name: '⏱️ 利用者開始', value: data.userStartTime || '--:--', inline: true }
+    ],
+    color: 0xf1c40f, // Yellow/Gold
+    client: interaction.client
+  });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -425,17 +471,19 @@ async function handleComplete(interaction, dispatchId) {
 
   await store.writeJson(activePath, data);
 
-  const embed = EmbedBuilder.from(interaction.message.embeds[0]);
-  // 送迎終了: 送迎者：index 3, 利用者：index 5
-  if (rolePrefix === '送迎者') {
-    embed.spliceFields(3, 1, { name: '送迎終了', value: timeStr, inline: true });
-  } else {
-    embed.spliceFields(5, 1, { name: '送迎終了', value: timeStr, inline: true });
-  }
-
-  if (isBothCompleted) {
-    embed.setColor(0xe74c3c);
-  }
+  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
+  const embed = buildPanelEmbed({
+    title: isBothCompleted ? '✅ 送迎完了' : '🏁 送迎終了（確認待機中）',
+    description: isBothCompleted
+      ? '送迎がすべて完了しました。お疲れ様でした。'
+      : '送迎の終了を確認しました。相方側の操作を待っています。',
+    fields: [
+      { name: '⏱️ 送迎者終了', value: data.driverEndTime || '--:--', inline: true },
+      { name: '⏱️ 利用者終了', value: data.userEndTime || '--:--', inline: true }
+    ],
+    color: isBothCompleted ? 0x95a5a6 : 0xe74c3c, // Gray for completed, Red for partial
+    client: interaction.client
+  });
 
   const rowArr = [];
   if (!isBothCompleted) {
@@ -462,6 +510,19 @@ async function handleComplete(interaction, dispatchId) {
   await interaction.editReply({ embeds: [embed], components: rowArr });
 
   if (isBothCompleted) {
+    // 運営者ログ (v1.3.8)
+    const { updateRideOperatorLog } = require('../../utils/ログ/rideLogManager');
+    await updateRideOperatorLog({
+      guild: interaction.guild,
+      rideId: dispatchId,
+      status: 'ENDED',
+      data: {
+        driverId: data.driverId,
+        userId: data.passengerId,
+        area: data.direction,
+      }
+    }).catch(() => null);
+
     // 0. 統計更新
     const { incrementStat } = require('../../utils/ストレージ/統計ストア');
     await incrementStat(interaction.guildId, 'ride_completed').catch(() => null);
