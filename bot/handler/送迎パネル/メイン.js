@@ -5,6 +5,7 @@ const paths = require('../../utils/ストレージ/ストレージパス');
 const { sendOrUpdatePanel } = require('../共通/パネル送信');
 const { loadConfig, saveConfig } = require('../../utils/設定/設定マネージャ');
 const { buildDriverPanelMessage } = require('./埋め込み作成');
+const { getQueue } = require('../../utils/配車/待機列マネージャ');
 
 async function updateDriverPanel(guild, client) {
   const config = await loadConfig(guild.id);
@@ -48,16 +49,12 @@ async function updateDriverPanel(guild, client) {
 }
 
 // ===== Handler =====
-async function execute(interaction, parsed) {
+async function execute(interaction, client, parsed) {
   const action = parsed?.action;
 
-  try {
-    if (action === 'on') return require('./アクション/出勤')(interaction, parsed);
-    if (action === 'off') return require('./アクション/退勤')(interaction, parsed);
-    if (action === 'location') return require('./アクション/現在地更新')(interaction, parsed);
-  } catch (e) {
-    logger.error(`[DriverMain] ${e}`);
-  }
+  if (action === 'on') return require('./アクション/出勤')(interaction, client, parsed);
+  if (action === 'off') return require('./アクション/退勤')(interaction, client, parsed);
+  if (action === 'location') return require('./アクション/現在地更新')(interaction, client, parsed);
 }
 
 module.exports = {

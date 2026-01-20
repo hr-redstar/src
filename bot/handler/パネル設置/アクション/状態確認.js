@@ -5,18 +5,17 @@
   ButtonStyle,
   MessageFlags,
 } = require('discord.js');
-const store = require('../../../utils/ストレージ/ストア共通');
-const interactionTemplate = require('../../共通/interactionTemplate');
+const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
 const { loadConfig } = require('../../../utils/設定/設定マネージャ');
 const { getRatingSummary } = require('../../../utils/ratingsStore');
-const { ACK } = interactionTemplate;
 
 module.exports = {
   customId: 'ps|check',
   type: 'button',
   async execute(interaction) {
-    return interactionTemplate(interaction, {
-      ack: ACK.UPDATE,
+    return autoInteractionTemplate(interaction, {
+      ack: ACK.REPLY, // Ephemeral status check should be a reply
       async run(interaction) {
         const guildId = interaction.guildId;
         const userId = interaction.user.id;

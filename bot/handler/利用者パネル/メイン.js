@@ -5,6 +5,10 @@ const paths = require('../../utils/ストレージ/ストレージパス');
 const { sendOrUpdatePanel } = require('../共通/パネル送信');
 const { loadConfig, saveConfig } = require('../../utils/設定/設定マネージャ');
 const { buildUserPanelMessage } = require('./埋め込み作成');
+const { getQueue } = require('../../utils/配車/待機列マネージャ');
+const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
+const statusCheckAction = require('../パネル設置/アクション/状態確認');
 
 async function updateUserPanel(guild, client) {
   const config = await loadConfig(guild.id);
@@ -48,24 +52,19 @@ async function updateUserPanel(guild, client) {
 }
 
 // ===== Handler =====
-async function execute(interaction, parsed) {
+async function execute(interaction, client, parsed) {
   const action = parsed?.action;
   const sub = parsed?.params?.sub;
 
-  try {
-    if (action === 'ride') {
-      if (sub === 'request') return require('./アクション/送迎依頼')(interaction);
-      if (sub === 'guest') return require('./アクション/ゲスト送迎依頼')(interaction);
-      if (sub === 'request_modal' || sub === 'guest_modal') {
-        return require('./アクション/送迎依頼モーダル')(interaction);
-      }
+  if (action === 'ride') {
+    if (sub === 'request') return require('./アクション/送迎依頼')(interaction, client, parsed);
+    if (sub === 'guest') return require('./アクション/ゲスト送迎依頼')(interaction, client, parsed);
+    if (sub === 'request_modal' || sub === 'guest_modal') {
+      return require('./アクション/送迎依頼モーダル')(interaction, client, parsed);
     }
-    // 状態確認は パネル設置/アクション/状態確認.js を再利用
-    if (action === 'check')
-      return require('../パネル設置/アクション/状態確認').execute(interaction);
-  } catch (e) {
-    logger.error(`[UserMain] ${e}`);
   }
+  // 状態確認
+  if (action === 'check') return statusCheckAction.execute(interaction, client, parsed);
 }
 
 module.exports = {

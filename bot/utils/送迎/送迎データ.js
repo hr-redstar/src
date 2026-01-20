@@ -5,7 +5,7 @@ const paths = require('../ストレージ/ストレージパス');
  * 待機順・送迎中データの取得（新規設計用）
  */
 async function loadRideData(guildId) {
-  const file = `GCS/${guildId}/送迎データ.json`;
+  const file = paths.rideDataJson(guildId);
   return await readJson(file, {
     queue: [], // 待機中: [{ userId, currentLocation, since }]
     active: [], // 送迎中: [{ userId, from, via, to, requestId }]
@@ -16,7 +16,7 @@ async function loadRideData(guildId) {
  * 待機順・送迎中データの保存（新規設計用）
  */
 async function saveRideData(guildId, data) {
-  const file = `GCS/${guildId}/送迎データ.json`;
+  const file = paths.rideDataJson(guildId);
   await writeJson(file, data);
 }
 
@@ -27,7 +27,7 @@ async function saveRideData(guildId, data) {
 //  副作用を避けるため主要なエクスポートは維持)
 
 async function getRides(guildId) {
-  const file = paths.rideRequestsJson?.(guildId) || `GCS/${guildId}/rides.json`;
+  const file = paths.rideRequestsJson(guildId);
   return await readJson(file, { seq: 1, offers: [], requests: [] });
 }
 

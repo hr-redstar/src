@@ -12,6 +12,9 @@ Discord 上で送迎・配車管理を自動化する Bot です。
 
 | Version | Date | 主な更新内容 | 開発フェーズ |
 | :---: | :--- | :--- | :--- |
+| **v2.3.0** | 2026-01-21 | **Optimization & Maintenance** <br>・未使用レガシーファイルの完全削除。<br>・起動時設定整合性チェック（Config Integrity Guard）の導入。<br>・詳細なリリースノートの整備。 | Maintenance |
+| **v2.2.0** | 2026-01-21 | **Core Stability Audit: Final Integration** <br>・`状態確認.js` のクラッシュ不具合修正。<br>・レガシーな `interactionTemplate` の完全排除。 | Maintenance |
+| **v2.1.1** | 2026-01-20 | **Panel Setup Audit & Standardization** <br>・パネル設置アクションのインポート漏れ（`MessageFlags`等）を一斉修正。<br>・`CUSTOM_ID` 定数化による不整合防止。 | Maintenance |
 | **v2.0.0** | 2026-01-19 | **Professional Edition Release** <br>・**1-Ride-1-Embed**: 運行ログのリアルタイム追跡システム完成。<br>・**Professional History**: 過去の全走行データと統計を検索・分析可能な管理者ツール。<br>・**Full Documentation**: 運用マニュアルとREADMEの完全更新。<br>・**Quality Assurance**: 全面的なコードクリーンアップとテスト通過。 | Release |
 | **v1.6.1** | 2026-01-18 | **Reliability Hotfix: Interaction Acknowledgment** <br>・`deferReply` による3秒ルールの完全回避。<br>・`deferUpdate` 排除による ACK 不整合の抜本的修正。<br>・各管理ハンドラのルーティング安定化。 | Maintenance |
 | **v1.6.0** | 2026-01-18 | **Professional Operational UX Refresh** <br>・すべての運用・管理パネル（案内、VC制御、出退勤、強制終了等）を `buildPanelEmbed` 規格へ統一。<br>・プレミアムデザインと動的カラーリングの導入。 | Phase 9+++ |

@@ -4,20 +4,12 @@ const {
   StringSelectMenuOptionBuilder,
   ActionRowBuilder,
 } = require('discord.js');
-const interactionTemplate = require('../共通/interactionTemplate');
-const { ACK } = interactionTemplate;
+const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
 
 module.exports = {
-  execute: async function (interaction, parsed) {
-    // carpool|reject|rid={rideId}&uid={userId}
-    const rideId = parsed?.params?.rid;
-    const userId = parsed?.params?.uid;
-
-    // セレクトメニューのIDに情報を埋め込む
-    // carpool|reject_reason|rid={rideId}&uid={userId}
-    const customId = `carpool|reject_reason|rid=${rideId}&uid=${userId}`;
-
-    return interactionTemplate(interaction, {
+  execute: async function (interaction, client, parsed) {
+    return autoInteractionTemplate(interaction, {
       ack: ACK.REPLY, // エフェメラルでメニューを出す
       async run(interaction) {
         const select = new StringSelectMenuBuilder()

@@ -1,10 +1,13 @@
-﻿const {
+﻿﻿const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
   ChannelSelectMenuBuilder,
   ChannelType,
   RoleSelectMenuBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
 } = require('discord.js');
 
 const { sendOrUpdatePanel } = require('../共通/パネル送信');
@@ -107,18 +110,12 @@ function buildAdminPanelEmbed(guild, cfg, client) {
     description: `
 **送迎者ロール**
 ${mentionRoles(roles.drivers)}
-**メンションロール**
-${mentionOneRole(roles.driverMention)}
 
 **お客様ロール**
 ${mentionRoles(roles.users)}
-**メンションロール**
-${mentionOneRole(roles.userMention)}
 
 **優先配車ロール**
 ${mentionRoles(roles.priorityDrivers)}
-**メンションロール**
-${mentionOneRole(roles.priorityMention)}
 
 **プライベートvcカテゴリー**
 ${mentionCategory(cats.privateVc)}
@@ -228,7 +225,7 @@ async function updateAdminPanelMessage(guild, cfg, client) {
     if (!cfg.panels) cfg.panels = {};
     if (!cfg.panels.admin) cfg.panels.admin = {};
     cfg.panels.admin.messageId = newMessageId;
-    await saveConfig(guild.id, cfg);
+    // saveConfigはfinalizeで行うため、ここでは呼び出さない
   }
   return true;
 }
@@ -253,25 +250,25 @@ async function execute(interaction, client, parsed) {
 
     // 口コミ確認フロー
     if (customId === 'adm|rating_check|sub=start')
-      return require('../口コミランクパネル/アクション/口コミ確認').startFlow(interaction);
+      return require('../口コミランクパネル/アクション/口コミ確認').startFlow(interaction, client, parsed);
 
     // ランク階級登録
     if (customId === 'adm|rank_tiers|sub=start')
-      return require('../口コミランクパネル/アクション/ランク階級登録').showModal(interaction, parsed);
+      return require('../口コミランクパネル/アクション/ランク階級登録').startFlow(interaction, client, parsed);
 
     // ランク設定
     if (customId === 'adm|rank_set|sub=start')
-      return require('../口コミランクパネル/アクション/ランク設定').startFlow(interaction);
+      return require('../口コミランクパネル/アクション/ランク設定').startFlow(interaction, client, parsed);
 
     // 履歴・統計
     if (customId === 'adm|history|sub=start')
-      return require('./アクション/履歴表示').execute(interaction, parsed);
+      return require('./アクション/履歴表示').execute(interaction, client, parsed);
 
     if (customId === 'adm|stats|sub=start')
-      return require('../口コミランクパネル/アクション/統計ダッシュボード').showDashboard(interaction);
+      return require('../口コミランクパネル/アクション/統計ダッシュボード').showDashboard(interaction, client, parsed);
 
     if (parsed.action === 'rating_check' && parsed.params?.sub === 'comments')
-      return require('../口コミランクパネル/アクション/口コミ確認').showComments(interaction, parsed.params.uid, parseInt(parsed.params.page || 0));
+      return require('../口コミランクパネル/アクション/口コミ確認').showComments(interaction, client, parsed);
 
     // 強制終了
     if (parsed.action === 'ride' && parsed.params?.sub === 'force_end_menu') {
@@ -285,8 +282,17 @@ async function execute(interaction, client, parsed) {
 
     // 方面リスト登録 (Modal)
     if (customId === CID.BTN_EDIT_DIRECTIONS) {
-      const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
-      const cfg = await loadConfig(interaction.guildId);
+      // DB読み込み(loadConfig)は遅延の原因になるため、Embedから現在の設定を取得する
+      let currentDirections = '';
+      try {
+        const desc = interaction.message.embeds[0]?.description || '';
+        const match = desc.match(/\*\*方面リスト登録\*\*\s*```([\s\S]*?)```/);
+        if (match && match[1]) {
+          const text = match[1].trim();
+          if (text !== '未登録') currentDirections = text;
+        }
+      } catch (e) { /* ignore */ }
+
       const modal = new ModalBuilder().setCustomId(CID.MODAL_EDIT_DIRECTIONS).setTitle('方面リスト編集');
       modal.addComponents(
         new ActionRowBuilder().addComponents(
@@ -295,7 +301,7 @@ async function execute(interaction, client, parsed) {
             .setLabel('方面（改行区切り）')
             .setStyle(TextInputStyle.Paragraph)
             .setPlaceholder('立川方面\n八王子市内\n相模原方面\nその他')
-            .setValue(cfg.directions?.join('\n') || '')
+            .setValue(currentDirections)
             .setRequired(true)
         )
       );
@@ -312,15 +318,11 @@ async function execute(interaction, client, parsed) {
       return require('../送迎処理/送迎強制終了').handleExecute(interaction, client);
     }
     if (parsed.action === 'rating_check' && parsed.params?.sub === 'user_sel')
-      return require('../口コミランクパネル/アクション/口コミ確認').showStats(interaction);
+      return require('../口コミランクパネル/アクション/口コミ確認').showStats(interaction, client, parsed);
     if (parsed.action === 'rank_set' && parsed.params?.sub === 'user_sel')
-      return require('../口コミランクパネル/アクション/ランク設定').showTierSelect(interaction);
+      return require('../口コミランクパネル/アクション/ランク設定').showTierSelect(interaction, client, parsed);
     if (parsed.action === 'rank_set' && parsed.params?.sub === 'tier_sel')
-      return require('../口コミランクパネル/アクション/ランク設定').handleTierPick(
-        interaction,
-        parsed.params.uid,
-        interaction.values[0]
-      );
+      return require('../口コミランクパネル/アクション/ランク設定').handleTierPick(interaction, client, parsed);
   }
 
   // --- モーダル送信委譲 ---
@@ -338,6 +340,18 @@ async function execute(interaction, client, parsed) {
       async run(interaction) {
         const { values } = interaction;
         const cfg = await loadConfig(interaction.guildId);
+
+        // 自己修復: ボタン操作時（＝パネル本体での操作時）にIDを同期する
+        if ((interaction.isButton() || interaction.isAnySelectMenu()) && interaction.message) {
+          if (!cfg.panels) cfg.panels = {};
+          if (!cfg.panels.admin) cfg.panels.admin = {};
+
+          if (cfg.panels.admin.messageId !== interaction.message.id) {
+            cfg.panels.admin.channelId = interaction.channelId;
+            cfg.panels.admin.messageId = interaction.message.id;
+            await saveConfig(interaction.guildId, cfg);
+          }
+        }
 
         let content = '項目を選択してください。';
         let row;
@@ -400,14 +414,15 @@ async function execute(interaction, client, parsed) {
 
           case CID.BTN_ADMIN_THREAD:
             try {
-              const opChId = cfg.logs.operatorChannel;
-              if (!opChId) return interaction.editReply({ content: '❌ 先に運用者ログチャンネルを設定してください。' });
-              const opCh = await interaction.guild.channels.fetch(opChId).catch(() => null);
-              if (!opCh) return interaction.editReply({ content: '❌ 運用者ログチャンネルが見つかりません。' });
+              // 管理者パネルのチャンネルを親チャンネルとして使用
+              const adminPanelChId = cfg.panels?.admin?.channelId;
+              if (!adminPanelChId) return interaction.editReply({ content: '❌ 管理者パネルのチャンネルが見つかりません。' });
+              const adminPanelCh = await interaction.guild.channels.fetch(adminPanelChId).catch(() => null);
+              if (!adminPanelCh) return interaction.editReply({ content: '❌ 管理者パネルのチャンネルが見つかりません。' });
 
               const index = cfg.logs.adminLogThreadIndex || 1;
               const threadName = `管理者ログ ${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${index}`;
-              const thread = await opCh.threads.create({
+              const thread = await adminPanelCh.threads.create({
                 name: threadName,
                 autoArchiveDuration: 60,
               });
@@ -442,46 +457,22 @@ async function execute(interaction, client, parsed) {
           // --- 設定保存 (Secondary Select Menus) ---
           case CID.SEL_DRIVER_ROLE:
             cfg.roles.drivers = values;
-            await saveConfig(interaction.guildId, cfg);
-            return interaction.editReply({
-              content: '✅ **送迎者ロール** を保存しました。続けて **メンション用ロール** を選択してください。',
-              components: [buildRoleSelect(CID.SEL_DRIVER_MENTION, 'メンションロールを選択', [cfg.roles.driverMention], 1)],
-            });
-          case CID.SEL_DRIVER_MENTION:
-            cfg.roles.driverMention = values[0];
-            await finalize(interaction, cfg, '送迎ロール・メンション更新', {
+            await finalize(interaction, cfg, '送迎ロール更新', {
               'roles.drivers': '送迎者ロール',
-              'roles.driverMention': '送迎メンション',
             }, client);
             return;
 
           case CID.SEL_USER_ROLE:
             cfg.roles.users = values;
-            await saveConfig(interaction.guildId, cfg);
-            return interaction.editReply({
-              content: '✅ **利用者ロール** を保存しました。続けて **メンション用ロール** を選択してください。',
-              components: [buildRoleSelect(CID.SEL_USER_MENTION, 'メンションロールを選択', [cfg.roles.userMention], 1)],
-            });
-          case CID.SEL_USER_MENTION:
-            cfg.roles.userMention = values[0];
-            await finalize(interaction, cfg, '利用者ロール・メンション更新', {
+            await finalize(interaction, cfg, '利用者ロール更新', {
               'roles.users': '利用者ロール',
-              'roles.userMention': '利用メンション',
             }, client);
             return;
 
           case CID.SEL_PRIORITY_ROLE:
             cfg.roles.priorityDrivers = values;
-            await saveConfig(interaction.guildId, cfg);
-            return interaction.editReply({
-              content: '✅ **優先配車ロール** を保存しました。続けて **メンション用ロール** を選択してください。',
-              components: [buildRoleSelect(CID.SEL_PRIORITY_MENTION, 'メンションロールを選択', [cfg.roles.priorityMention], 1)],
-            });
-          case CID.SEL_PRIORITY_MENTION:
-            cfg.roles.priorityMention = values[0];
-            await finalize(interaction, cfg, '優先配車ロール・メンション更新', {
+            await finalize(interaction, cfg, '優先配車ロール更新', {
               'roles.priorityDrivers': '優先配車ロール',
-              'roles.priorityMention': '優先メンション',
             }, client);
             return;
 
@@ -548,8 +539,22 @@ async function execute(interaction, client, parsed) {
         if (customId === CID.MODAL_EDIT_DIRECTIONS) {
           const raw = interaction.fields.getTextInputValue('directions');
           cfg.directions = raw.split('\n').map((d) => d.trim()).filter(Boolean);
+
+          // 自己修復: 操作元のメッセージを正としてパネル設定を更新
+          // (設定ファイルのIDが古い場合、更新が反映されない問題を防止)
+          if (interaction.message) {
+            if (!cfg.panels) cfg.panels = {};
+            if (!cfg.panels.admin) cfg.panels.admin = {};
+            cfg.panels.admin.channelId = interaction.channelId;
+            cfg.panels.admin.messageId = interaction.message.id;
+          }
+
           await saveConfig(interaction.guildId, cfg);
-          await updateAdminPanelMessage(interaction.guild, cfg, client);
+
+          const updated = await updateAdminPanelMessage(interaction.guild, cfg, client);
+          if (!updated) {
+            return interaction.editReply({ content: '✅ 設定は保存されましたが、パネルの再描画に失敗しました。' });
+          }
           return interaction.editReply({ content: '✅ 方面リストを更新しました。' });
         }
       },
@@ -562,7 +567,14 @@ async function execute(interaction, client, parsed) {
  */
 async function finalize(interaction, cfg, title, mapping, client) {
   const { logConfigChange } = require('../../utils/ログ/差分ログ');
+
+  // 1. 管理者パネルを更新（メッセージIDが更新される可能性がある）
+  await updateAdminPanelMessage(interaction.guild, cfg, client);
+
+  // 2. 設定を保存（更新されたメッセージIDを含む）
   await saveConfig(interaction.guildId, cfg);
+
+  // 3. ログ記録
   await logConfigChange({
     guild: interaction.guild,
     user: interaction.user,
@@ -570,7 +582,7 @@ async function finalize(interaction, cfg, title, mapping, client) {
     newConfig: cfg,
     mapping,
   });
-  await updateAdminPanelMessage(interaction.guild, cfg, client);
+
   return interaction.editReply({ content: '✅ 設定を更新しました。', components: [] });
 }
 
@@ -580,4 +592,3 @@ module.exports = {
   execute,
   updateAdminPanelMessage,
 };
-

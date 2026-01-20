@@ -6,12 +6,12 @@ const {
   ButtonStyle,
 } = require('discord.js');
 const { aggregateUserRatings } = require('./集計ロジック');
-const store = require('../../../../utils/ストレージ/ストア共通');
-const paths = require('../../../../utils/ストレージ/ストレージパス');
-const autoInteractionTemplate = require('../../../共通/autoInteractionTemplate');
+const store = require('../../../utils/ストレージ/ストア共通');
+const paths = require('../../../utils/ストレージ/ストレージパス');
+const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
-const buildPanelEmbed = require('../../../../utils/embed/embedTemplate');
-const buildPanelMessage = require('../../../../utils/embed/panelMessageTemplate');
+const buildPanelEmbed = require('../../../utils/embed/embedTemplate');
+const buildPanelMessage = require('../../../utils/embed/panelMessageTemplate');
 
 const CID = {
   BTN_RATING_CHECK: 'adm|rating_check|sub=start',
@@ -25,7 +25,7 @@ module.exports = {
   /**
    * ボタン押下：ユーザー選択を表示
    */
-  async startFlow(interaction) {
+  async startFlow(interaction, client, parsed) {
     return autoInteractionTemplate(interaction, {
       adminOnly: true,
       ack: ACK.REPLY,
@@ -46,7 +46,7 @@ module.exports = {
   /**
    * ユーザー選択後：統計Embedを表示
    */
-  async showStats(interaction) {
+  async showStats(interaction, client, parsed) {
     return autoInteractionTemplate(interaction, {
       adminOnly: true,
       ack: ACK.UPDATE,
@@ -107,11 +107,13 @@ module.exports = {
   /**
    * コメント一覧を表示
    */
-  async showComments(interaction, targetUserId, page = 0) {
+  async showComments(interaction, client, parsed) {
     return autoInteractionTemplate(interaction, {
       adminOnly: true,
       ack: ACK.REPLY,
       async run(interaction) {
+        const targetUserId = parsed.params.uid;
+        const page = parseInt(parsed.params.page || 0);
         const guildId = interaction.guildId;
         const stats = await aggregateUserRatings(guildId, targetUserId);
         const pageSize = 5;

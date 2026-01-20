@@ -14,8 +14,25 @@ const logger = require('../../utils/logger');
 const { readJson, writeJson } = require('../../utils/ストレージ/ストア共通');
 const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 const buildPanelMessage_ = require('../../utils/embed/panelMessageTemplate');
-const interactionTemplate = require('../共通/interactionTemplate');
-const { ACK } = interactionTemplate;
+const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
+const { loadConfig } = require('../../utils/設定/設定マネージャ');
+const { saveDriver, loadDriverFull } = require('../../utils/driversStore');
+const { incrementStat } = require('../../utils/ストレージ/統計ストア');
+const { postOperatorLog } = require('../../utils/ログ/運営者ログ');
+const { createUserMemoChannel } = require('../../utils/createUserMemoChannel');
+const { findUserMemoChannel } = require('../../utils/findUserMemoChannel');
+const {
+  getRegistrationMessageId,
+  saveRegistrationMessageId,
+} = require('../../utils/registrationMessageStore');
+const {
+  updateRegistrationInfoMessage,
+} = require('../../utils/updateRegistrationInfoMessage');
+const {
+  buildDriverRegistrationEmbed,
+} = require('../../utils/buildRegistrationInfoEmbed');
+const { updateUserCheckPanel, upsertRegistrationLedger } = require('./ユーザー確認パネル');
 
 // ===== Custom IDs =====
 const CID = {
@@ -72,7 +89,7 @@ function buildDriverRegPanelMessage(guild, client) {
 /**
  * ハンドラー実行
  */
-async function execute(interaction, parsed) {
+async function execute(interaction, client, parsed) {
   if (!interaction.guildId) return;
 
   const sub = parsed?.params?.sub;
@@ -129,11 +146,10 @@ async function execute(interaction, parsed) {
 
   // モーダル → 保存
   if (interaction.isModalSubmit() && sub === 'modal') {
-    return interactionTemplate(interaction, {
+    return autoInteractionTemplate(interaction, {
       ack: ACK.REPLY,
       async run(interaction) {
         // 設定読み込み (ロール・ログ用)
-        const { loadConfig } = require('../../utils/設定/設定マネージャ');
         const config = await loadConfig(interaction.guildId);
 
         const area = interaction.fields.getTextInputValue(CID.INP_AREA)?.trim();
@@ -153,7 +169,6 @@ async function execute(interaction, parsed) {
         const userId = interaction.user.id;
 
         // データ保存履歴付き (インデックス更新含む)
-        const { saveDriver } = require('../../utils/driversStore');
         const driverData = {
           userId,
           area,
@@ -203,20 +218,6 @@ async function execute(interaction, parsed) {
 
         // チャンネル作成 or 検出 (メモチャンネル)
         if (config.categories?.userMemo) {
-          const { createUserMemoChannel } = require('../../utils/createUserMemoChannel');
-          const { findUserMemoChannel } = require('../../utils/findUserMemoChannel');
-          const { loadDriverFull } = require('../../utils/driversStore');
-          const {
-            getRegistrationMessageId,
-            saveRegistrationMessageId,
-          } = require('../../utils/registrationMessageStore');
-          const {
-            updateRegistrationInfoMessage,
-          } = require('../../utils/updateRegistrationInfoMessage');
-          const {
-            buildDriverRegistrationEmbed,
-          } = require('../../utils/buildRegistrationInfoEmbed');
-
           let memoChannel = await findUserMemoChannel({
             guild: interaction.guild,
             userId: interaction.user.id,
@@ -225,6 +226,7 @@ async function execute(interaction, parsed) {
           }).catch(() => null);
 
           if (memoChannel) {
+            const userId = interaction.user.id;
             const fullJson = await loadDriverFull(interaction.guildId, userId);
             const messageId = await getRegistrationMessageId(interaction.guildId, userId, 'driver');
             if (messageId) {
@@ -247,11 +249,16 @@ async function execute(interaction, parsed) {
                 ).catch(() => null);
             }
           } else {
+            const userId = interaction.user.id;
+            const fullJson = await loadDriverFull(interaction.guildId, userId);
+            const registrationEmbed = buildDriverRegistrationEmbed(fullJson, interaction.user);
+
             await createUserMemoChannel({
               guild: interaction.guild,
               user: interaction.user,
               categoryId: config.categories.userMemo,
               role: 'driver',
+              registrationEmbed, // v2.6.4
             }).catch(() => null);
           }
         }
@@ -261,7 +268,7 @@ async function execute(interaction, parsed) {
         await upsertRegistrationLedger(interaction.guild, 'driver', driverData).catch(() => null);
         await updateUserCheckPanel(interaction.guild, interaction.client).catch(() => null);
 
-        // --- NEW: 履歴まとめ期間の選択を促す ---
+        // 履歴まとめ期間の選択を促す
         const { StringSelectMenuBuilder } = require('discord.js');
         const policyMenu = new StringSelectMenuBuilder()
           .setCustomId(`reg|driver|sub=policy&uid=${userId}`)
@@ -286,12 +293,11 @@ async function execute(interaction, parsed) {
 
   // --- NEW: 期間選択ハンドラ ---
   if (sub === 'policy') {
-    return interactionTemplate(interaction, {
+    return autoInteractionTemplate(interaction, {
       ack: ACK.UPDATE,
       async run(interaction) {
         const policy = interaction.values[0];
         const userId = parsed?.params?.uid || interaction.user.id;
-        const { loadDriverFull, saveDriver } = require('../../utils/driversStore');
 
         const driverData = await loadDriverFull(interaction.guildId, userId);
         if (driverData) {

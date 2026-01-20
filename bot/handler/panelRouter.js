@@ -3,15 +3,19 @@
  * namespace に基づいて適切なハンドラーモジュールを解決する
  */
 
+let adminMain, driverMain, userMain, driverReg, userReg, vcOps, guideMain;
+
 const ROUTES = {
-    adm: () => require('./管理者パネル/メイン'),
-    admin: () => require('./管理者パネル/メイン'),
+    adm: () => adminMain || (adminMain = require('./管理者パネル/メイン')),
+    admin: () => adminMain || (adminMain = require('./管理者パネル/メイン')),
     ps: (parsed) => {
         if (parsed.action === 'setup' || parsed.action === 'send') {
             return require('./パネル設置/アクション/パネル設置フロー');
         }
         if (parsed.action === 'select') {
-            const panel = parsed.params?.panel;
+            const panelParam = parsed.params?.panel;
+            // guide:base64 などの形式に対応するため、コロンで分割して先頭を取得
+            const panel = panelParam ? panelParam.split(':')[0] : null;
             const map = {
                 admin: './パネル設置/アクション/管理者パネル送信先選択',
                 driver: './パネル設置/アクション/送迎者パネル送信先選択',
@@ -39,14 +43,14 @@ const ROUTES = {
         }
         return null;
     },
-    driver: () => require('./送迎パネル/メイン'),
-    user: () => require('./利用者パネル/メイン'),
+    driver: () => driverMain || (driverMain = require('./送迎パネル/メイン')),
+    user: () => userMain || (userMain = require('./利用者パネル/メイン')),
     reg: (parsed) => {
-        if (parsed.action === 'driver') return require('./登録処理/送迎者登録');
-        if (parsed.action === 'user') return require('./登録処理/利用者登録');
+        if (parsed.action === 'driver') return driverReg || (driverReg = require('./登録処理/送迎者登録'));
+        if (parsed.action === 'user') return userReg || (userReg = require('./登録処理/利用者登録'));
         return null;
     },
-    ride: () => require('./送迎処理/VCコントロール/VC操作'),
+    ride: () => vcOps || (vcOps = require('./送迎処理/VCコントロール/VC操作')),
     carpool: (parsed) => {
         const action = parsed.action;
         if (action === 'join') {
@@ -66,11 +70,9 @@ const ROUTES = {
     },
     dispatch: (parsed) => {
         if (parsed.action === 'rating') {
+            const ratingSys = require('./配車システム/評価システム');
             return {
-                execute:
-                    parsed.params?.sub === 'modal'
-                        ? require('./配車システム/評価システム').handleModalSubmit
-                        : require('./配車システム/評価システム').execute,
+                execute: parsed.params?.sub === 'modal' ? ratingSys.handleModalSubmit : ratingSys.execute,
             };
         }
         if (parsed.action === 'forceOff') {
@@ -83,7 +85,7 @@ const ROUTES = {
         if (parsed.action === 'thread') return require('./メモ管理/スレッド作成');
         return null;
     },
-    guide: () => require('./ガイド/メイン'),
+    guide: () => guideMain || (guideMain = require('./ガイド/メイン')),
 };
 
 /**

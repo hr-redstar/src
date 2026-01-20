@@ -7,7 +7,7 @@ const paths = require('../ストレージ/ストレージパス');
  * ギルドごとのパネルメッセージ情報を取得
  */
 async function getPanels(guildId) {
-  const file = paths.panelsJson?.(guildId) || `GCS/${guildId}/panels.json`;
+  const file = paths.panelsJson(guildId);
   return await readJson(file, {});
 }
 
@@ -15,7 +15,7 @@ async function getPanels(guildId) {
  * 特定のパネル情報を保存
  */
 async function setPanel(guildId, key, channelId, messageId) {
-  const file = paths.panelsJson?.(guildId) || `GCS/${guildId}/panels.json`;
+  const file = paths.panelsJson(guildId);
   const db = await readJson(file, {});
   db[key] = {
     channelId,

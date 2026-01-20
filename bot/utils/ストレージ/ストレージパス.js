@@ -2,7 +2,7 @@
 // ここは「キー文字列（GCSならオブジェクト名 / ローカルなら相対パス）」を返すだけ
 
 function guildRoot(guildId) {
-  return `GCS/${guildId}`;
+  return `${guildId}`;
 }
 
 function configJson(guildId) {
@@ -105,6 +105,26 @@ function statsJson(guildId) {
   return `${guildRoot(guildId)}/stats/stats.json`;
 }
 
+// VCステート
+function vcStateJson(guildId) {
+  return `${guildRoot(guildId)}/vcState.json`;
+}
+
+// 送迎データ
+function rideDataJson(guildId) {
+  return `${guildRoot(guildId)}/送迎データ.json`;
+}
+
+// パネル情報
+function panelsJson(guildId) {
+  return `${guildRoot(guildId)}/panels.json`;
+}
+
+// 送迎リクエスト（旧）
+function rideRequestsJson(guildId) {
+  return `${guildRoot(guildId)}/rides.json`;
+}
+
 module.exports = {
   configJson,
   guildDriverIndexJson,
@@ -136,6 +156,12 @@ module.exports = {
   ratingLogsDir,
   auditLogsDir,
   statsJson,
+
+  // 新規追加
+  vcStateJson,
+  rideDataJson,
+  panelsJson,
+  rideRequestsJson,
 };
 
 function driverRatingSummaryJson(guildId, userId) {

@@ -2,13 +2,13 @@
 const { loadConfig } = require('../../utils/設定/設定マネージャ');
 const { buildPrivateVcGuide } = require('./プライベートVC');
 const { buildUserMemoGuide } = require('./個人メモ');
-const interactionTemplate = require('../共通/interactionTemplate');
-const { ACK } = interactionTemplate;
+const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
 
 async function execute(interaction, client, parsed) {
     const action = parsed.action; // vc or memo
 
-    return interactionTemplate(interaction, {
+    return autoInteractionTemplate(interaction, {
         ack: ACK.REPLY_EPHEMERAL,
         async run(interaction) {
             const config = await loadConfig(interaction.guildId);

@@ -6,7 +6,6 @@ const paths = require('../../../utils/ストレージ/ストレージパス');
 const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 const buildPanelEmbed = require('../../../utils/embed/embedTemplate');
-const buildPanelMessage = require('../../../utils/embed/panelMessageTemplate');
 const { ButtonBuilder, ButtonStyle } = require('discord.js');
 
 /**
@@ -21,12 +20,12 @@ module.exports = {
       adminOnly: true,
       ack: ACK.AUTO,
       async run(interaction) {
-        if (sub === 'recent') return showRecentHistory(interaction);
-        if (sub === 'rating') return showRatingList(interaction);
-        if (sub === 'audit') return showAuditLogs(interaction);
-        if (sub === 'detail') return showHistoryMonthSelect(interaction);
-        if (sub === 'month_sel') return showHistoryDaySelect(interaction);
-        if (sub === 'day_sel') return showHistoryResult(interaction);
+        if (sub === 'recent') return showRecentHistory(interaction, client, parsed);
+        if (sub === 'rating') return showRatingList(interaction, client, parsed);
+        if (sub === 'audit') return showAuditLogs(interaction, client, parsed);
+        if (sub === 'detail') return showHistoryMonthSelect(interaction, client, parsed);
+        if (sub === 'month_sel') return showHistoryDaySelect(interaction, client, parsed);
+        if (sub === 'day_sel') return showHistoryResult(interaction, client, parsed);
 
         // デフォルト（sub=start）
         const embed = buildPanelEmbed({
@@ -62,13 +61,12 @@ module.exports = {
       },
     });
   },
-  showAuditLogs,
 };
 
 /**
  * 直近10件の履歴を表示 (v1.8.0)
  */
-async function showRecentHistory(interaction) {
+async function showRecentHistory(interaction, client, parsed) {
   const guildId = interaction.guildId;
   const now = new Date();
   const historyDir = paths.dispatchHistoryDir(guildId, now.getFullYear(), now.getMonth() + 1);
@@ -111,7 +109,7 @@ async function showRecentHistory(interaction) {
 /**
  * 月選択の表示
  */
-async function showHistoryMonthSelect(interaction) {
+async function showHistoryMonthSelect(interaction, client, parsed) {
   const now = new Date();
   const options = [];
   for (let i = 0; i < 6; i++) {
@@ -143,7 +141,7 @@ async function showHistoryMonthSelect(interaction) {
 /**
  * 日選択の表示
  */
-async function showHistoryDaySelect(interaction) {
+async function showHistoryDaySelect(interaction, client, parsed) {
   const [y, m] = interaction.values[0].split('-');
   const guildId = interaction.guildId;
 
@@ -174,7 +172,7 @@ async function showHistoryDaySelect(interaction) {
 /**
  * 指定日の結果を表示 (v1.8.0)
  */
-async function showHistoryResult(interaction) {
+async function showHistoryResult(interaction, client, parsed) {
   const [y, m, d] = interaction.values[0].split('-');
   const guildId = interaction.guildId;
   const historyDir = paths.dispatchHistoryDir(guildId, parseInt(y), parseInt(m));
@@ -232,7 +230,7 @@ async function showHistoryResult(interaction) {
 /**
  * 最近の評価一覧を表示 (v1.8.0)
  */
-async function showRatingList(interaction) {
+async function showRatingList(interaction, client, parsed) {
   const guildId = interaction.guildId;
   const driverRatingDir = `${paths.ratingLogsDir(guildId)}/送迎者`;
   const userRatingDir = `${paths.ratingLogsDir(guildId)}/利用者`;
@@ -291,7 +289,7 @@ async function showRatingList(interaction) {
 /**
  * システム監査ログの表示 (v1.8.0)
  */
-async function showAuditLogs(interaction) {
+async function showAuditLogs(interaction, client, parsed) {
   const { findAuditLogs } = require('../../../utils/ストレージ/監査ログストア');
   const guildId = interaction.guildId;
 

@@ -14,8 +14,25 @@ const logger = require('../../utils/logger');
 const { readJson, writeJson } = require('../../utils/ストレージ/ストア共通');
 const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 const buildPanelMessage_ = require('../../utils/embed/panelMessageTemplate');
-const interactionTemplate = require('../共通/interactionTemplate');
-const { ACK } = interactionTemplate;
+const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
+const { loadConfig } = require('../../utils/設定/設定マネージャ');
+const { saveUser, loadUserFull } = require('../../utils/usersStore');
+const { incrementStat } = require('../../utils/ストレージ/統計ストア');
+const { postOperatorLog } = require('../../utils/ログ/運営者ログ');
+const { createUserMemoChannel } = require('../../utils/createUserMemoChannel');
+const { findUserMemoChannel } = require('../../utils/findUserMemoChannel');
+const {
+  getRegistrationMessageId,
+  saveRegistrationMessageId,
+} = require('../../utils/registrationMessageStore');
+const {
+  updateRegistrationInfoMessage,
+} = require('../../utils/updateRegistrationInfoMessage');
+const {
+  buildUserRegistrationEmbed,
+} = require('../../utils/buildRegistrationInfoEmbed');
+const { updateUserCheckPanel, upsertRegistrationLedger } = require('./ユーザー確認パネル');
 
 // ===== Custom IDs =====
 const CID = {
@@ -77,12 +94,12 @@ function buildUserRegPanelMessage(guild, client) {
 /**
  * ハンドラー実行
  */
-async function execute(interaction, parsed) {
+async function execute(interaction, client, parsed) {
   if (!interaction.guildId) return;
 
   const sub = parsed?.params?.sub;
 
-  // ボタン → モーダル (ACKなしでshowModal)
+  // ボタン → モーダル (直接 showModal を呼び出す)
   if (interaction.isButton() && sub === 'button') {
     const modal = new ModalBuilder().setCustomId(CID.MODAL_REGISTER).setTitle('利用者登録');
 
@@ -116,9 +133,9 @@ async function execute(interaction, parsed) {
     return interaction.showModal(modal);
   }
 
-  // モーダル → 保存 (interactionTemplate で ACK 制御)
+  // モーダル送信時の処理
   if (interaction.isModalSubmit() && sub === 'modal') {
-    return interactionTemplate(interaction, {
+    return autoInteractionTemplate(interaction, {
       ack: ACK.REPLY,
       async run(interaction) {
         const name = interaction.fields.getTextInputValue(CID.INP_NAME)?.trim();
@@ -129,7 +146,6 @@ async function execute(interaction, parsed) {
         const userId = interaction.user.id;
 
         // 個別登録情報を履歴付きで保存 (インデックス更新含む)
-        const { saveUser } = require('../../utils/usersStore');
         const registrationData = {
           userId,
           storeName: name, // 利用者の場合は storeName
@@ -166,20 +182,8 @@ async function execute(interaction, parsed) {
           const isReregistration = !!memoChannel;
 
           if (memoChannel) {
-            // 最新のJSON取得（履歴含む）
-            const { loadUserFull } = require('../../utils/usersStore');
-            const fullJson = await loadUserFull(interaction.guild.id, interaction.user.id);
-
-            // 登録情報メッセージを更新または新規作成
-            const { getRegistrationMessageId } = require('../../utils/registrationMessageStore');
-            const {
-              updateRegistrationInfoMessage,
-            } = require('../../utils/updateRegistrationInfoMessage');
-            const {
-              buildRegistrationInfoMessage,
-            } = require('../../utils/buildRegistrationInfoMessage');
-            const { saveRegistrationMessageId } = require('../../utils/registrationMessageStore');
-
+            const userId = interaction.user.id;
+            const fullJson = await loadUserFull(interaction.guildId, userId);
             const messageId = await getRegistrationMessageId(
               interaction.guild.id,
               interaction.user.id,
@@ -199,10 +203,6 @@ async function execute(interaction, parsed) {
               });
             } else {
               // 初回再登録時: 新規メッセージを作成
-              const {
-                buildUserRegistrationEmbed,
-              } = require('../../utils/buildRegistrationInfoEmbed');
-
               const embed = buildUserRegistrationEmbed(fullJson, interaction.user);
 
               const sentMessage = await memoChannel.send({ embeds: [embed] }).catch((err) => {
@@ -224,11 +224,16 @@ async function execute(interaction, parsed) {
             }
           } else {
             // なければ新規作成
+            const userId = interaction.user.id;
+            const fullJson = await loadUserFull(interaction.guildId, userId);
+            const registrationEmbed = buildUserRegistrationEmbed(fullJson, interaction.user);
+
             memoChannel = await createUserMemoChannel({
               guild: interaction.guild,
               user: interaction.user,
               categoryId: config.categories.userMemo,
               role: 'user',
+              registrationEmbed, // v2.6.4
             }).catch((err) => {
               console.error('メモチャンネル作成失敗', err);
               return null;
@@ -295,12 +300,11 @@ async function execute(interaction, parsed) {
 
   // --- NEW: 期間選択ハンドラ ---
   if (sub === 'policy') {
-    return interactionTemplate(interaction, {
+    return autoInteractionTemplate(interaction, {
       ack: ACK.UPDATE,
       async run(interaction) {
         const policy = interaction.values[0];
         const userId = parsed?.params?.uid || interaction.user.id;
-        const { loadUserFull, saveUser } = require('../../utils/usersStore');
 
         const userData = await loadUserFull(interaction.guildId, userId);
         if (userData) {

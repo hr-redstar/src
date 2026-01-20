@@ -1,6 +1,5 @@
-const { EmbedBuilder } = require('discord.js');
-const interactionTemplate = require('../共通/interactionTemplate');
-const { ACK } = interactionTemplate;
+const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
 const store = require('../../utils/ストレージ/ストア共通');
 const {
   buildCarpoolAnnouncementEmbed,
@@ -13,8 +12,8 @@ const { postOperatorLog } = require('../../utils/ログ/運営者ログ');
  */
 module.exports = {
   customId: 'carpool|cancel',
-  async execute(interaction, parsed) {
-    return interactionTemplate(interaction, {
+  async execute(interaction, client, parsed) {
+    return autoInteractionTemplate(interaction, {
       ack: ACK.REPLY,
       async run(interaction) {
         const rideId = parsed?.params?.rid;

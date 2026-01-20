@@ -11,22 +11,19 @@ const {
 } = require('../../utils/ストレージ/ストレージパス');
 const { loadUser } = require('../../utils/usersStore');
 
-const interactionTemplate = require('../共通/interactionTemplate');
-const { ACK } = interactionTemplate;
+const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
 
 module.exports = {
-    execute: async function (interaction, parsed) {
+    execute: async function (interaction, client, parsed) {
         // carpool|approve|rid={rideId}&uid={userId}&cnt={count}
         const rideId = parsed?.params?.rid;
         const userId = parsed?.params?.uid; // 相乗り希望者
-        const count = parseInt(parsed?.params?.cnt) || 1;
         const guild = interaction.guild;
 
-        return interactionTemplate(interaction, {
+        return autoInteractionTemplate(interaction, {
             ack: ACK.UPDATE, // メッセージ更新
             async run(interaction) {
-                const rideId = parsed?.params?.rid;
-                const userId = parsed?.params?.uid;
                 const count = parseInt(parsed?.params?.cnt) || 1;
                 const segment = parseInt(parsed?.params?.seg) || 1;
                 const carpoolLoc = parsed?.params?.loc || '不明';

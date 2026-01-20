@@ -6,7 +6,7 @@ const paths = require('../../../utils/ストレージ/ストレージパス');
 const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 
-module.exports = async function (interaction, parsed) {
+module.exports = async function (interaction, client, parsed) {
   const isModal = parsed?.params?.sub === 'modal';
 
   return autoInteractionTemplate(interaction, {
@@ -38,7 +38,7 @@ module.exports = async function (interaction, parsed) {
         // 各パネル更新
         const { updateDriverPanel } = require('../メイン');
         const { updateUserPanel } = require('../../利用者パネル/メイン');
-        const updateRideListPanel = require('../../送迎処理/一覧パネル更新');
+        const { updateRideListPanel } = require('../../送迎処理/一覧パネル更新');
         const { postGlobalLog } = require('../../../utils/ログ/グローバルログ');
 
         const { getQueue, getPosition } = require('../../../utils/配車/待機列マネージャ');

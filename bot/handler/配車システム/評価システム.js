@@ -203,7 +203,7 @@ async function execute(interaction, client, parsed) {
 /**
  * モーダル送信時の処理
  */
-async function handleModalSubmit(interaction, parsed) {
+async function handleModalSubmit(interaction, client, parsed) {
   const targetType = parsed?.params?.type;
   const dispatchId = parsed?.params?.did;
   const comment = interaction.fields.getTextInputValue('comment');

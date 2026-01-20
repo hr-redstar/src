@@ -1,6 +1,6 @@
-const interactionTemplate = require('../../共通/interactionTemplate');
-const { ACK } = interactionTemplate;
 const { installPanel } = require('../共通/設置テンプレ');
+const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
 const { CUSTOM_ID } = require('../共通/_panelSetupCommon');
 
 /**
@@ -10,7 +10,7 @@ module.exports = {
   customId: CUSTOM_ID.SELECT_GLOBAL_LOG_CHANNEL,
   type: 'channelSelect',
   async execute(interaction) {
-    return interactionTemplate(interaction, {
+    return autoInteractionTemplate(interaction, {
       ack: ACK.UPDATE,
       adminOnly: true,
       async run(interaction) {

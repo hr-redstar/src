@@ -2,14 +2,15 @@
 const { updatePanelSetupPanel } = require('../メイン');
 const { buildAdminPanelMessage } = require('../../管理者パネル/メイン');
 const { loadConfig } = require('../../../utils/設定/設定マネージャ');
-const interactionTemplate = require('../../共通/interactionTemplate');
-const { ACK } = interactionTemplate;
+const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
+const { CUSTOM_ID, MessageFlags } = require('../共通/_panelSetupCommon');
 
 module.exports = {
-  customId: 'ps|select|panel=admin',
+  customId: CUSTOM_ID.SELECT_ADMIN_PANEL_CHANNEL,
   type: 'channelSelect',
   async execute(interaction) {
-    return interactionTemplate(interaction, {
+    return autoInteractionTemplate(interaction, {
       ack: ACK.UPDATE,
       adminOnly: true,
       async run(interaction) {
@@ -18,7 +19,7 @@ module.exports = {
         if (!channel) {
           return interaction.followUp({
             content: '❌ 指定されたチャンネルが見つかりませんでした。',
-            flags: 64,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
@@ -38,12 +39,12 @@ module.exports = {
           await updatePanelSetupPanel(guild);
           await interaction.followUp({
             content: `✅ <#${channel.id}> に管理者パネルを設置しました。`,
-            flags: 64,
+            flags: MessageFlags.Ephemeral,
           });
         } else {
           await interaction.followUp({
             content: `❌ 管理者パネルの送信に失敗しました。`,
-            flags: 64,
+            flags: MessageFlags.Ephemeral,
           });
         }
       },

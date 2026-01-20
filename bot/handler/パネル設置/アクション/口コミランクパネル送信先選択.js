@@ -1,16 +1,16 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
 const { installPanel } = require('../共通/設置テンプレ');
 const { updatePanelSetupPanel } = require('../メイン');
-const interactionTemplate = require('../../共通/interactionTemplate');
-const { ACK } = interactionTemplate;
+const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
 
 const { CUSTOM_ID, MessageFlags } = require('../共通/_panelSetupCommon');
 
 module.exports = {
-  customId: CUSTOM_ID.SEL_RATING_RANK_PANEL,
+  customId: CUSTOM_ID.SELECT_RATING_RANK_PANEL_CHANNEL,
   type: 'channelSelect',
   async execute(interaction) {
-    return interactionTemplate(interaction, {
+    return autoInteractionTemplate(interaction, {
       ack: ACK.UPDATE,
       adminOnly: true,
       async run(interaction) {

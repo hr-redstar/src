@@ -2,14 +2,14 @@
 
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { CUSTOM_ID } = require('../共通/_panelSetupCommon');
-const interactionTemplate = require('../../共通/interactionTemplate');
-const { ACK } = interactionTemplate;
+const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
 
 module.exports = {
   customId: CUSTOM_ID.PANEL_MOVE,
   type: 'button',
   async execute(interaction) {
-    return interactionTemplate(interaction, {
+    return autoInteractionTemplate(interaction, {
       ack: ACK.UPDATE,
       adminOnly: true,
       async run(interaction) {

@@ -3,6 +3,7 @@ require('dotenv').config();
 const path = require('path');
 const LocalBackend = require('./backends/LocalBackend');
 const GCSBackend = require('./backends/GCSBackend');
+const logger = require('../logger');
 
 const DATA_DIR = process.env.LOCAL_DATA_DIR || path.resolve(__dirname, '../../data');
 const USE_LOCAL = process.env.LOCAL_DATA === '1' || !process.env.GCS_BUCKET;
@@ -19,6 +20,51 @@ function invalidateCache(key) {
 }
 
 /**
+ * ストレージエラーを管理者ログスレッドに通知
+ */
+async function notifyStorageError(operation, key, error, guildId = null) {
+  try {
+    // ギルドIDが不明な場合はkeyから抽出を試みる
+    if (!guildId && key) {
+      const match = key.match(/^(?:GCS\/)?(\d+)\//);
+      if (match) guildId = match[1];
+    }
+
+    if (!guildId) {
+      logger.error(`[Storage] ${operation} failed for key: ${key}`, { error: error.message });
+      return;
+    }
+
+    // Discordクライアントを取得
+    const client = global.discordClient;
+    if (!client) {
+      logger.error(`[Storage] ${operation} failed but no Discord client available`, { key, error: error.message });
+      return;
+    }
+
+    // 管理者ログスレッドに通知（循環参照を避けるため、直接読み込み）
+    const configPath = `${guildId}/config.json`;
+    const config = await backend.readJson(configPath, null).catch(() => null);
+
+    if (!config?.logs?.adminLogThread) {
+      logger.error(`[Storage] ${operation} failed for key: ${key}`, { error: error.message });
+      return;
+    }
+
+    const thread = await client.channels.fetch(config.logs.adminLogThread).catch(() => null);
+    if (!thread) return;
+
+    await thread.send({
+      content: `⚠️ **ストレージ操作エラー**\n**操作**: ${operation}\n**キー**: \`${key}\`\n**エラー**: ${error.message}`,
+    }).catch(err => {
+      logger.error('[Storage] Failed to send error notification to admin thread', { error: err.message });
+    });
+  } catch (err) {
+    logger.error('[Storage] Error in notifyStorageError', { error: err.message });
+  }
+}
+
+/**
  * 基本的な JSON 操作 (ファサード)
  */
 async function readJson(key, defaultValue = null) {
@@ -28,14 +74,26 @@ async function readJson(key, defaultValue = null) {
     return entry.data;
   }
 
-  const data = await backend.readJson(key, defaultValue);
-  cache.set(key, { data, expiresAt: now + DEFAULT_TTL });
-  return data;
+  try {
+    const data = await backend.readJson(key, defaultValue);
+    cache.set(key, { data, expiresAt: now + DEFAULT_TTL });
+    return data;
+  } catch (error) {
+    logger.error(`[Storage] readJson failed for key: ${key}`, { error: error.message });
+    await notifyStorageError('READ', key, error);
+    return defaultValue;
+  }
 }
 
 async function writeJson(key, data) {
   invalidateCache(key);
-  return await backend.writeJson(key, data);
+  try {
+    return await backend.writeJson(key, data);
+  } catch (error) {
+    logger.error(`[Storage] writeJson failed for key: ${key}`, { error: error.message });
+    await notifyStorageError('WRITE', key, error);
+    throw error; // 書き込み失敗は致命的なので再スロー
+  }
 }
 
 async function exists(key) {
@@ -89,7 +147,7 @@ async function listAllJsonObjects(root, excludePatterns = []) {
  * ギルドの送迎者一覧（詳細情報付き）を取得
  */
 async function loadDrivers(guildId) {
-  const allKeys = await listKeys(`GCS/${guildId}/送迎者`, { recursive: true });
+  const allKeys = await listKeys(`${guildId}/送迎者`, { recursive: true });
   const profileKeys = allKeys.filter(k => k.endsWith('/登録情報.json'));
 
   const results = [];
@@ -106,7 +164,7 @@ async function loadDrivers(guildId) {
  * ギルドの利用者一覧（詳細情報付き）を取得
  */
 async function loadUsers(guildId) {
-  const allKeys = await listKeys(`GCS/${guildId}/利用者`, { recursive: true });
+  const allKeys = await listKeys(`${guildId}/利用者`, { recursive: true });
   const profileKeys = allKeys.filter(k => k.endsWith('/登録情報.json'));
 
   const results = [];

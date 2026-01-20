@@ -128,6 +128,13 @@ module.exports.createUserMemoChannel = async ({
     );
 
   const row = new ActionRowBuilder().addComponents(selectMenu);
+
+  // 登録情報が渡されていれば送信 (v2.6.4)
+  const { registrationEmbed } = options;
+  if (registrationEmbed) {
+    await channel.send({ embeds: [registrationEmbed] }).catch(console.error);
+  }
+
   await channel.send({ embeds: [threadEmbed], components: [row] });
 
   return channel;

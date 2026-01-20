@@ -2,8 +2,8 @@ const { EmbedBuilder } = require('discord.js');
 const { installPanel } = require('../共通/設置テンプレ');
 const { updatePanelSetupPanel } = require('../メイン');
 const { loadConfig, saveConfig } = require('../../../utils/設定/設定マネージャ');
-const interactionTemplate = require('../../共通/interactionTemplate');
-const { ACK } = interactionTemplate;
+const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
 
 module.exports = {
   customId: 'ps|modal|sub=guideContent',
@@ -12,7 +12,7 @@ module.exports = {
     // Custom ID: ps|modal|sub=guideContent&cid=channelId
     const channelId = parsed.params?.cid || parsed.params?.legacy?.[1];
 
-    return interactionTemplate(interaction, {
+    return autoInteractionTemplate(interaction, {
       ack: ACK.REPLY,
       adminOnly: true,
       async run(interaction) {

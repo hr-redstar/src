@@ -45,6 +45,7 @@ async function peekNextDriver(guildId) {
  */
 async function popNextDriver(guildId) {
   const { loadConfig } = require('../設定/設定マネージャ');
+  const logger = require('../logger');
   const config = await loadConfig(guildId);
   const priorityRoleIds = config.roles?.priorityDrivers || [];
 
@@ -55,20 +56,20 @@ async function popNextDriver(guildId) {
 
   // 優先ロールを持つドライバーの探索
   if (priorityRoleIds.length > 0) {
-    // 全ドライバーのメンバー情報を取得orキャッシュしてロール確認
-    // ここでは queue データにロール情報が含まれていない前提で、GuildMember から確認
-    // ※ 本来は queue 保存時に優先フラグを立てるのが効率的だが、
-    // 現状のファイルベースではリアルタイム権限確認が必要
-    const client = require('../../../index').client; // 暫定的にグローバル参照
-    const guild = await client.guilds.fetch(guildId).catch(() => null);
-    if (guild) {
-      for (const driverData of queue) {
-        const member = await guild.members.fetch(driverData.userId).catch(() => null);
-        if (member && member.roles.cache.some((r) => priorityRoleIds.includes(r.id))) {
-          nextDriver = driverData;
-          break; // FIFOなので最初に見つかった優先者が最古
+    const client = global.discordClient;
+    if (client) {
+      const guild = await client.guilds.fetch(guildId).catch(() => null);
+      if (guild) {
+        for (const driverData of queue) {
+          const member = await guild.members.fetch(driverData.userId).catch(() => null);
+          if (member && member.roles.cache.some((r) => priorityRoleIds.includes(r.id))) {
+            nextDriver = driverData;
+            break; // FIFOなので最初に見つかった優先者が最古
+          }
         }
       }
+    } else {
+      logger.warn('待機列マネージャ: discordClient が見つかりません。優先ロールの確認をスキップします。');
     }
   }
 

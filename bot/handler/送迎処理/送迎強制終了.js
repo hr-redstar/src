@@ -4,11 +4,11 @@ const {
   StringSelectMenuBuilder,
   MessageFlags,
 } = require('discord.js');
-const interactionTemplate = require('../../共通/interactionTemplate');
-const { ACK } = interactionTemplate;
-const store = require('../../../utils/ストレージ/ストア共通');
-const paths = require('../../../utils/ストレージ/ストレージパス');
-const logger = require('../../../utils/logger');
+const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
+const store = require('../../utils/ストレージ/ストア共通');
+const paths = require('../../utils/ストレージ/ストレージパス');
+const logger = require('../../utils/logger');
 
 // 既存の送迎終了ロジックを再利用するのも手だが、
 // 強制終了は特殊フロー(VC削除・強制クリーンアップ)だけ行えれば良いので、簡易実装する。
@@ -17,7 +17,7 @@ const logger = require('../../../utils/logger');
 module.exports = {
   // admin:ride:force_end_menu
   async handleMenu(interaction, client) {
-    return interactionTemplate(interaction, {
+    return autoInteractionTemplate(interaction, {
       ack: ACK.REPLY_EPHEMERAL,
       async run(interaction) {
         const guildId = interaction.guildId;
@@ -68,7 +68,7 @@ module.exports = {
           return interaction.editReply({ content: '有効な送迎データが見つかりませんでした。' });
         }
 
-        const buildPanelEmbed = require('../../../utils/embed/embedTemplate');
+        const buildPanelEmbed = require('../../utils/embed/embedTemplate');
         const embed = buildPanelEmbed({
           title: '🛑 管理者：送迎強制終了実行',
           description: '進行中の送迎を強制的に終了させ、VCやデータをクリーンアップします。\n対象の送迎を選択してください。',
@@ -93,7 +93,7 @@ module.exports = {
 
   // admin:ride:force_end_execute
   async handleExecute(interaction, client) {
-    return interactionTemplate(interaction, {
+    return autoInteractionTemplate(interaction, {
       ack: ACK.UPDATE, // SelectMenu選択後はメッセージ更新で閉じるか、ephemeralならeditReply
       async run(interaction) {
         const rideId = interaction.values[0];
@@ -131,7 +131,7 @@ module.exports = {
         }
 
         // 3. ログ出力 (運営者ログ v1.7.0)
-        const { updateRideOperatorLog } = require('../../../utils/ログ/rideLogManager');
+        const { updateRideOperatorLog } = require('../../utils/ログ/rideLogManager');
         await updateRideOperatorLog({
           guild: interaction.guild,
           rideId: rideId,

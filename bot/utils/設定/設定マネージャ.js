@@ -25,11 +25,8 @@ function normalizeConfig(cfg = {}) {
     },
     roles: {
       drivers: [],
-      driverMention: null,
       users: [],
-      userMention: null,
       priorityDrivers: [],
-      priorityMention: null,
     },
     categories: {
       privateVc: null,
@@ -44,6 +41,12 @@ function normalizeConfig(cfg = {}) {
       guideChannel: null,
     },
     rideShareChannel: null,
+    directions: [],
+    operatorRoleId: null,
+    ranks: {
+      tiers: [],
+      userRanks: {},
+    },
   };
 
   // 1. 各セクションの結合
@@ -53,6 +56,9 @@ function normalizeConfig(cfg = {}) {
     categories: { ...base.categories, ...(cfg.categories || {}) },
     logs: { ...base.logs, ...(cfg.logs || {}) },
     rideShareChannel: cfg.rideShareChannel || base.rideShareChannel,
+    directions: cfg.directions || base.directions,
+    operatorRoleId: cfg.operatorRoleId || base.operatorRoleId,
+    ranks: { ...base.ranks, ...(cfg.ranks || {}) },
   };
 
   // 2. 旧形式（移行用）からのデータサルベージ

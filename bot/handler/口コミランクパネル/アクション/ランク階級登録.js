@@ -1,7 +1,8 @@
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
-const { postAdminActionLog } = require('../../../../utils/ログ/管理者ログ');
-const { loadConfig, saveConfig } = require('../../../../utils/設定/設定マネージャ');
-const autoInteractionTemplate = require('../../../共通/autoInteractionTemplate');
+const { postAdminActionLog } = require('../../../utils/ログ/管理者ログ');
+const { loadConfig, saveConfig } = require('../../../utils/設定/設定マネージャ');
+const { updateRatingRankPanelMessage } = require('../../管理者パネル/口コミランクパネル構築');
+const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 
 const CID = {
@@ -9,14 +10,22 @@ const CID = {
   MODAL_RANK_TIERS: 'adm|rank_tiers|sub=modal',
 };
 
-const buildPanelEmbed = require('../../../../utils/embed/embedTemplate');
+const buildPanelEmbed = require('../../../utils/embed/embedTemplate');
 
 module.exports = {
   CID,
+
+  /**
+   * エントリポイント
+   */
+  async startFlow(interaction, client, parsed) {
+    return this.showModal(interaction, client, parsed);
+  },
+
   /**
    * ボタン押下時：モーダルを表示
    */
-  async showModal(interaction, parsed) {
+  async showModal(interaction, client, parsed) {
     const config = await loadConfig(interaction.guildId);
     const modal = new ModalBuilder().setCustomId(CID.MODAL_RANK_TIERS).setTitle('ランク階級登録');
 
@@ -35,7 +44,7 @@ module.exports = {
   /**
    * モーダル送信時：保存
    */
-  async handleModal(interaction, parsed) {
+  async handleModal(interaction, client, parsed) {
     return autoInteractionTemplate(interaction, {
       adminOnly: true,
       ack: ACK.AUTO,
@@ -50,6 +59,9 @@ module.exports = {
         config.ranks ??= {};
         config.ranks.tiers = tiers;
         await saveConfig(interaction.guildId, config);
+
+        // 口コミランクパネルを更新
+        await updateRatingRankPanelMessage(interaction.guild, config, interaction.client);
 
         await postAdminActionLog({
           guild: interaction.guild,

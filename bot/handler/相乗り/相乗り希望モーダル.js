@@ -2,12 +2,12 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const store = require('../../utils/ストレージ/ストア共通');
 const paths = require('../../utils/ストレージ/ストレージパス');
-const interactionTemplate = require('../共通/interactionTemplate');
-const { ACK } = interactionTemplate;
+const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
 
 module.exports = {
-  execute: async function (interaction, parsed) {
-    return interactionTemplate(interaction, {
+  execute: async function (interaction, client, parsed) {
+    return autoInteractionTemplate(interaction, {
       ack: ACK.REPLY,
       async run(interaction) {
         const rideId = parsed?.params?.rid;

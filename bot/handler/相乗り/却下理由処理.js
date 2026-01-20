@@ -8,11 +8,11 @@ const {
 } = require('discord.js');
 const { postOperatorLog } = require('../../utils/ログ/運営者ログ');
 const { postGlobalLog } = require('../../utils/ログ/グローバルログ');
-const interactionTemplate = require('../共通/interactionTemplate');
-const { ACK } = interactionTemplate;
+const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
 
 module.exports = {
-    execute: async function (interaction, parsed) {
+    execute: async function (interaction, client, parsed) {
         // carpool|reject_reason|rid={rideId}&uid={userId}
         const rideId = parsed?.params?.rid;
         const userId = parsed?.params?.uid;
@@ -34,7 +34,12 @@ module.exports = {
         }
 
         // 理由選択済みの場合は即通知
-        await notifyRejection(interaction, userId, reason);
+        return autoInteractionTemplate(interaction, {
+            ack: ACK.UPDATE,
+            async run(interaction) {
+                await notifyRejection(interaction, userId, reason);
+            }
+        });
     },
 };
 

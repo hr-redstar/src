@@ -1,15 +1,15 @@
 ﻿const { installPanel } = require('../共通/設置テンプレ');
 const { updatePanelSetupPanel } = require('../メイン');
 const { buildDriverPanelMessage } = require('../../送迎パネル/メイン');
-const interactionTemplate = require('../../共通/interactionTemplate');
-const { ACK } = interactionTemplate;
-const { MessageFlags } = require('discord.js');
+const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
+const { CUSTOM_ID, MessageFlags } = require('../共通/_panelSetupCommon');
 
 module.exports = {
-  customId: 'ps|select|panel=driver',
+  customId: CUSTOM_ID.SELECT_DRIVER_PANEL_CHANNEL,
   type: 'channelSelect',
   async execute(interaction) {
-    return interactionTemplate(interaction, {
+    return autoInteractionTemplate(interaction, {
       ack: ACK.UPDATE,
       adminOnly: true,
       async run(interaction) {

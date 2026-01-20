@@ -1,105 +1,101 @@
-const store = require('../../utils/ストレージ/ストア共通');
-const paths = require('../../utils/ストレージ/ストレージパス');
+const store = require('../../../utils/ストレージ/ストア共通');
+const paths = require('../../../utils/ストレージ/ストレージパス');
 
 /**
  * 送迎キャンセルボタンハンドラー
- * VCコントロールパネルの「送迎キャンセル」ボタンから呼び出される
  */
-module.exports = async function handleRideCancel(interaction, rideId) {
-  try {
-    await interaction.deferUpdate();
+module.exports = {
+  async execute(interaction, client, parsed) {
+    const rideId = parsed?.params?.rid;
+    if (!rideId) return;
 
-    const guild = interaction.guild;
-    const guildId = guild.id;
-
-    // Active Dispatch データを読み込み
-    const activePath = `${paths.activeDispatchDir(guildId)}/${rideId}.json`;
-    const dispatchData = await store.readJson(activePath).catch(() => null);
-
-    if (!dispatchData) {
-      return interaction.followUp({ content: '⚠️ 送迎データが見つかりません。', flags: 64 });
-    }
-
-    // ドライバーのみキャンセル可能
-    if (interaction.user.id !== dispatchData.driverId) {
-      return interaction.followUp({
-        content: '⚠️ 送迎者のみがキャンセルできます。',
-        flags: 64,
-      });
-    }
-
-    // Active Dispatch を削除
-    await store.deleteFile(activePath).catch(() => null);
-
-    // 相乗り募集メッセージを削除
-    if (dispatchData.carpoolMessageId) {
-      const { loadConfig } = require('../../utils/設定/設定マネージャ');
-      const config = await loadConfig(guildId);
-      if (config.channels?.carpool) {
-        const carpoolChannel = guild.channels.cache.get(config.channels.carpool);
-        if (carpoolChannel) {
-          await carpoolChannel.messages.delete(dispatchData.carpoolMessageId).catch(() => null);
-        }
-      }
-    }
-
-    // VCチャンネルを削除
-    if (dispatchData.vcId) {
-      const vcChannel = guild.channels.cache.get(dispatchData.vcId);
-      if (vcChannel) {
-        await vcChannel.delete('送迎キャンセル').catch(() => null);
-      }
-    }
-
-    // 利用中一覧から削除
     try {
-      const userInUsePath = paths.userInUseListJson(guildId);
-      const usersInUse = await store.readJson(userInUsePath, []).catch(() => []);
+      await interaction.deferUpdate();
 
-      // 削除対象IDリスト
-      const idsToRemove = [dispatchData.userId];
-      if (dispatchData.carpoolUsers) {
-        dispatchData.carpoolUsers.forEach((u) => idsToRemove.push(u.userId));
+      const guild = interaction.guild;
+      const guildId = guild.id;
+
+      const activePath = `${paths.activeDispatchDir(guildId)}/${rideId}.json`;
+      const dispatchData = await store.readJson(activePath).catch(() => null);
+
+      if (!dispatchData) {
+        return interaction.followUp({ content: '⚠️ 送迎データが見つかりません。', flags: 64 });
       }
 
-      const updatedUsers = usersInUse.filter((id) => !idsToRemove.includes(id));
-      await store.writeJson(userInUsePath, updatedUsers);
-    } catch (err) {
-      console.error('利用中一覧更新エラー (キャンセル時):', err);
-    }
-
-    // 運営者ログの同期 (v1.7.0: CANCELLED)
-    const { updateRideOperatorLog } = require('../../../utils/ログ/rideLogManager');
-    await updateRideOperatorLog({
-      guild: interaction.guild,
-      rideId: rideId,
-      status: 'CANCELLED',
-      data: {
-        driverId: dispatchData.driverId,
-        userId: dispatchData.userId,
-        area: dispatchData.direction || dispatchData.route || dispatchData.area,
-        count: dispatchData.count,
-        endedAt: new Date().toISOString(),
-      }
-    }).catch(() => null);
-
-    // 利用者にDM通知
-    try {
-      const userMember = await guild.members.fetch(dispatchData.userId).catch(() => null);
-      if (userMember) {
-        await userMember.send({
-          content: `⚠️ 送迎がキャンセルされました。\n送迎者: <@${dispatchData.driverId}>`,
+      if (interaction.user.id !== dispatchData.driverId) {
+        return interaction.followUp({
+          content: '⚠️ 送迎者のみがキャンセルできます。',
+          flags: 64,
         });
       }
-    } catch (e) {
-      console.log('利用者へのキャンセル通知失敗', e);
-    }
 
-    await interaction.followUp({ content: '✅ 送迎をキャンセルしました。', flags: 64 });
-  } catch (error) {
-    console.error('送迎キャンセルエラー:', error);
-    await interaction
-      .followUp({ content: '⚠️ エラーが発生しました。', flags: 64 })
-      .catch(() => null);
+      await store.deleteFile(activePath).catch(() => null);
+
+      if (dispatchData.carpoolMessageId) {
+        const { loadConfig } = require('../../../utils/設定/設定マネージャ');
+        const config = await loadConfig(guildId);
+        const carpoolChId = config.rideShareChannel;
+        if (carpoolChId) {
+          const carpoolChannel = guild.channels.cache.get(carpoolChId);
+          if (carpoolChannel) {
+            await carpoolChannel.messages.delete(dispatchData.carpoolMessageId).catch(() => null);
+          }
+        }
+      }
+
+      if (dispatchData.vcId) {
+        const vcChannel = guild.channels.cache.get(dispatchData.vcId);
+        if (vcChannel) {
+          await vcChannel.delete('送迎キャンセル').catch(() => null);
+        }
+      }
+
+      try {
+        const userInUsePath = paths.userInUseListJson(guildId);
+        const usersInUse = await store.readJson(userInUsePath, []).catch(() => []);
+
+        const idsToRemove = [dispatchData.userId];
+        if (dispatchData.carpoolUsers) {
+          dispatchData.carpoolUsers.forEach((u) => idsToRemove.push(u.userId));
+        }
+
+        const updatedUsers = usersInUse.filter((id) => !idsToRemove.includes(id));
+        await store.writeJson(userInUsePath, updatedUsers);
+      } catch (err) {
+        console.error('利用中一覧更新エラー (キャンセル時):', err);
+      }
+
+      const { updateRideOperatorLog } = require('../../../utils/ログ/rideLogManager');
+      await updateRideOperatorLog({
+        guild: interaction.guild,
+        rideId: rideId,
+        status: 'CANCELLED',
+        data: {
+          driverId: dispatchData.driverId,
+          userId: dispatchData.userId,
+          area: dispatchData.direction || dispatchData.route || dispatchData.area,
+          count: dispatchData.count,
+          endedAt: new Date().toISOString(),
+        }
+      }).catch(() => null);
+
+      try {
+        const userMember = await guild.members.fetch(dispatchData.userId).catch(() => null);
+        if (userMember) {
+          await userMember.send({
+            content: `⚠️ 送迎がキャンセルされました。\n送迎者: <@${dispatchData.driverId}>`,
+          });
+        }
+      } catch (e) {
+        console.log('利用者へのキャンセル通知失敗', e);
+      }
+
+      await interaction.followUp({ content: '✅ 送迎をキャンセルしました。', flags: 64 });
+    } catch (error) {
+      console.error('送迎キャンセルエラー:', error);
+      await interaction
+        .followUp({ content: '⚠️ エラーが発生しました。', flags: 64 })
+        .catch(() => null);
+    }
   }
 };

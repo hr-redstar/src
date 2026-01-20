@@ -8,7 +8,7 @@ const store = require('../../../utils/ストレージ/ストア共通');
 const paths = require('../../../utils/ストレージ/ストレージパス');
 const { updateDriverPanel } = require('../メイン');
 
-module.exports = async function (interaction, parsed) {
+module.exports = async function (interaction, client, parsed) {
   const isModal = parsed?.params?.sub === 'modal';
 
   return autoInteractionTemplate(interaction, {

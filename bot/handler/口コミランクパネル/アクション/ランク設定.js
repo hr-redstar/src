@@ -1,7 +1,7 @@
 const { UserSelectMenuBuilder, StringSelectMenuBuilder, ActionRowBuilder } = require('discord.js');
-const { loadConfig, saveConfig } = require('../../../../utils/設定/設定マネージャ');
-const { postAdminActionLog } = require('../../../../utils/ログ/管理者ログ');
-const autoInteractionTemplate = require('../../../共通/autoInteractionTemplate');
+const { loadConfig, saveConfig } = require('../../../utils/設定/設定マネージャ');
+const { postAdminActionLog } = require('../../../utils/ログ/管理者ログ');
+const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 
 const CID = {
@@ -10,7 +10,7 @@ const CID = {
   SEL_TIER: 'adm|rank_set|sub=tier_sel', // uid が続く想定
 };
 
-const buildPanelEmbed = require('../../../../utils/embed/embedTemplate');
+const buildPanelEmbed = require('../../../utils/embed/embedTemplate');
 
 module.exports = {
   CID,
@@ -18,7 +18,7 @@ module.exports = {
   /**
    * ボタン押下：ユーザー選択を表示
    */
-  async startFlow(interaction) {
+  async startFlow(interaction, client, parsed) {
     const row = new ActionRowBuilder().addComponents(
       new UserSelectMenuBuilder()
         .setCustomId(CID.SEL_USER)
@@ -34,7 +34,7 @@ module.exports = {
   /**
    * ユーザー選択後：ランク階級の選択を表示
    */
-  async showTierSelect(interaction) {
+  async showTierSelect(interaction, client, parsed) {
     return autoInteractionTemplate(interaction, {
       adminOnly: true,
       ack: ACK.UPDATE,
@@ -75,11 +75,13 @@ module.exports = {
   /**
    * ランク決定：保存
    */
-  async handleTierPick(interaction, targetUserId, tierName) {
+  async handleTierPick(interaction, client, parsed) {
     return autoInteractionTemplate(interaction, {
       adminOnly: true,
       ack: ACK.UPDATE,
       async run(interaction) {
+        const targetUserId = parsed.params.uid;
+        const tierName = interaction.values[0];
         const config = await loadConfig(interaction.guildId);
         config.ranks ??= {};
         config.ranks.userRanks ??= {};

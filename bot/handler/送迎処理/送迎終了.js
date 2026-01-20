@@ -3,11 +3,13 @@ const store = require('../../utils/ストレージ/ストア共通');
 const updateRideListPanel = require('./一覧パネル更新');
 const { updateDriverPanel } = require('../送迎パネル/メイン');
 
-const interactionTemplate = require('../共通/interactionTemplate');
-const { ACK } = interactionTemplate;
+const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
+const { loadVcState, updateVcState } = require('../../utils/vcStateStore');
+const { ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 module.exports = async function (interaction, targetId) {
-  return interactionTemplate(interaction, {
+  return autoInteractionTemplate(interaction, {
     ack: ACK.UPDATE,
     async run(interaction) {
       // 送迎終了処理

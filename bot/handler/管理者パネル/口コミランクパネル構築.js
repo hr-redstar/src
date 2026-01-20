@@ -1,26 +1,17 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 const buildPanelMessage = require('../../utils/embed/panelMessageTemplate');
+const { loadConfig, saveConfig } = require('../../utils/設定/設定マネージャ');
+const { sendOrUpdatePanel } = require('../共通/パネル送信');
 
-const { loadConfigSync } = require('../../utils/設定/設定マネージャ'); // Sync load for build if possible, or assume async usage
-
-async function buildRatingRankPanelMessage(guild) {
-  const config = await require('../../utils/設定/設定マネージャ').loadConfig(guild.id);
-  const ranks = config.ranks || [];
+async function buildRatingRankPanelMessage(guild, config = null) {
+  if (!config) config = await loadConfig(guild.id);
+  const tiers = config.ranks?.tiers || [];
 
   // ランク階級の表示文字列作成
-  const rankTiersText = ranks.length > 0
-    ? ranks.map(r => `${r.name} (★${r.minStars})`).join('\n')
+  const rankTiersText = tiers.length > 0
+    ? tiers.join(' > ')
     : '未登録';
-
-  // ランク設定（ユーザー割り当て）の表示文字列作成
-  // Note: config.rankAssignments etc is not standard storage.
-  // Actually, ranks are stored in user profiles, not config index usually.
-  // But for the panel display, we might just list the Tiers as requested.
-  // "Rank 1... Mention User" suggests showing who is in what rank.
-  // Since iterating all users is expensive, we might just show placeholder or omitted for now unless we have a rank cache.
-  // For safety and performance, I will verify how rank settings are stored.
-  // For now, I will display the "Tiers" in the "Rank Setting" area as the prompt implies "Rank 1... Name" structure.
 
   const embed = buildPanelEmbed({
     title: '口コミランクパネル',
@@ -67,4 +58,32 @@ ${rankTiersText}
   return buildPanelMessage({ embed, components: [row1, row2] });
 }
 
-module.exports = { buildRatingRankPanelMessage };
+/**
+ * 口コミランクパネルを更新
+ */
+async function updateRatingRankPanelMessage(guild, cfg, client) {
+  const panel = cfg.panels?.ratingRank;
+  if (!panel || !panel.channelId) return false;
+
+  const ch = await guild.channels.fetch(panel.channelId).catch(() => null);
+  if (!ch) return false;
+
+  const newMessageId = await sendOrUpdatePanel({
+    channel: ch,
+    messageId: panel.messageId,
+    buildMessage: async () => buildRatingRankPanelMessage(guild, cfg),
+  });
+
+  if (newMessageId && newMessageId !== panel.messageId) {
+    if (!cfg.panels) cfg.panels = {};
+    if (!cfg.panels.ratingRank) cfg.panels.ratingRank = {};
+    cfg.panels.ratingRank.messageId = newMessageId;
+    // saveConfig は呼び出し元で行う、または自動復旧時に行われる
+  }
+  return true;
+}
+
+module.exports = {
+  buildRatingRankPanelMessage,
+  updateRatingRankPanelMessage
+};

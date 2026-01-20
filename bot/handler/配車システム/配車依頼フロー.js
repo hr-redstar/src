@@ -13,7 +13,7 @@ const { ACK } = autoInteractionTemplate;
  * 配車依頼フロー（ボタンのみの対話型）
  */
 module.exports = {
-  execute: async function (interaction, parsed) {
+  execute: async function (interaction, client, parsed) {
     const step = parsed?.params?.sub || 'type';
     const type = parsed?.params?.type || '';
     const direction = parsed?.params?.dir || '';
@@ -625,8 +625,7 @@ async function handleCarpoolJoin(interaction, rideId) {
     .setMaxLength(1);
 
   modal.addComponents(new ActionRowBuilder().addComponents(countInp));
-  // モーダルは ACK 不要 ( interactionTemplate の外で呼ぶ or interactionTemplate で ACK.NONE )
-  // ここでは interactionTemplate 内での呼び出しになるため、interaction.showModal が使える
+  // モーダルを表示
   await interaction.showModal(modal);
 }
 

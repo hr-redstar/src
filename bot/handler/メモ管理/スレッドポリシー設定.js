@@ -3,7 +3,7 @@ const { saveDriver, loadDriver } = require('../../utils/driversStore');
 /**
  * スレッドポリシー設定のSelect Menuハンドラー
  */
-module.exports = async (interaction) => {
+module.exports = async (interaction, client, parsed) => {
   const selected = interaction.values[0]; // 選択された値: none, 1w, 2w, 1m, 6m
 
   const labels = {

@@ -1,15 +1,15 @@
 ﻿const { installPanel } = require('../共通/設置テンプレ');
 const { updatePanelSetupPanel } = require('../メイン');
 const { buildUserCheckPanelMessage } = require('../../登録処理/ユーザー確認パネル');
-const interactionTemplate = require('../../共通/interactionTemplate');
-const { ACK } = interactionTemplate;
-const { MessageFlags } = require('discord.js');
+const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
+const { CUSTOM_ID, MessageFlags } = require('../共通/_panelSetupCommon');
 
 module.exports = {
-  customId: 'ps|select|panel=userCheck',
+  customId: CUSTOM_ID.SELECT_USER_CHECK_PANEL_CHANNEL,
   type: 'channelSelect',
   async execute(interaction) {
-    return interactionTemplate(interaction, {
+    return autoInteractionTemplate(interaction, {
       ack: ACK.UPDATE,
       adminOnly: true,
       async run(interaction) {

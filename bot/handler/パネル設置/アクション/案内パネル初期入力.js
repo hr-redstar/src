@@ -1,14 +1,14 @@
 const { ChannelSelectMenuBuilder, ActionRowBuilder, ChannelType } = require('discord.js');
 
 const { CUSTOM_ID, requireAdmin, MessageFlags } = require('../共通/_panelSetupCommon');
-const interactionTemplate = require('../../共通/interactionTemplate');
-const { ACK } = interactionTemplate;
+const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
 
 module.exports = {
   customId: 'ps|modal|sub=guideInitial',
   type: 'modal',
-  async execute(interaction) {
-    return interactionTemplate(interaction, {
+  async execute(interaction, client, parsed) {
+    return autoInteractionTemplate(interaction, {
       ack: ACK.REPLY,
       adminOnly: true,
       async run(interaction) {

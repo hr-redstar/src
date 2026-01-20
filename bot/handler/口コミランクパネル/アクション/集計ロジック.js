@@ -1,5 +1,5 @@
-const store = require('../../../../utils/ストレージ/ストア共通');
-const paths = require('../../../../utils/ストレージ/ストレージパス');
+const store = require('../../../utils/ストレージ/ストア共通');
+const paths = require('../../../utils/ストレージ/ストレージパス');
 
 /**
  * ユーザー（送迎者または利用者）の評価統計を算出する

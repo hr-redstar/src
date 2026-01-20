@@ -22,6 +22,17 @@ module.exports = {
     try {
       await handler.handleInteraction(interaction, client);
     } catch (err) {
+      // 10062: Unknown interaction (3秒タイムアウトや重複操作で発生)
+      // 40060: Interaction has already been acknowledged
+      const code = err.code || 0;
+      if (code === 10062 || code === 40060 || String(code) === '10062' || String(code) === '40060') {
+        logger.warn('⚠️ Interaction応答タイムアウト/無効 (無視)', {
+          summary: oneLineError(err),
+          customId: interaction.customId ?? null,
+        });
+        return;
+      }
+
       // 重要: ここでさらに例外を起こさない（formatError未定義対策）
       logger.error('Interaction処理で例外が発生しました', {
         summary: oneLineError(err),

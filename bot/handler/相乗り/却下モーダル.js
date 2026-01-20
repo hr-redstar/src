@@ -2,12 +2,12 @@
 const { EmbedBuilder } = require('discord.js');
 const { postOperatorLog } = require('../../utils/ログ/運営者ログ');
 const { postGlobalLog } = require('../../utils/ログ/グローバルログ');
-const interactionTemplate = require('../共通/interactionTemplate');
-const { ACK } = interactionTemplate;
+const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
 
 module.exports = {
-  execute: async function (interaction, parsed) {
-    return interactionTemplate(interaction, {
+  execute: async function (interaction, client, parsed) {
+    return autoInteractionTemplate(interaction, {
       ack: ACK.REPLY,
       async run(interaction) {
         const userId = parsed?.params?.uid; // carpool|reject|sub=modal&rid={rideId}&uid={userId}

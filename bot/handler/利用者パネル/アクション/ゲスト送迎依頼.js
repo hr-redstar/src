@@ -4,7 +4,7 @@ const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = req
 const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 
-module.exports = async function (interaction) {
+module.exports = async function (interaction, client, parsed) {
   return autoInteractionTemplate(interaction, {
     ack: ACK.NONE,
     async run(interaction) {

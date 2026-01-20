@@ -65,8 +65,6 @@ async function postCarpoolRecruitment(guild, rideData, client) {
   }
 
   // ルート表示の生成
-  // 基本: 【送迎者現在地】→【利用者の目印】→【目的地】
-  // 相乗りあり: 【送迎者現在地】→【相乗り希望者乗車場所】→【利用者の目印】→【目的地】
   let routeStr = `【${rideData.driverPlace || '現在地'}】`;
 
   // 相乗り経由地を追加
@@ -88,18 +86,17 @@ async function postCarpoolRecruitment(guild, rideData, client) {
   const embed = new EmbedBuilder()
     .setTitle('相乗りできます')
     .setDescription(
-      `〇人まで（送迎者登録されている乗車人数-利用者人数）\n` +
-        `※現在残り: **${remaining}名**\n\n` +
-        `**${routeStr}**\n\n` +
-        `送迎者現在地出発時刻： ${timeStr}\n\n` +
-        `※相乗り希望後既に合流できない場合がある為、送迎可能か送迎者から連絡があります。`
+      `**${remaining}名まで**\n\n` +
+      `**${routeStr}**\n\n` +
+      `送迎者現在地出発時刻： ${timeStr}\n\n` +
+      `※相乗り希望後既に合流できない場合がある為、送迎可能か送迎者から連絡があります。`
     )
     .setColor(0x00ffff) // Aqua
     .setTimestamp(startedAt);
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId(`carpool:join:${rideData.rideId}`)
+      .setCustomId(`carpool|join|rid=${rideData.rideId}`)
       .setLabel('相乗り希望')
       .setStyle(ButtonStyle.Success)
       .setEmoji('🙋‍♂️')

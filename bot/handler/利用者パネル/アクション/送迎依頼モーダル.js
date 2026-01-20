@@ -10,15 +10,15 @@ const { updateVcState } = require('../../../utils/vcStateStore');
 const { findUserMemoChannel } = require('../../../utils/findUserMemoChannel');
 const { createUserMemoChannel } = require('../../../utils/createUserMemoChannel');
 
-const updateRideListPanel = require('../../送迎処理/一覧パネル更新');
+const { updateRideListPanel } = require('../../送迎処理/一覧パネル更新');
 const { updateUserPanel } = require('../メイン');
 const { updateDriverPanel } = require('../../送迎パネル/メイン');
 
-const interactionTemplate = require('../../共通/interactionTemplate');
-const { ACK } = interactionTemplate;
+const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
 
 module.exports = async function (interaction, client, parsed) {
-  return interactionTemplate(interaction, {
+  return autoInteractionTemplate(interaction, {
     ack: ACK.REPLY,
     async run(interaction) {
       const guild = interaction.guild;
@@ -38,6 +38,10 @@ module.exports = async function (interaction, client, parsed) {
       // タイトル・タイプ設定
       const typeLabel = isGuest ? 'ゲスト送迎依頼' : '送迎依頼';
 
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+
       // 1. マッチング処理（待機列からドライバー取得）
       const driverData = await popNextDriver(guildId);
 
@@ -51,6 +55,25 @@ module.exports = async function (interaction, client, parsed) {
 
       const driverId = driverData.userId;
       const driverPlace = driverData.stopPlace || '不明';
+
+      const routeInfo = `【${driverPlace}】→【${mark}】→【${destination}】`;
+
+      // 3. 送迎ステータス保存オブジェクトを先に用意
+      const dispatchData = {
+        rideId,
+        userId,
+        driverId,
+        driverPlace,
+        from: address,
+        mark: mark,
+        destination: destination,
+        status: 'dispatching',
+        vcId: null,
+        vcMessageId: null,
+        matchTime: `${hours}:${minutes}`,
+        startedAt: new Date().toISOString(),
+        guest: isGuest,
+      };
 
       // 2. プライベートVC作成
       const config = await loadConfig(guildId);
@@ -145,6 +168,7 @@ module.exports = async function (interaction, client, parsed) {
 
             const ctrlMsg = await vcChannel.send({ embeds: [controlEmbed], components: [controlButtons] });
             dispatchData.vcMessageId = ctrlMsg.id;
+            dispatchData.vcId = vcChannel.id;
 
             // 利用中一覧に登録
             const userInUsePath = paths.userInUseListJson(guildId);
@@ -216,22 +240,7 @@ module.exports = async function (interaction, client, parsed) {
       }
 
 
-      // 3. 送迎ステータス保存 (Active Dispatch)
-      const dispatchData = {
-        rideId,
-        userId,
-        driverId,
-        driverPlace, // 追加: 相乗り募集で表示するため
-        from: address, // 便宜上 address を from に
-        mark: mark,
-        destination: destination, // to
-        status: 'dispatching', // 配車済
-        vcId: vcChannel ? vcChannel.id : null,
-        vcMessageId: null, // あとで保存
-        matchTime: `${hours}:${minutes}`,
-        startedAt: new Date().toISOString(),
-        guest: isGuest,
-      };
+      // dispatchData は既に作成・更新済み
 
       const activePath = `${paths.activeDispatchDir(guildId)}/${rideId}.json`;
 
@@ -261,13 +270,9 @@ module.exports = async function (interaction, client, parsed) {
       const { postCarpoolRecruitment } = require('../../../utils/配車/相乗りマネージャ');
       postCarpoolRecruitment(guild, dispatchData, interaction.client).catch(console.error);
 
-      // 4. 個人メッセージ送信 (Embed)
       const vcLink = vcChannel
         ? `[プライベートVCはこちら](https://discord.com/channels/${guildId}/${vcChannel.id})`
         : 'VC作成失敗';
-
-      // ルート情報を1行で表示
-      const routeInfo = `【${driverPlace}】→【${mark}】→【${destination}】`;
 
       const embed = new EmbedBuilder()
         .setTitle(`🚕 ${typeLabel}`)

@@ -1,13 +1,12 @@
 const { readJson, writeJson } = require('./ストレージ/ストア共通');
-
-const path = (guildId) => `GCS/${guildId}/vcState.json`;
+const paths = require('./ストレージ/ストレージパス');
 
 module.exports.loadVcState = async (guildId) => {
-  return await readJson(path(guildId), {});
+  return await readJson(paths.vcStateJson(guildId), {});
 };
 
 module.exports.saveVcState = async (guildId, state) => {
-  await writeJson(path(guildId), state);
+  await writeJson(paths.vcStateJson(guildId), state);
 };
 
 module.exports.updateVcState = async (guildId, vcId, data) => {

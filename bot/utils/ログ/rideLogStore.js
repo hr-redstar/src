@@ -7,7 +7,8 @@ const paths = require('../ストレージ/ストレージパス');
  */
 async function loadLogMap(guildId) {
     const path = `guilds/${guildId}/operatorLogs/ride_logs.json`;
-    return await readJson(path).catch(() => ({}));
+    const data = await readJson(path).catch(() => ({}));
+    return data || {};
 }
 
 /**

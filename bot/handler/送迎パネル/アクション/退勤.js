@@ -6,7 +6,7 @@ const { updateDriverPanel } = require('../メイン');
 const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 
-module.exports = async function (interaction) {
+module.exports = async function (interaction, client, parsed) {
   return autoInteractionTemplate(interaction, {
     ack: ACK.REPLY, // Ephemeral reply
     async run(interaction) {

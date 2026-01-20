@@ -10,9 +10,14 @@ const logger = require('../logger');
  */
 async function applyVisibility(channel, operatorRoleId) {
     try {
+        if (!channel.permissionOverwrites) {
+            // スレッド等の permissionOverwrites がないチャンネルはスキップ（親チャンネルの制限に従う）
+            logger.debug(`公開制限スキップ: ${channel.name} (permissionOverwritesなし)`);
+            return;
+        }
+
         if (!operatorRoleId) {
             // ロール未設定の場合：全員に見えるように（ViewChannel を Inherit または True に戻す）
-            // スレッドの場合は少し挙動が異なるが、基本は @everyone の権限をリセット、もしくは許可
             await channel.permissionOverwrites.edit(channel.guild.roles.everyone, {
                 ViewChannel: null, // デフォルトに戻す
             });

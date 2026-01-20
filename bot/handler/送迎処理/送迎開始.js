@@ -12,11 +12,11 @@ const { createPrivateVc } = require('../../utils/createPrivateVc'); // VC Utilit
 const { updateVcState } = require('../../utils/vcStateStore'); // VC State
 const { ChannelType } = require('discord.js');
 
-const interactionTemplate = require('../共通/interactionTemplate');
-const { ACK } = interactionTemplate;
+const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
+const { ACK } = autoInteractionTemplate;
 
 module.exports = async function (interaction, targetId) {
-  return interactionTemplate(interaction, {
+  return autoInteractionTemplate(interaction, {
     ack: ACK.UPDATE,
     async run(interaction) {
       // targetId は乗客のユーザーID

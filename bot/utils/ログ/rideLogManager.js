@@ -28,11 +28,23 @@ async function updateRideOperatorLog({ guild, rideId, status, data }) {
         const logRef = await getRideLog(guild.id, rideId);
 
         // データのマージ (matchedAt などを集約するため)
-        const combinedData = {
+        let combinedData = {
             ...(logRef?.data || {}),
             ...data,
             rideId
         };
+
+        // IDが欠落している場合、Active Dispatchから補完 (v2.6.4)
+        if (!combinedData.userId || !combinedData.driverId) {
+            const { readJson } = require('../ストレージ/ストア共通');
+            const paths = require('../ストレージ/ストレージパス');
+            const activePath = `${paths.activeDispatchDir(guild.id)}/${rideId}.json`;
+            const dispatchData = await readJson(activePath).catch(() => null);
+            if (dispatchData) {
+                combinedData.userId = combinedData.userId || dispatchData.userId;
+                combinedData.driverId = combinedData.driverId || dispatchData.driverId;
+            }
+        }
 
         const embed = buildRideEmbed({ status, data: combinedData });
 

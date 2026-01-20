@@ -1,263 +1,220 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const store = require('../../utils/ストレージ/ストア共通');
-const paths = require('../../utils/ストレージ/ストレージパス');
-const { loadDriver } = require('../../utils/driversStore');
+const store = require('../../../utils/ストレージ/ストア共通');
+const paths = require('../../../utils/ストレージ/ストレージパス');
+const { loadDriver } = require('../../../utils/driversStore');
 const { sendRatingDM } = require('../../配車システム/評価システム');
-const { updateVcState } = require('../../utils/vcStateStore');
-const { formatDateShort } = require('../../utils/共通/日付フォーマット');
+const { updateVcState } = require('../../../utils/vcStateStore');
 
 /**
  * 送迎終了ボタンハンドラー
- * VCコントロールパネルの「送迎終了」ボタンから呼び出される
  */
-module.exports = async function handleRideComplete(interaction, rideId) {
-  try {
-    await interaction.deferUpdate();
+module.exports = {
+  async execute(interaction, client, parsed) {
+    const rideId = parsed?.params?.rid;
+    if (!rideId) return;
 
-    const guild = interaction.guild;
-    const guildId = guild.id;
+    try {
+      await interaction.deferUpdate();
 
-    // Active Dispatch データを読み込み
-    const activePath = `${paths.activeDispatchDir(guildId)}/${rideId}.json`;
-    const dispatchData = await store.readJson(activePath).catch(() => null);
+      const guild = interaction.guild;
+      const guildId = guild.id;
 
-    if (!dispatchData) {
-      return interaction.followUp({ content: '⚠️ 送迎データが見つかりません。', flags: 64 });
-    }
+      const activePath = `${paths.activeDispatchDir(guildId)}/${rideId}.json`;
+      const dispatchData = await store.readJson(activePath).catch(() => null);
 
-    const now = new Date();
-    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    const isDriver = interaction.user.id === dispatchData.driverId;
-    const isUser = interaction.user.id === dispatchData.userId;
-    const carpoolIndex = (dispatchData.carpoolUsers || []).findIndex(u => u.userId === interaction.user.id);
+      if (!dispatchData) {
+        return interaction.followUp({ content: '⚠️ 送迎データが見つかりません。', flags: 64 });
+      }
 
-    if (!isDriver && !isUser && carpoolIndex === -1) {
-      return interaction.followUp({
-        content: '⚠️ この送迎の関係者のみが操作できます。',
-        flags: 64,
-      });
-    }
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const isDriver = interaction.user.id === dispatchData.driverId;
+      const isUser = interaction.user.id === dispatchData.userId;
+      const carpoolIndex = (dispatchData.carpoolUsers || []).findIndex(u => u.userId === interaction.user.id);
 
-    // 時刻を記録
-    if (isDriver) {
-      if (dispatchData.driverEndTime)
-        return interaction.followUp({ content: '⚠️ 既に終了済みです。', flags: 64 });
-      dispatchData.driverEndTime = timeStr;
-      await interaction.channel.send(`※送迎終了：送迎者 <@${interaction.user.id}> (${timeStr})`);
-    } else if (isUser) {
-      if (dispatchData.userEndTime)
-        return interaction.followUp({ content: '⚠️ 既に終了済みです。', flags: 64 });
-      dispatchData.userEndTime = timeStr;
-      await interaction.channel.send(`※送迎終了：利用者 <@${interaction.user.id}> (${timeStr})`);
-    } else {
-      // 相乗り者
-      if (dispatchData.carpoolUsers[carpoolIndex].endTime)
-        return interaction.followUp({ content: '⚠️ 既に終了済みです。', flags: 64 });
-      dispatchData.carpoolUsers[carpoolIndex].endTime = timeStr;
-      await interaction.channel.send(`※送迎終了：相乗り者${carpoolIndex + 1} <@${interaction.user.id}> (${timeStr})`);
-    }
+      if (!isDriver && !isUser && carpoolIndex === -1) {
+        return interaction.followUp({
+          content: '⚠️ この送迎の関係者のみが操作できます。',
+          flags: 64,
+        });
+      }
 
-    // 全員が終了を押したか確認
-    const allCarpoolFinished = (dispatchData.carpoolUsers || []).every(u => u.endTime);
-    const isFinished = dispatchData.driverEndTime && dispatchData.userEndTime && allCarpoolFinished;
+      if (isDriver) {
+        if (dispatchData.driverEndTime)
+          return interaction.followUp({ content: '⚠️ 既に終了済みです。', flags: 64 });
+        dispatchData.driverEndTime = timeStr;
+        await interaction.channel.send(`※送迎終了：送迎者 <@${interaction.user.id}> (${timeStr})`);
+      } else if (isUser) {
+        if (dispatchData.userEndTime)
+          return interaction.followUp({ content: '⚠️ 既に終了済みです。', flags: 64 });
+        dispatchData.userEndTime = timeStr;
+        await interaction.channel.send(`※送迎終了：利用者 <@${interaction.user.id}> (${timeStr})`);
+      } else {
+        if (dispatchData.carpoolUsers[carpoolIndex].endTime)
+          return interaction.followUp({ content: '⚠️ 既に終了済みです。', flags: 64 });
+        dispatchData.carpoolUsers[carpoolIndex].endTime = timeStr;
+        await interaction.channel.send(`※送迎終了：相乗り者${carpoolIndex + 1} <@${interaction.user.id}> (${timeStr})`);
+      }
 
-    // 運営者ログの同期 (v1.7.0: 最終ステータス更新)
-    // 個別の「終了」押下時はVCコントロールEmbedの更新(後述)のみ行い、
-    // 全員完了時(isFinished)に 1-Ride-1-Embed を「ENDED」へ移行させる。
+      const allCarpoolFinished = (dispatchData.carpoolUsers || []).every(u => u.endTime);
+      const isFinished = dispatchData.driverEndTime && dispatchData.userEndTime && allCarpoolFinished;
 
-    // データを保存
-    if (isFinished) {
-      dispatchData.completedAt = now.toISOString();
-      dispatchData.status = 'completed';
-    }
-    await store.writeJson(activePath, dispatchData);
+      if (isFinished) {
+        dispatchData.completedAt = now.toISOString();
+        dispatchData.status = 'completed';
+      }
+      await store.writeJson(activePath, dispatchData);
 
-    // Embed更新
-    const { buildVcControlEmbed } = require('../../utils/配車/vcControlEmbedBuilder');
-    const newEmbed = buildVcControlEmbed(dispatchData);
+      const { buildVcControlEmbed } = require('../../../utils/配車/vcControlEmbedBuilder');
+      const newEmbed = buildVcControlEmbed(dispatchData);
 
-    // ボタン更新
-    const currentComponents = interaction.message.components;
-    let newComponents = currentComponents.map((row) => {
-      const newRow = ActionRowBuilder.from(row);
-      newRow.components.forEach((component) => {
-        if (component.customId === interaction.customId) {
-          let label = component.label;
-          if (isDriver && !label.includes('送迎者済')) label += '(送迎者済)';
-          if (isUser && !label.includes('利用者済')) label += '(利用者済)';
-          if (carpoolIndex >= 0 && !label.includes(`相乗り${carpoolIndex + 1}済`)) {
-            label += `(相乗り${carpoolIndex + 1}済)`;
-          }
-          component.setLabel(label);
-
-          if (isFinished) {
-            component.setDisabled(true);
-            component.setStyle(ButtonStyle.Secondary);
-          }
-        }
-      });
-      return newRow;
-    });
-
-    if (isFinished) {
-      // 完了時は全ボタン無効化
-      newComponents = newComponents.map((row) => {
+      const currentComponents = interaction.message.components;
+      let newComponents = currentComponents.map((row) => {
         const newRow = ActionRowBuilder.from(row);
         newRow.components.forEach((component) => {
-          component.setDisabled(true);
-          component.setStyle(ButtonStyle.Secondary);
+          if (component.customId === interaction.customId) {
+            let label = component.label;
+            if (isDriver && !label.includes('送迎者済')) label += '(送迎者済)';
+            if (isUser && !label.includes('利用者済')) label += '(利用者済)';
+            if (carpoolIndex >= 0 && !label.includes(`相乗り${carpoolIndex + 1}済`)) {
+              label += `(相乗り${carpoolIndex + 1}済)`;
+            }
+            component.setLabel(label);
+
+            if (isFinished) {
+              component.setDisabled(true);
+              component.setStyle(ButtonStyle.Secondary);
+            }
+          }
         });
         return newRow;
       });
-    }
 
-    await interaction.editReply({ embeds: [newEmbed], components: newComponents });
-
-    if (!isFinished) return;
-
-    // --- 両方が押した場合の最終終了処理 ---
-
-    // ドライバーの送迎件数を更新
-    const driverData = await loadDriver(guildId, dispatchData.driverId);
-    if (driverData) {
-      driverData.rideCount = (driverData.rideCount || 0) + 1;
-      const driverPath = paths.driverProfileJson(guildId, dispatchData.driverId);
-      await store.writeJson(driverPath, driverData);
-    }
-
-    // Active Dispatch を削除
-    await store.deleteFile(activePath).catch(() => null);
-
-    // 送迎履歴の保存 (3箇所)
-    try {
-      const y = now.getFullYear();
-      const m = now.getMonth() + 1;
-      const d = now.getDate();
-
-      // 1. 全体履歴
-      const globalPath = paths.globalRideHistoryJson(guildId, y, m, d);
-      const globalHistory = await store.readJson(globalPath).catch(() => []);
-      globalHistory.push(dispatchData);
-      await store.writeJson(globalPath, globalHistory);
-
-      // 2. 送迎者別履歴
-      const driverHistoryPath = paths.driverRideHistoryJson(
-        guildId,
-        dispatchData.driverId,
-        y,
-        m,
-        d
-      );
-      const driverHistory = await store.readJson(driverHistoryPath).catch(() => []);
-      driverHistory.push(dispatchData);
-      await store.writeJson(driverHistoryPath, driverHistory);
-
-      // 3. 利用者別履歴
-      const userHistoryPath = paths.userRideHistoryJson(guildId, dispatchData.userId, y, m, d);
-      const userHistory = await store.readJson(userHistoryPath).catch(() => []);
-      userHistory.push(dispatchData);
-      await store.writeJson(userHistoryPath, userHistory);
-    } catch (err) {
-      console.error('送迎履歴保存エラー:', err);
-    }
-
-    // 利用中一覧から削除
-    try {
-      const userInUsePath = paths.userInUseListJson(guildId);
-      const usersInUse = await store.readJson(userInUsePath, []).catch(() => []);
-      const idsToRemove = [dispatchData.userId];
-      if (dispatchData.carpoolUsers) {
-        dispatchData.carpoolUsers.forEach((u) => idsToRemove.push(u.userId));
+      if (isFinished) {
+        newComponents = newComponents.map((row) => {
+          const newRow = ActionRowBuilder.from(row);
+          newRow.components.forEach((component) => {
+            component.setDisabled(true);
+            component.setStyle(ButtonStyle.Secondary);
+          });
+          return newRow;
+        });
       }
-      const updatedUsers = usersInUse.filter((id) => !idsToRemove.includes(id));
-      await store.writeJson(userInUsePath, updatedUsers);
-    } catch (err) {
-      console.error('利用中一覧更新エラー:', err);
-    }
 
-    // 相入り募集メッセージを削除
-    if (dispatchData.carpoolMessageId) {
-      const { loadConfig } = require('../../utils/設定/設定マネージャ');
-      const config = await loadConfig(guildId);
-      const carpoolChId = config.channels?.rideShare;
-      if (carpoolChId) {
-        const carpoolChannel = guild.channels.cache.get(carpoolChId);
-        if (carpoolChannel) {
-          await carpoolChannel.messages.delete(dispatchData.carpoolMessageId).catch(() => null);
+      await interaction.editReply({ embeds: [newEmbed], components: newComponents });
+
+      if (!isFinished) return;
+
+      const driverData = await loadDriver(guildId, dispatchData.driverId);
+      if (driverData) {
+        driverData.rideCount = (driverData.rideCount || 0) + 1;
+        const driverPath = paths.driverProfileJson(guildId, dispatchData.driverId);
+        await store.writeJson(driverPath, driverData);
+      }
+
+      await store.deleteFile(activePath).catch(() => null);
+
+      try {
+        const y = now.getFullYear();
+        const m = now.getMonth() + 1;
+        const d = now.getDate();
+
+        const globalPath = paths.globalRideHistoryJson(guildId, y, m, d);
+        const globalHistory = await store.readJson(globalPath).catch(() => []);
+        globalHistory.push(dispatchData);
+        await store.writeJson(globalPath, globalHistory);
+
+        const driverHistoryPath = paths.driverRideHistoryJson(guildId, dispatchData.driverId, y, m, d);
+        const driverHistory = await store.readJson(driverHistoryPath).catch(() => []);
+        driverHistory.push(dispatchData);
+        await store.writeJson(driverHistoryPath, driverHistory);
+
+        const userHistoryPath = paths.userRideHistoryJson(guildId, dispatchData.userId, y, m, d);
+        const userHistory = await store.readJson(userHistoryPath).catch(() => []);
+        userHistory.push(dispatchData);
+        await store.writeJson(userHistoryPath, userHistory);
+      } catch (err) {
+        console.error('送迎履歴保存エラー:', err);
+      }
+
+      try {
+        const userInUsePath = paths.userInUseListJson(guildId);
+        const usersInUse = await store.readJson(userInUsePath, []).catch(() => []);
+        const idsToRemove = [dispatchData.userId];
+        if (dispatchData.carpoolUsers) {
+          dispatchData.carpoolUsers.forEach((u) => idsToRemove.push(u.userId));
+        }
+        const updatedUsers = usersInUse.filter((id) => !idsToRemove.includes(id));
+        await store.writeJson(userInUsePath, updatedUsers);
+      } catch (err) {
+        console.error('利用中一覧更新エラー:', err);
+      }
+
+      if (dispatchData.carpoolMessageId) {
+        const { loadConfig } = require('../../../utils/設定/設定マネージャ');
+        const config = await loadConfig(guildId);
+        const carpoolChId = config.rideShareChannel;
+        if (carpoolChId) {
+          const carpoolChannel = guild.channels.cache.get(carpoolChId);
+          if (carpoolChannel) {
+            await carpoolChannel.messages.delete(dispatchData.carpoolMessageId).catch(() => null);
+          }
         }
       }
-    }
 
-    // VCチャンネル名を更新
-    const timeHHMM = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
-    if (interaction.channel) {
-      // 現在の名前: MM/DD HH:mm~--:--...
-      // 更新後: MM/DD HH:mm~HH:mm...
-      // replace(/~--:--/, `~${timeStr}`) としたいが、VC名は記号が使えない場合もあるので置換ロジックに注意
-      // createPrivateVcでの生成: `${mm}/${dd} ${matchTime}~--:--`
-      // matchTimeは HH:mm.
-      // 終了時間は HHmm (コロンなし) のフォーマットにする指示があったような...
-      // "送迎終了時間 は未終了時は空欄" -> これはEmbedの話？
-      // "VC名：月日 マッチング時間~送迎終了時間..." -> コロンありかな
-      // 元コードの送迎終了処理では `${endHours}${endMinutes}` だった。
-      // 今回の createPrivateVc では `${matchTime}~--:--` (HH:mm).
-      // ここでは HH:mm に合わせるのが自然。
-
-      const currentName = interaction.channel.name;
-      const updatedName = currentName.replace(/~--:--/, `~${timeStr}`); // HH:mm
-      await interaction.channel.setName(updatedName).catch(() => null);
-    }
-
-    // 運営者ログ (v1.7.0: ENDED)
-    const { updateRideOperatorLog } = require('../../../utils/ログ/rideLogManager');
-    await updateRideOperatorLog({
-      guild: interaction.guild,
-      rideId: rideId,
-      status: 'ENDED',
-      data: {
-        driverId: dispatchData.driverId,
-        userId: dispatchData.userId,
-        area: dispatchData.direction || dispatchData.route || dispatchData.area,
-        count: dispatchData.count,
-        endedAt: now.toISOString(),
+      if (interaction.channel) {
+        const currentName = interaction.channel.name;
+        const updatedName = currentName.replace(/~--:--/, `~${timeStr}`);
+        await interaction.channel.setName(updatedName).catch(() => null);
       }
-    }).catch(() => null);
 
-    // --- 終了メッセージ送信 (削除延長ボタン付き) ---
-    const completionEmbed = new EmbedBuilder()
-      .setTitle('送迎終了しました')
-      .setDescription(
-        '落とし物などのトラブルが無ければ、\n' +
-        '1週間でこのvcチャンネルは削除されます。\n\n' +
-        '※トラブルがあった場合は、\n' +
-        '削除延長を押して下さい。'
-      )
-      .setColor(0xe74c3c); // Red
+      const { updateRideOperatorLog } = require('../../../utils/ログ/rideLogManager');
+      await updateRideOperatorLog({
+        guild: interaction.guild,
+        rideId: rideId,
+        status: 'ENDED',
+        data: {
+          driverId: dispatchData.driverId,
+          userId: dispatchData.userId,
+          area: dispatchData.direction || dispatchData.route || dispatchData.area,
+          count: dispatchData.count,
+          endedAt: now.toISOString(),
+        }
+      }).catch(() => null);
 
-    const completionRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('ride|control|sub=extend') // rideId不要 (VC依存)
-        .setLabel('削除延長')
-        .setStyle(ButtonStyle.Danger)
-    );
+      const completionEmbed = new EmbedBuilder()
+        .setTitle('送迎終了しました')
+        .setDescription(
+          '落とし物などのトラブルが無ければ、\n' +
+          '1週間でこのvcチャンネルは削除されます。\n\n' +
+          '※トラブルがあった場合は、\n' +
+          '削除延長を押して下さい。'
+        )
+        .setColor(0xe74c3c);
 
-    await interaction.channel.send({ embeds: [completionEmbed], components: [completionRow] });
+      const completionRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('ride|control|sub=extend')
+          .setLabel('削除延長')
+          .setStyle(ButtonStyle.Danger)
+      );
 
-    // --- ログ保持期間の設定 (デフォルト7日後) ---
-    const DAY = 1000 * 60 * 60 * 24;
-    const expiresAt = new Date(now.getTime() + DAY * 7);
+      await interaction.channel.send({ embeds: [completionEmbed], components: [completionRow] });
 
-    await updateVcState(guildId, interaction.channel.id, {
-      endedAt: now.toISOString(),
-      expiresAt: expiresAt.toISOString(),
-    });
+      const DAY = 1000 * 60 * 60 * 24;
+      const expiresAt = new Date(now.getTime() + DAY * 7);
 
-    // --- 口コミ評価DM送信 ---
-    await sendRatingDM(guild, dispatchData);
-  } catch (error) {
-    console.error('送迎終了エラー:', error);
-    await interaction
-      .followUp({ content: '⚠️ エラーが発生しました。', flags: 64 })
-      .catch(() => null);
+      await updateVcState(guildId, interaction.channel.id, {
+        endedAt: now.toISOString(),
+        expiresAt: expiresAt.toISOString(),
+      });
+
+      await sendRatingDM(guild, dispatchData);
+    } catch (error) {
+      console.error('送迎終了エラー:', error);
+      await interaction
+        .followUp({ content: '⚠️ エラーが発生しました。', flags: 64 })
+        .catch(() => null);
+    }
   }
 };

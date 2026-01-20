@@ -1,10 +1,10 @@
 // handler/相乗り/相乗り希望.js
-const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
+const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 
 module.exports = {
-  execute: async function (interaction, parsed) {
+  execute: async function (interaction, client, parsed) {
     // carpool|join|rid={rideId}
     const rideId = parsed?.params?.rid;
 

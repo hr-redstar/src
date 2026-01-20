@@ -1,13 +1,13 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { getGuildRanking } = require('./集計ロジック');
-const autoInteractionTemplate = require('../../../共通/autoInteractionTemplate');
+const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
-const buildPanelEmbed = require('../../../../utils/embed/embedTemplate');
+const buildPanelEmbed = require('../../../utils/embed/embedTemplate');
 
 /**
  * 統計ダッシュボード（ランキング）ハンドラー
  */
-async function showDashboard(interaction) {
+async function showDashboard(interaction, client, parsed) {
     return autoInteractionTemplate(interaction, {
         adminOnly: true,
         ack: ACK.AUTO,
