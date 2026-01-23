@@ -29,7 +29,9 @@ async function autoInteractionTemplate(interaction, options) {
     // ===== 1. 即時 ACK (3秒ルール対策) =====
     // 何らかの重い処理（管理者判定のDBロード等）の前に必ず deferReply する。
     // deferUpdate は editReply との相性やパネルの秘匿性管理の観点から使用しない方針。
-    if (ack !== ACK.NONE && !interaction.replied && !interaction.deferred) {
+    // ⚠️ ただし、モーダル（showModal）を表示する場合は defer してはいけない
+    const isModalTrigger = interaction.customId?.includes('dest_modal_trigger');
+    if (ack !== ACK.NONE && !isModalTrigger && !interaction.replied && !interaction.deferred) {
       await interaction.deferReply({
         flags: MessageFlags.Ephemeral,
       });

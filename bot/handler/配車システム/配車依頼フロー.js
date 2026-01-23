@@ -6,62 +6,62 @@ const {
   EmbedBuilder,
 } = require('discord.js');
 const { loadConfig } = require('../../utils/設定/設定マネージャ');
+const store = require('../../utils/ストレージ/ストア共通');
+const paths = require('../../utils/ストレージ/ストレージパス');
 const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 
 /**
- * 配車依頼フロー（ボタンのみの対話型）
+ * 配車依頼フロー (v2.8.0)
+ * 方面選択 -> 人数選択 -> 確認 -> 実行
  */
 module.exports = {
   execute: async function (interaction, client, parsed) {
-    const step = parsed?.params?.sub || 'type';
-    const type = parsed?.params?.type || '';
+    const sub = parsed?.params?.sub || 'direction';
+    const type = parsed?.params?.type || 'cast';
+    const dirIdx = parsed?.params?.dir_idx !== undefined ? parseInt(parsed.params.dir_idx) : -1;
     const direction = parsed?.params?.dir || '';
-    const count = parsed?.params?.cnt || '';
-
-    const isModalTrigger = step === 'dest_modal_trigger' || step === 'carpool_join';
+    const persons = parsed?.params?.p || '';
 
     return autoInteractionTemplate(interaction, {
-      ack: isModalTrigger ? ACK.NONE : (step === 'type' ? ACK.REPLY : ACK.AUTO),
+      ack: (sub === 'direction' ? ACK.REPLY : ACK.AUTO),
       async run(interaction) {
-        if (step === 'type') {
-          return showTypeSelection(interaction);
-        }
-        if (step === 'direction') {
-          return showDirectionSelection(interaction, type);
-        }
-        if (step === 'dest_input') {
-          return showDestInput(interaction, type, direction);
-        }
-        if (step === 'dest_modal_trigger') {
-          return handleDestModalTrigger(interaction, type, direction);
-        }
-        if (step === 'dest_modal') {
-          return handleDestModal(interaction, type, direction);
-        }
-        if (step === 'count') {
-          return showCountSelection(interaction, type, direction, parsed?.params?.dest);
-        }
-        if (step === 'confirm') {
-          return showConfirmation(interaction, type, direction, count, parsed?.params?.dest);
-        }
-        if (step === 'execute') {
-          return executeDispatch(interaction, type, direction, count, parsed?.params?.dest);
-        }
-        if (step === 'heading') {
-          return handleHeading(interaction, parsed?.params?.did);
-        }
-        if (step === 'ride_start') {
-          return handleRideStart(interaction, parsed?.params?.did);
-        }
-        if (step === 'complete') {
-          return handleComplete(interaction, parsed?.params?.did);
-        }
-        if (step === 'carpool_join') {
-          return handleCarpoolJoin(interaction, parsed?.params?.rid);
-        }
-        if (step === 'carpool_modal') {
-          return handleCarpoolModal(interaction, parsed?.params?.rid);
+        switch (sub) {
+          case 'direction':
+            return showDirectionSelection(interaction, type);
+          case 'persons':
+            return showPersonsSelection(interaction, type, dirIdx, direction);
+          case 'guest_modal':
+            return showGuestModal(interaction);
+          case 'confirm':
+            // セレクトメニューからの場合は values から取得
+            const selectedPersons = interaction.values ? interaction.values[0] : persons;
+            return showConfirmation(interaction, type, dirIdx, direction, selectedPersons);
+          case 'dest_modal':
+            return handleDestModal(interaction, type, dirIdx, direction, persons);
+          case 'execute':
+            return executeDispatch(interaction, type, dirIdx, direction, persons);
+          case 'cancel':
+            return interaction.editReply({ content: '❌ 配車依頼をキャンセルしました。', embeds: [], components: [] });
+
+          // 既存の運行管理系 (did)
+          case 'heading':
+            return handleHeading(interaction, parsed?.params?.did);
+          case 'ride_start':
+            return handleRideStart(interaction, parsed?.params?.did);
+          case 'complete':
+            return handleComplete(interaction, parsed?.params?.did);
+
+          // 相乗り
+          case 'carpool_join':
+            return handleCarpoolJoin(interaction, parsed?.params?.rid);
+          case 'carpool_modal':
+            return handleCarpoolModal(interaction, parsed?.params?.rid);
+          case 'wait_for_driver':
+            return handleWaitForDriver(interaction, type, dirIdx, direction, persons);
+
+          default:
+            return showDirectionSelection(interaction, type);
         }
       },
     });
@@ -69,39 +69,20 @@ module.exports = {
 };
 
 /**
- * STEP 1: 種別選択 [キャスト] or [ゲスト]
- */
-async function showTypeSelection(interaction) {
-  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
-  const embed = buildPanelEmbed({
-    title: '🚕 配車依頼 - 種別選択',
-    description: 'ご乗車される方の種別を選択してください。',
-    color: 0x3498db,
-    client: interaction.client
-  });
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`dispatch|order|sub=direction&type=cast`)
-      .setLabel('キャスト')
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId(`dispatch|order|sub=direction&type=guest`)
-      .setLabel('ゲスト(お客様)')
-      .setStyle(ButtonStyle.Secondary)
-  );
-
-  await interaction.editReply({ embeds: [embed], components: [row] });
-}
-
-/**
- * STEP 2: 方面選択
+ * STEP 1: 方面選択
  */
 async function showDirectionSelection(interaction, type) {
-  const config = await loadConfig(interaction.guildId);
-  const directions = config.directions || ['立川方面', '八王子市内', '相模原方面', 'その他'];
-
   const buildPanelEmbed = require('../../utils/embed/embedTemplate');
+
+  // 運営設定から方角リストを読み込む
+  const dirListPath = paths.directionsListJson(interaction.guildId);
+  const directionsList = await store.readJson(dirListPath, []).catch(() => []);
+
+  // 有効な方角のみを抽出
+  const directions = directionsList
+    .filter((d) => d.enabled !== false)
+    .map((d) => d.name.replace(/【|】/g, ''));
+
   const embed = buildPanelEmbed({
     title: '🗺️ 配車依頼 - 方面選択',
     description: '目的地（方面）を選択してください。',
@@ -112,62 +93,79 @@ async function showDirectionSelection(interaction, type) {
     client: interaction.client
   });
 
-  // ボタンが多すぎる場合はセレクトメニューに切り替えるが、まずはボタンで実装
   const rows = [];
   let currentRow = new ActionRowBuilder();
 
-  directions.forEach((dir, index) => {
-    if (index > 0 && index % 5 === 0) {
-      rows.push(currentRow);
-      currentRow = new ActionRowBuilder();
-    }
+  if (directions.length === 0) {
+    // 方面が登録されていない場合
     currentRow.addComponents(
       new ButtonBuilder()
-        .setCustomId(`dispatch|order|sub=dest_input&type=${type}&dir=${dir}`)
-        .setLabel(dir)
-        .setStyle(ButtonStyle.Success)
+        .setCustomId(`dispatch|order|sub=persons&type=${type}&dir_idx=-1`)
+        .setLabel('指定なし (そのまま進む)')
+        .setStyle(ButtonStyle.Secondary)
     );
-  });
-  rows.push(currentRow);
-
-  // 戻るボタン
-  const navRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`dispatch|order|sub=type`)
-      .setLabel('← 戻る')
-      .setStyle(ButtonStyle.Danger)
-  );
-  rows.push(navRow);
+    rows.push(currentRow);
+  } else {
+    // 各方角ボタンを5列x5行まで表示（インデックスを使用）
+    directions.forEach((dir, index) => {
+      if (index > 0 && index % 5 === 0) {
+        rows.push(currentRow);
+        currentRow = new ActionRowBuilder();
+      }
+      currentRow.addComponents(
+        new ButtonBuilder()
+          .setCustomId(`dispatch|order|sub=persons&type=${type}&dir_idx=${index}`)
+          .setLabel(dir.substring(0, 20)) // ボタンラベルは20文字まで
+          .setStyle(ButtonStyle.Success)
+      );
+    });
+    rows.push(currentRow);
+  }
 
   await interaction.editReply({ embeds: [embed], components: rows });
 }
 
 /**
- * STEP 2.5: 目的地ボタン表示
+ * STEP 2: 人数選択
  */
-async function showDestInput(interaction, type, direction) {
+async function showPersonsSelection(interaction, type, dirIdx, direction) {
   const buildPanelEmbed = require('../../utils/embed/embedTemplate');
+
+  // インデックスから方面名を取得
+  let displayDir = direction || '指定なし';
+  if (dirIdx >= 0) {
+    const dirListPath = paths.directionsListJson(interaction.guildId);
+    const directionsList = await store.readJson(dirListPath, []).catch(() => []);
+    const validDirs = directionsList.filter((d) => d.enabled !== false);
+    if (dirIdx < validDirs.length) {
+      displayDir = validDirs[dirIdx].name.replace(/【|】/g, '');
+    }
+  }
+
   const embed = buildPanelEmbed({
-    title: '🎯 配車依頼 - 目的地入力',
-    description: '具体的な目的地を入力してください（任意）。\n※入力が難しい場合は、そのまますすめることも可能です。',
+    title: '👥 配車依頼 - 人数選択',
+    description: 'ご乗車される人数を選択してください。',
     fields: [
-      { name: '👤 依頼種別', value: type === 'cast' ? 'キャスト' : 'ゲスト', inline: true },
-      { name: '🗺️ 指定方面', value: direction, inline: true }
+      { name: '👤 種別', value: type === 'cast' ? 'キャスト' : 'ゲスト', inline: true },
+      { name: '🗺️ 方面', value: displayDir, inline: true }
     ],
     color: 0x3498db,
     client: interaction.client
   });
 
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`dispatch|order|sub=dest_modal_trigger&type=${type}&dir=${direction}`)
-      .setLabel('🎯 目的地を入力する')
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId(`dispatch|order|sub=count&type=${type}&dir=${direction}&dest=`)
-      .setLabel('スキップして次へ')
-      .setStyle(ButtonStyle.Secondary)
-  );
+  const select = new StringSelectMenuBuilder()
+    .setCustomId(`dispatch|order|sub=confirm&type=${type}&dir_idx=${dirIdx}`)
+    .setPlaceholder('人数を選択してください')
+    .addOptions([
+      { label: '1名', value: '1', emoji: '👤' },
+      { label: '2名', value: '2', emoji: '👥' },
+      { label: '3名', value: '3' },
+      { label: '4名', value: '4' },
+      { label: '5名', value: '5' },
+      { label: '6名', value: '6' },
+    ]);
+
+  const row = new ActionRowBuilder().addComponents(select);
 
   const navRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -180,147 +178,195 @@ async function showDestInput(interaction, type, direction) {
 }
 
 /**
- * MODAL TRIGGER (Modal logic is usually outside autoInteractionTemplate for showing, but handle inside)
+ * STEP 2 (Guest Only): ゲスト用入力モーダル
  */
-async function handleDestModalTrigger(interaction, type, direction) {
+async function showGuestModal(interaction) {
   const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
   const modal = new ModalBuilder()
-    .setCustomId(`dispatch|order|sub=dest_modal&type=${type}&dir=${direction}`)
-    .setTitle('目的地入力');
+    .setCustomId(`dispatch|order|sub=dest_modal&type=guest`)
+    .setTitle('ゲスト送迎依頼入力');
 
-  const destInp = new TextInputBuilder()
-    .setCustomId('dest')
-    .setLabel('具体的な目的地 (任意)')
-    .setPlaceholder('例: 〇〇ホテル、△△交差点')
-    .setStyle(TextInputStyle.Short)
-    .setRequired(false);
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(
+      new TextInputBuilder()
+        .setCustomId('destination')
+        .setLabel('目的地・店名など')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('例：〇〇ホテル、△△ビル前')
+        .setRequired(true)
+    ),
+    new ActionRowBuilder().addComponents(
+      new TextInputBuilder()
+        .setCustomId('count')
+        .setLabel('乗車人数 (1-6)')
+        .setStyle(TextInputStyle.Short)
+        .setValue('1')
+        .setMaxLength(1)
+        .setRequired(true)
+    ),
+    new ActionRowBuilder().addComponents(
+      new TextInputBuilder()
+        .setCustomId('note')
+        .setLabel('補足情報（目印・連絡事項など）')
+        .setStyle(TextInputStyle.Paragraph)
+        .setPlaceholder('例：東口のタクシー乗り場付近にいます')
+        .setRequired(false)
+    )
+  );
 
-  modal.addComponents(new ActionRowBuilder().addComponents(destInp));
   await interaction.showModal(modal);
 }
 
 /**
- * STEP 2.6: 目的地モーダル受付
+ * STEP 3 (Guest Only): モーダル処理
  */
-async function handleDestModal(interaction, type, direction) {
-  const dest = interaction.fields.getTextInputValue('dest') || '';
-  return showCountSelection(interaction, type, direction, dest);
-}
+async function handleDestModal(interaction, type, direction, persons) {
+  const destination = interaction.fields.getTextInputValue('destination');
+  const count = interaction.fields.getTextInputValue('count');
+  const note = interaction.fields.getTextInputValue('note');
 
-/**
- * STEP 3: 人数選択
- */
-async function showCountSelection(interaction, type, direction, dest) {
-  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
-  const embed = buildPanelEmbed({
-    title: '👥 配車依頼 - 人数選択',
-    description: 'ご乗車される人数を選択してください。',
-    fields: [
-      { name: '👤 種別', value: type === 'cast' ? 'キャスト' : 'ゲスト', inline: true },
-      { name: '🗺️ 方面', value: direction, inline: true },
-      { name: '📍 目的地', value: dest || '(未入力)', inline: false }
-    ],
-    color: 0x3498db,
-    client: interaction.client
-  });
-
-  const row = new ActionRowBuilder().addComponents(
-    [1, 2, 3, 4, 5].map((n) =>
-      new ButtonBuilder()
-        .setCustomId(`dispatch|order|sub=confirm&type=${type}&dir=${direction}&dest=${dest}&cnt=${n}`)
-        .setLabel(`${n}人`)
-        .setStyle(ButtonStyle.Primary)
-    )
-  );
-
-  const navRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`dispatch|order|sub=dest_input&type=${type}&dir=${direction}`)
-      .setLabel('← 戻る')
-      .setStyle(ButtonStyle.Danger)
-  );
-
-  await interaction.editReply({ embeds: [embed], components: [row, navRow] });
+  // ゲストの場合は方面(direction)は「指定なし」または「ゲスト」として扱う
+  return showConfirmation(interaction, type, 'ゲスト（直接入力）', count, destination, note);
 }
 
 /**
  * STEP 4: 最終確認
  */
-async function showConfirmation(interaction, type, direction, count, dest) {
+async function showConfirmation(interaction, type, dirIdx, direction, persons, destination = '', note = '') {
   const buildPanelEmbed = require('../../utils/embed/embedTemplate');
+
+  // インデックスから方面名を取得
+  let displayDir = direction || '指定なし';
+  if (dirIdx >= 0) {
+    const dirListPath = paths.directionsListJson(interaction.guildId);
+    const directionsList = await store.readJson(dirListPath, []).catch(() => []);
+    const validDirs = directionsList.filter((d) => d.enabled !== false);
+    if (dirIdx < validDirs.length) {
+      displayDir = validDirs[dirIdx].name.replace(/【|】/g, '');
+    }
+  }
+
+  const fields = [
+    { name: '👤 種別', value: type === 'cast' ? 'キャスト' : 'ゲスト', inline: true },
+    { name: '🗺️ 方面', value: displayDir, inline: true },
+    { name: '👥 人数', value: `${persons}名`, inline: true }
+  ];
+
+  if (destination) {
+    fields.push({ name: '📍 目的地', value: destination, inline: false });
+  }
+  if (note) {
+    fields.push({ name: '📝 補足', value: note, inline: false });
+  }
+
   const embed = buildPanelEmbed({
-    title: '🚕 配車依頼 - 最終確認',
+    title: '🚕 配車依頼 - 内容確認',
     description: '以下の内容で配車を依頼します。内容に間違いがないかご確認ください。',
-    fields: [
-      { name: '👤 種別', value: type === 'cast' ? 'キャスト' : 'ゲスト', inline: true },
-      { name: '🗺️ 方面', value: direction, inline: true },
-      { name: '📍 目的地', value: dest || '(未入力)', inline: false },
-      { name: '👥 人数', value: `${count}名`, inline: true }
-    ],
-    color: 0xf1c40f, // Yellow/Gold for confirmation
+    fields,
+    color: 0xf1c40f,
     client: interaction.client
   });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId(`dispatch|order|sub=execute&type=${type}&dir=${direction}&dest=${dest}&cnt=${count}`)
+      .setCustomId(`dispatch|order|sub=execute&type=${type}&dir_idx=${dirIdx}&p=${persons}${destination ? `&dest=${destination}` : ''}${note ? `&nt=${note}` : ''}`)
       .setLabel('配車を確定する')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
-      .setCustomId(`dispatch|order|sub=count&type=${type}&dir=${direction}&dest=${dest}`)
-      .setLabel('やり直す')
-      .setStyle(ButtonStyle.Danger)
+      .setCustomId(`dispatch|order|sub=cancel`)
+      .setLabel('キャンセル')
+      .setStyle(ButtonStyle.Secondary)
   );
 
   await interaction.editReply({ embeds: [embed], components: [row] });
 }
 
 /**
- * STEP 5: 実行（マッチングロジック呼び出し）
+ * STEP 5: 実行
  */
-async function executeDispatch(interaction, type, direction, count, dest) {
-  // ここでFIFO先頭ドライバーを取得し、マッチング処理を行う
+async function executeDispatch(interaction, type, dirIdx, direction, persons) {
   const { popNextDriver } = require('../../utils/配車/待機列マネージャ');
-  const driver = await popNextDriver(interaction.guildId);
+  const createDispatchVC = require('../送迎処理/createDispatchVC');
+  const config = await loadConfig(interaction.guildId);
 
-  if (!driver) {
+  // インデックスから方面名を取得
+  let finalDirection = direction || '指定なし';
+  if (dirIdx >= 0) {
+    const dirListPath = paths.directionsListJson(interaction.guildId);
+    const directionsList = await store.readJson(dirListPath, []).catch(() => []);
+    const validDirs = directionsList.filter((d) => d.enabled !== false);
+    if (dirIdx < validDirs.length) {
+      finalDirection = validDirs[dirIdx].name.replace(/【|】/g, '');
+    }
+  }
+
+  // interaction.customId からパースするのが確実
+  const urlParts = interaction.customId.split('?')[1];
+  const query = urlParts ? new URLSearchParams(urlParts) : null;
+  const dest = query ? query.get('dest') : '';
+  const note = query ? query.get('nt') : '';
+
+  // 1. マッチング処理
+  const driverData = await popNextDriver(interaction.guildId);
+  if (!driverData) {
+    const waitEmbed = new EmbedBuilder()
+      .setTitle('⚠️ 送迎車不在')
+      .setDescription('申し訳ありません、現在待機中の送迎車がいません。\n送迎車が空くまで「待機リスト」に登録して待ちますか？')
+      .setColor(0xf1c40f);
+
+    const waitRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`dispatch|order|sub=wait_for_driver&type=${type}&dir_idx=${dirIdx}&p=${persons}${dest ? `&dest=${dest}` : ''}${note ? `&nt=${note}` : ''}`)
+        .setLabel('待機リストに登録する')
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(`dispatch|order|sub=cancel`)
+        .setLabel('キャンセル')
+        .setStyle(ButtonStyle.Secondary)
+    );
+
     return interaction.editReply({
-      content:
-        '⚠️ 現在、待機中の送迎車がいません。しばらく経ってから再度お試しいただくか、担当者へ直接ご連絡ください。',
-      embeds: [],
-      components: [],
+      embeds: [waitEmbed],
+      components: [waitRow]
     });
   }
 
-  // マッチング成功
-  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
-  const embed = buildPanelEmbed({
-    title: '✅ 配車マッチング成功！',
-    description: `<@${driver.userId}> さんが配車されました。\n専用の連絡チャンネルを作成しました。`,
-    fields: [
-      { name: '👤 種別', value: type === 'cast' ? 'キャスト' : 'ゲスト', inline: true },
-      { name: '🗺️ 方面/目的地', value: dest ? `${direction} / ${dest}` : direction, inline: true },
-      { name: '👥 人数', value: `${count}名`, inline: true }
-    ],
-    color: 0x2ecc71,
-    client: interaction.client
+  const rideId = `${Date.now()}_${interaction.user.id}`;
+  const dispatchData = {
+    rideId,
+    userId: interaction.user.id,
+    driverId: driverData.userId,
+    driverPlace: driverData.stopPlace || '不明',
+    direction: finalDirection,
+    count: parseInt(persons),
+    destination: dest || finalDirection, // モーダル入力があればそれを使用
+    note: note, // ゲスト用の補足情報
+    status: 'dispatching',
+    startedAt: new Date().toISOString(),
+    guest: type === 'guest',
+  };
+
+  // 2. VC作成 & 通知 (共通ロジックに委譲)
+  await createDispatchVC({
+    guild: interaction.guild,
+    requester: interaction.user,
+    driverId: driverData.userId,
+    driverPlace: dispatchData.driverPlace,
+    dispatchData,
+    config
   });
 
-  await interaction.editReply({ embeds: [embed], components: [] });
+  // 3. 完了応答は createDispatchVC 内で完結させることも可能だが、
+  // editReply の最終的なメッセージをここで出す
+  const successEmbed = new EmbedBuilder()
+    .setTitle('✅ 配車依頼完了')
+    .setDescription(`[${dispatchData.driverPlace}] 待機中の <@${driverData.userId}> とマッチングしました。\nDMを確認し、プライベートVCへ参加してください。`)
+    .setColor(0x00ff00);
 
-  // 相乗り募集判定（キャストかつ特定条件）
-  if (type === 'cast') {
-    const { handleCarpoolRecruitment } = require('./相乗り処理');
-    await handleCarpoolRecruitment(
-      interaction.guild,
-      interaction.user,
-      direction,
-      count,
-      dispatchId,
-      dest
-    );
-  }
+  await interaction.editReply({ content: null, embeds: [successEmbed], components: [] });
 }
+
+/** --- 運行管理系ロジック (既存維持・一部調整) --- **/
 
 /**
  * 向かっています処理
@@ -344,11 +390,11 @@ async function handleHeading(interaction, dispatchId) {
     title: '🚙 向かっています',
     description: `送迎者が目的地へ向かっています。もう少々お待ちください。`,
     fields: [
-      { name: '👤 依頼者', value: data.passengerTag || `<@${data.passengerId}>`, inline: true },
+      { name: '👤 依頼者', value: data.passengerTag || `<@${data.userId}>`, inline: true },
       { name: '🗺️ 方面/目的地', value: data.direction, inline: true },
       { name: '⏱️ 向かっています', value: timeStr, inline: false }
     ],
-    color: 0x3498db, // Blue
+    color: 0x3498db,
     client: interaction.client
   });
 
@@ -387,14 +433,12 @@ async function handleRideStart(interaction, dispatchId) {
   const timeStr = now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 
   data.status = 'riding';
-  // 送迎者と利用者の区別が必要だが、ひとまず押した人の名前で記録
   const rolePrefix = interaction.user.id === data.driverId ? '送迎者' : '利用者';
   if (rolePrefix === '送迎者') data.driverStartTime = timeStr;
   else data.userStartTime = timeStr;
 
   await store.writeJson(activePath, data);
 
-  // 運営者ログ (v1.3.8)
   if (data.driverStartTime && data.userStartTime) {
     const { updateRideOperatorLog } = require('../../utils/ログ/rideLogManager');
     await updateRideOperatorLog({
@@ -403,7 +447,7 @@ async function handleRideStart(interaction, dispatchId) {
       status: 'STARTED',
       data: {
         driverId: data.driverId,
-        userId: data.passengerId,
+        userId: data.userId,
         area: data.direction,
       }
     }).catch(() => null);
@@ -414,12 +458,12 @@ async function handleRideStart(interaction, dispatchId) {
     title: '🚀 送迎開始',
     description: `送迎が開始されました。安全運転でお願いいたします。`,
     fields: [
-      { name: '👤 依頼者', value: data.passengerTag || `<@${data.passengerId}>`, inline: true },
+      { name: '👤 依頼者', value: data.passengerTag || `<@${data.userId}>`, inline: true },
       { name: '🚗 送迎者', value: `<@${data.driverId}>`, inline: true },
       { name: '⏱️ 送迎者開始', value: data.driverStartTime || '--:--', inline: true },
       { name: '⏱️ 利用者開始', value: data.userStartTime || '--:--', inline: true }
     ],
-    color: 0xf1c40f, // Yellow/Gold
+    color: 0xf1c40f,
     client: interaction.client
   });
 
@@ -433,7 +477,7 @@ async function handleRideStart(interaction, dispatchId) {
       .setCustomId(`dispatch|order|sub=ride_start&did=${dispatchId}`)
       .setLabel('送迎開始')
       .setStyle(ButtonStyle.Success)
-      .setDisabled(data.driverStartTime && data.userStartTime), // 両方押されていれば無効化
+      .setDisabled(data.driverStartTime && data.userStartTime),
     new ButtonBuilder()
       .setCustomId(`dispatch|order|sub=complete&did=${dispatchId}`)
       .setLabel('送迎終了')
@@ -457,12 +501,10 @@ async function handleComplete(interaction, dispatchId) {
   const now = new Date();
   const timeStr = now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 
-  // ステータス更新
   const rolePrefix = interaction.user.id === data.driverId ? '送迎者' : '利用者';
   if (rolePrefix === '送迎者') data.driverEndTime = timeStr;
   else data.userEndTime = timeStr;
 
-  // 両方の完了を待つロジックを入れる場合はここで判定
   const isBothCompleted = data.driverEndTime && data.userEndTime;
   if (isBothCompleted) {
     data.status = 'finished';
@@ -481,7 +523,7 @@ async function handleComplete(interaction, dispatchId) {
       { name: '⏱️ 送迎者終了', value: data.driverEndTime || '--:--', inline: true },
       { name: '⏱️ 利用者終了', value: data.userEndTime || '--:--', inline: true }
     ],
-    color: isBothCompleted ? 0x95a5a6 : 0xe74c3c, // Gray for completed, Red for partial
+    color: isBothCompleted ? 0x95a5a6 : 0xe74c3c,
     client: interaction.client
   });
 
@@ -502,7 +544,7 @@ async function handleComplete(interaction, dispatchId) {
         .setCustomId(`dispatch|order|sub=complete&did=${dispatchId}`)
         .setLabel('送迎終了')
         .setStyle(ButtonStyle.Danger)
-        .setDisabled(interaction.user.id === data.driverId ? data.driverEndTime : data.userEndTime) // 自分が押したら無効化
+        .setDisabled(interaction.user.id === data.driverId ? data.driverEndTime : data.userEndTime)
     );
     rowArr.push(row);
   }
@@ -510,7 +552,6 @@ async function handleComplete(interaction, dispatchId) {
   await interaction.editReply({ embeds: [embed], components: rowArr });
 
   if (isBothCompleted) {
-    // 運営者ログ (v1.3.8)
     const { updateRideOperatorLog } = require('../../utils/ログ/rideLogManager');
     await updateRideOperatorLog({
       guild: interaction.guild,
@@ -518,16 +559,14 @@ async function handleComplete(interaction, dispatchId) {
       status: 'ENDED',
       data: {
         driverId: data.driverId,
-        userId: data.passengerId,
+        userId: data.userId,
         area: data.direction,
       }
     }).catch(() => null);
 
-    // 0. 統計更新
     const { incrementStat } = require('../../utils/ストレージ/統計ストア');
     await incrementStat(interaction.guildId, 'ride_completed').catch(() => null);
 
-    // 1. ログアーカイブ処理 (全体履歴へ移動)
     try {
       const y = now.getFullYear();
       const m = now.getMonth() + 1;
@@ -536,7 +575,6 @@ async function handleComplete(interaction, dispatchId) {
       const logPath = `${logDir}/${dispatchId}.json`;
       await store.writeJson(logPath, data);
 
-      // 1-B. 送迎者個別ログ
       if (data.driverId) {
         const driverHistoryPath = paths.driverRideHistoryJson(interaction.guildId, data.driverId, y, m, d);
         await store.updateJson(driverHistoryPath, (existing) => {
@@ -545,9 +583,8 @@ async function handleComplete(interaction, dispatchId) {
           return existing;
         });
       }
-      // 1-C. 利用者個別ログ
-      if (data.passengerId) {
-        const userHistoryPath = paths.userRideHistoryJson(interaction.guildId, data.passengerId, y, m, d);
+      if (data.userId) {
+        const userHistoryPath = paths.userRideHistoryJson(interaction.guildId, data.userId, y, m, d);
         await store.updateJson(userHistoryPath, (existing) => {
           if (!existing || !Array.isArray(existing)) return [data];
           existing.push(data);
@@ -558,28 +595,24 @@ async function handleComplete(interaction, dispatchId) {
       console.error('ログ保存失敗', err);
     }
 
-    // 2. ドライバーを待機列に戻す
     const { pushToQueue } = require('../../utils/配車/待機列マネージャ');
     await pushToQueue(interaction.guildId, data.driverId);
 
-    // 3. チャットログアーカイブ (仕様 #13)
     const { archiveChatToMemo } = require('../../utils/チャットアーカイブ');
     const archiveInfo = {
       guild: interaction.guild,
       channel: interaction.channel,
       dispatchId,
-      title: `${data.direction} (${data.passengerTag} 様)`,
+      title: `${data.direction} (${interaction.user.tag} 様)`,
     };
     await archiveChatToMemo({ ...archiveInfo, userId: data.driverId }).catch(() => null);
-    await archiveChatToMemo({ ...archiveInfo, userId: data.passengerId }).catch(() => null);
+    await archiveChatToMemo({ ...archiveInfo, userId: data.userId }).catch(() => null);
 
-    // 4. アクティブからは削除せず
     await store.deleteFile(activePath).catch(() => null);
 
-    // 5. VC終了アナウンス
     const finishEmbed = new EmbedBuilder()
       .setTitle('✅ 送迎終了しました')
-      .setDescription('落とし物などのトラブルがなければ、\n1週間でこのVCチャンネルは削除されます。\n\n※トラブルがあった場合は、削除延長を押してください。')
+      .setDescription('落とし物などのトラブルがなければ、\n1週間でこのVCチャンネルは削除されます。')
       .setColor(0x00ff00);
 
     const finishRow = new ActionRowBuilder().addComponents(
@@ -589,11 +622,9 @@ async function handleComplete(interaction, dispatchId) {
         .setStyle(ButtonStyle.Secondary)
     );
 
-    // 古いボタン列を消去
     await interaction.editReply({ components: [] });
     await interaction.followUp({ embeds: [finishEmbed], components: [finishRow] });
 
-    // 5. パネル更新
     const updateRideListPanel = require('../送迎処理/一覧パネル更新');
     const { updateDriverPanel } = require('../送迎パネル/メイン');
     await Promise.all([
@@ -601,7 +632,6 @@ async function handleComplete(interaction, dispatchId) {
       updateDriverPanel(interaction.guild, interaction.client),
     ]).catch(() => null);
 
-    // 6. 相互評価DM送信
     const { sendRatingDM } = require('./評価システム');
     await sendRatingDM(interaction.guild, data).catch((err) => console.error('評価DM送信失敗', err));
   }
@@ -625,7 +655,6 @@ async function handleCarpoolJoin(interaction, rideId) {
     .setMaxLength(1);
 
   modal.addComponents(new ActionRowBuilder().addComponents(countInp));
-  // モーダルを表示
   await interaction.showModal(modal);
 }
 
@@ -640,59 +669,67 @@ async function handleCarpoolModal(interaction, rideId) {
   const carpoolData = await store.readJson(cpPath).catch(() => null);
   if (!carpoolData) return interaction.editReply('⚠️ 募集データが見つかりません。');
 
-  // 配車中データの取得
   const activePath = `${paths.activeDispatchDir(interaction.guildId)}/${carpoolData.dispatchId}.json`;
   const dispatchData = await store.readJson(activePath).catch(() => null);
   if (!dispatchData) return interaction.editReply('⚠️ 配車が既に終了しているか見つかりません。');
 
-  // 重複チェック
   if (carpoolData.currentUsers.some((u) => u.userId === interaction.user.id)) {
     return interaction.editReply('⚠️ 既に相乗りリストに含まれています。');
   }
 
-  // データ更新
   carpoolData.currentUsers.push({ userId: interaction.user.id, count: parseInt(count) });
   await store.writeJson(cpPath, carpoolData);
 
-  // 統計更新
-  const { incrementStat } = require('../../utils/ストレージ/統計ストア');
-  await incrementStat(interaction.guildId, 'carpool_joined').catch(() => null);
+  await interaction.editReply('✅ 相乗りに参加しました。VCで合流してください。');
+}
 
-  // プライベートチャンネルへの権限追加
-  const { PermissionFlagsBits } = require('discord.js');
-  const channel = await interaction.guild.channels.fetch(dispatchData.channelId).catch(() => null);
-  if (channel) {
-    await channel.permissionOverwrites.create(interaction.user.id, {
-      [PermissionFlagsBits.ViewChannel]: true,
-      [PermissionFlagsBits.SendMessages]: true,
-      [PermissionFlagsBits.ReadMessageHistory]: true,
-    });
-    await channel.send(
-      `➕ <@${interaction.user.id}> 様が相乗りに参加しました（追加人数: ${count}名）。`
-    );
-  }
+/**
+ * 待機リストへの登録
+ */
+async function handleWaitForDriver(interaction, type, dirIdx, direction, persons) {
+  const store = require('../../utils/ストレージ/ストア共通');
+  const paths = require('../../utils/ストレージ/ストレージパス');
+  const { updateRideListPanel } = require('../送迎処理/一覧パネル更新');
 
-  // 募集メッセージの更新
-  const carpoolCh = await interaction.guild.channels.fetch(carpoolData.channelId).catch(() => null);
-  if (carpoolCh) {
-    const msg = await carpoolCh.messages.fetch(carpoolData.messageId).catch(() => null);
-    if (msg) {
-      const userList = carpoolData.currentUsers
-        .map((u) => `<@${u.userId}> (${u.count}名)`)
-        .join('\n');
-      const embed = EmbedBuilder.from(msg.embeds[0]).setFields(
-        { name: '方面', value: carpoolData.direction, inline: true },
-        { name: '先発店舗', value: `<@${carpoolData.leadUserId}>`, inline: true },
-        { name: '現在の乗員', value: userList, inline: false },
-        {
-          name: '募集状況',
-          value: '相乗り希望者は下のボタンを押してください。出発前であれば追加可能です。',
-          inline: false,
-        }
-      );
-      await msg.edit({ embeds: [embed] });
+  // インデックスから方面名を取得
+  let finalDirection = direction || '指定なし';
+  if (dirIdx >= 0) {
+    const dirListPath = paths.directionsListJson(interaction.guildId);
+    const directionsList = await store.readJson(dirListPath, []).catch(() => []);
+    const validDirs = directionsList.filter((d) => d.enabled !== false);
+    if (dirIdx < validDirs.length) {
+      finalDirection = validDirs[dirIdx].name.replace(/【|】/g, '');
     }
   }
 
-  await interaction.editReply('✅ 相乗りに参加しました！連絡用チャンネルを確認してください。');
+  const urlParts = interaction.customId.split('?')[1];
+  const query = urlParts ? new URLSearchParams(urlParts) : null;
+  const dest = query ? query.get('dest') : '';
+
+  const waitData = {
+    userId: interaction.user.id,
+    direction: finalDirection,
+    destination: dest || finalDirection,
+    count: parseInt(persons),
+    guest: type === 'guest',
+    timestamp: new Date().toISOString(),
+  };
+
+  const waitDir = paths.waitingUsersDir(interaction.guildId);
+  const fileName = type === 'guest' ? `${interaction.user.id}_guest.json` : `${interaction.user.id}.json`;
+  await store.writeJson(`${waitDir}/${fileName}`, waitData);
+
+  const embed = new EmbedBuilder()
+    .setTitle('✅ 待機リスト登録完了')
+    .setDescription('待機リストに登録しました。送迎車が空き次第、通知またはマッチングされます。\nしばらくお待ちください。')
+    .setColor(0x2ecc71);
+
+  await interaction.editReply({
+    embeds: [embed],
+    components: []
+  });
+
+  // 送迎一覧パネルを更新
+  await updateRideListPanel(interaction.guild, interaction.client).catch(() => null);
 }
+

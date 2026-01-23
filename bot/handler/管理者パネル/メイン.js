@@ -31,6 +31,7 @@ const CID = {
   BTN_ADMIN_THREAD: 'adm|log|type=thread',
   BTN_CARPOOL_CH: 'adm|carpool|type=ch',
   BTN_EDIT_DIRECTIONS: 'adm|directions|sub=button',
+  BTN_SEND_OP_PANEL: 'adm|operator|sub=send',
 
   // Secondary Interactions
   SEL_DRIVER_ROLE: 'adm|role|type=driver_sel',
@@ -108,6 +109,9 @@ function buildAdminPanelEmbed(guild, cfg, client) {
   return buildPanelEmbed({
     title: '管理者パネル',
     description: `
+**運営者ロール**
+${mentionRoles(roles.operators)}
+
 **送迎者ロール**
 ${mentionRoles(roles.drivers)}
 
@@ -123,11 +127,12 @@ ${mentionCategory(cats.privateVc)}
 **ユーザーメモカテゴリー**
 ${mentionCategory(cats.userMemo)}
 
-**グローバルログ**
-${mentionChannel(logs.globalChannel)}
 
 **運営者ログチャンネル**
 ${mentionChannel(logs.operatorChannel)}
+
+**グローバルログ**
+${mentionChannel(logs.globalChannel)}
 
 **管理者用ログスレッド**
 ${mentionChannel(logs.adminLogThread)}
@@ -135,10 +140,6 @@ ${mentionChannel(logs.adminLogThread)}
 **相乗りチャンネル**
 ${mentionChannel(cfg.rideShareChannel)}
 
-**方面リスト登録**
-\`\`\`
-${(cfg.directions || []).join('\n') || '未登録'}
-\`\`\`
     `,
     client,
     color: 0x3498db,
@@ -194,8 +195,12 @@ function buildAdminPanelComponents() {
       .setLabel('相乗りチャンネル設定')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
-      .setCustomId(CID.BTN_EDIT_DIRECTIONS)
-      .setLabel('方面リスト登録')
+      .setCustomId(CID.BTN_RANK_MANAGE)
+      .setLabel('口コミランク管理')
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId(CID.BTN_SEND_OP_PANEL)
+      .setLabel('運営者パネル')
       .setStyle(ButtonStyle.Primary)
   );
 
@@ -280,32 +285,12 @@ async function execute(interaction, client, parsed) {
       return require('../パネル設置/アクション/パネル設置フロー').execute(interaction, client, parsed);
     }
 
-    // 方面リスト登録 (Modal)
-    if (customId === CID.BTN_EDIT_DIRECTIONS) {
-      // DB読み込み(loadConfig)は遅延の原因になるため、Embedから現在の設定を取得する
-      let currentDirections = '';
-      try {
-        const desc = interaction.message.embeds[0]?.description || '';
-        const match = desc.match(/\*\*方面リスト登録\*\*\s*```([\s\S]*?)```/);
-        if (match && match[1]) {
-          const text = match[1].trim();
-          if (text !== '未登録') currentDirections = text;
-        }
-      } catch (e) { /* ignore */ }
+    // 方面リスト登録 (Modal) - 方面リストパネルができたため不要（維持）
 
-      const modal = new ModalBuilder().setCustomId(CID.MODAL_EDIT_DIRECTIONS).setTitle('方面リスト編集');
-      modal.addComponents(
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('directions')
-            .setLabel('方面（改行区切り）')
-            .setStyle(TextInputStyle.Paragraph)
-            .setPlaceholder('立川方面\n八王子市内\n相模原方面\nその他')
-            .setValue(currentDirections)
-            .setRequired(true)
-        )
-      );
-      return await interaction.showModal(modal);
+    // 運営者パネルの送信
+    if (customId === CID.BTN_SEND_OP_PANEL) {
+      const sendOperatorPanel = require('../運営者パネル/メイン');
+      return sendOperatorPanel(interaction);
     }
   }
 
@@ -381,36 +366,15 @@ async function execute(interaction, client, parsed) {
             row = buildChannelSelect(CID.SEL_MEMO_CATEGORY, 'カテゴリーを選択', [ChannelType.GuildCategory], [cfg.categories.userMemo]);
             break;
 
-          // Row 3
           case CID.BTN_GLOBAL_LOG:
             content = '🌐 **グローバルログ** の送信先チャンネルを選択してください。';
-            row = buildChannelSelect(CID.SEL_GLOBAL_LOG, 'チャンネルを選択', [ChannelType.GuildText], [cfg.logs?.globalChannel]);
+            row = buildChannelSelect(CID.SEL_GLOBAL_LOG, 'チャンネルを選択', [ChannelType.GuildText], [cfg.logs.globalChannel]);
             break;
+
           case CID.BTN_STAFF_LOG:
             content = '🛠️ **運営者ログ** の送信先チャンネルを選択してください。';
             row = buildChannelSelect(CID.SEL_STAFF_LOG, 'チャンネルを選択', [ChannelType.GuildText], [cfg.logs.operatorChannel]);
             break;
-          case CID.BTN_GLOBAL_THREAD:
-            try {
-              const gbChId = cfg.logs.globalChannel;
-              if (!gbChId) return interaction.editReply({ content: '❌ 先にグローバルログチャンネルを設定してください。' });
-              const gbCh = await interaction.guild.channels.fetch(gbChId).catch(() => null);
-              if (!gbCh) return interaction.editReply({ content: '❌ グローバルログチャンネルが見つかりません。' });
-
-              const thread = await gbCh.threads.create({
-                name: `グローバルログ ${new Date().getFullYear()}`,
-                autoArchiveDuration: 60,
-              });
-              cfg.logs.globalLogThread = thread.id;
-              await saveConfig(interaction.guildId, cfg);
-              await thread.send({
-                content: `✅ **グローバルログスレッド** が作成されました。\n作成者: <@${interaction.user.id}>`,
-              });
-              await updateAdminPanelMessage(interaction.guild, cfg, client);
-              return interaction.editReply({ content: `✅ スレッド <#${thread.id}> を作成しました。` });
-            } catch (err) {
-              return interaction.editReply({ content: `❌ スレッド作成失敗: ${err.message}` });
-            }
 
           case CID.BTN_ADMIN_THREAD:
             try {
@@ -444,8 +408,8 @@ async function execute(interaction, client, parsed) {
             return interaction.editReply(panel);
           }
           case CID.BTN_OPERATOR_ROLE:
-            content = '🛡 **運営者ロール** を選択してください。（1つのみ）\n※設定すると、管理者パネルや各台帳スレッドが非公開化されます。';
-            row = buildRoleSelect(CID.SEL_OPERATOR_ROLE, '運営者ロールを選択', cfg.operatorRoleId ? [cfg.operatorRoleId] : [], 1);
+            content = '🛡 **運営者ロール** を選択してください。（複数選択可）';
+            row = buildRoleSelect(CID.SEL_OPERATOR_ROLE, '運営者ロールを選択', cfg.roles?.operators || [], 25);
             break;
 
           // Row 4
@@ -484,13 +448,13 @@ async function execute(interaction, client, parsed) {
             cfg.categories.userMemo = values[0];
             await finalize(interaction, cfg, 'カテゴリー更新', { 'categories.userMemo': 'ユーザーメモ' }, client);
             return;
-          case CID.SEL_GLOBAL_LOG:
-            cfg.logs.globalChannel = values[0];
-            await finalize(interaction, cfg, 'ログ設定更新', { 'logs.globalChannel': 'グローバルログ' }, client);
-            return;
           case CID.SEL_STAFF_LOG:
             cfg.logs.operatorChannel = values[0];
             await finalize(interaction, cfg, 'ログ設定更新', { 'logs.operatorChannel': '運営者ログ' }, client);
+            return;
+          case CID.SEL_GLOBAL_LOG:
+            cfg.logs.globalChannel = values[0];
+            await finalize(interaction, cfg, 'ログ設定更新', { 'logs.globalChannel': 'グローバルログ' }, client);
             return;
           case CID.SEL_CARPOOL_CH:
             cfg.rideShareChannel = values[0];
@@ -501,26 +465,11 @@ async function execute(interaction, client, parsed) {
             return;
 
           case CID.SEL_OPERATOR_ROLE: {
-            const roleId = values[0] || null;
-            cfg.operatorRoleId = roleId;
-            await saveConfig(interaction.guildId, cfg);
-
-            // 即座に秘匿化を適用
-            const { applyVisibility } = require('../../utils/共通/visibilityManager');
-
-            // 1. 管理者パネルチャンネル
-            const adminPanelChannel = interaction.channel;
-            await applyVisibility(adminPanelChannel, roleId);
-
-            // 2. ユーザー確認パネルチャンネル
-            if (cfg.panels?.userCheckPanel?.channelId) {
-              const userCheckChannel = await interaction.guild.channels.fetch(cfg.panels.userCheckPanel.channelId).catch(() => null);
-              if (userCheckChannel) {
-                await applyVisibility(userCheckChannel, roleId);
-              }
-            }
-
-            await finalize(interaction, cfg, '運営者ロール更新', { operatorRoleId: '運営者ロール' }, client);
+            cfg.roles ??= {};
+            cfg.roles.operators = values;
+            await finalize(interaction, cfg, '運営者ロール更新', {
+              'roles.operators': '運営者ロール',
+            }, client);
             return;
           }
         }
@@ -536,27 +485,6 @@ async function execute(interaction, client, parsed) {
       adminOnly: true,
       async run(interaction) {
         const cfg = await loadConfig(interaction.guildId);
-        if (customId === CID.MODAL_EDIT_DIRECTIONS) {
-          const raw = interaction.fields.getTextInputValue('directions');
-          cfg.directions = raw.split('\n').map((d) => d.trim()).filter(Boolean);
-
-          // 自己修復: 操作元のメッセージを正としてパネル設定を更新
-          // (設定ファイルのIDが古い場合、更新が反映されない問題を防止)
-          if (interaction.message) {
-            if (!cfg.panels) cfg.panels = {};
-            if (!cfg.panels.admin) cfg.panels.admin = {};
-            cfg.panels.admin.channelId = interaction.channelId;
-            cfg.panels.admin.messageId = interaction.message.id;
-          }
-
-          await saveConfig(interaction.guildId, cfg);
-
-          const updated = await updateAdminPanelMessage(interaction.guild, cfg, client);
-          if (!updated) {
-            return interaction.editReply({ content: '✅ 設定は保存されましたが、パネルの再描画に失敗しました。' });
-          }
-          return interaction.editReply({ content: '✅ 方面リストを更新しました。' });
-        }
       },
     });
   }

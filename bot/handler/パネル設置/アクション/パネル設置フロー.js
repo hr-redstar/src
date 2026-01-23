@@ -94,6 +94,7 @@ async function showChannelSelect(interaction, parsed) {
         rating_rank_panel: '口コミランクパネル',
         admin_panel: '管理者パネル',
         guide_panel: '案内パネル',
+        operator_panel: '運営者パネル',
     };
 
     const embed = buildPanelEmbed({

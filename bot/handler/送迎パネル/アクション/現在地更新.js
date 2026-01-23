@@ -1,4 +1,4 @@
-﻿// handler/送迎パネル/アクション/現在地更新.js
+﻿﻿﻿﻿// handler/送迎パネル/アクション/現在地更新.js
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
 
 const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
@@ -6,9 +6,8 @@ const { ACK } = autoInteractionTemplate;
 
 const store = require('../../../utils/ストレージ/ストア共通');
 const paths = require('../../../utils/ストレージ/ストレージパス');
-const { updateDriverPanel } = require('../メイン');
 
-module.exports = async function (interaction, client, parsed) {
+module.exports = async function (interaction, client, parsed, onUpdate) {
   const isModal = parsed?.params?.sub === 'modal';
 
   return autoInteractionTemplate(interaction, {
@@ -22,12 +21,11 @@ module.exports = async function (interaction, client, parsed) {
         const location = interaction.fields.getTextInputValue('input|driver|location');
 
         const profilePath = paths.driverProfileJson(guildId, userId);
-        await store.updateJson(profilePath, (data) => {
-          if (data) {
-            data.stopPlace = location;
-          }
-          return data;
-        });
+        const profileData = await store.readJson(profilePath).catch(() => null);
+        if (profileData) {
+          profileData.stopPlace = location;
+          await store.writeJson(profilePath, profileData);
+        }
 
         // 待機中データも更新（もしあれば）
         const waitPath = `${paths.waitingDriversDir(guildId)}/${userId}.json`;
@@ -37,7 +35,9 @@ module.exports = async function (interaction, client, parsed) {
           await store.writeJson(waitPath, waitData);
         }
 
-        await updateDriverPanel(interaction.guild, interaction.client);
+        if (onUpdate) {
+          await onUpdate();
+        }
 
         const { getPosition } = require('../../../utils/配車/待機列マネージャ');
         const myPosition = await getPosition(guildId, userId);

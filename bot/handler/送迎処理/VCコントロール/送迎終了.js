@@ -185,16 +185,14 @@ module.exports = {
       const completionEmbed = new EmbedBuilder()
         .setTitle('送迎終了しました')
         .setDescription(
-          '落とし物などのトラブルが無ければ、\n' +
-          '1週間でこのvcチャンネルは削除されます。\n\n' +
-          '※トラブルがあった場合は、\n' +
-          '削除延長を押して下さい。'
+          '落とし物などのトラブルが無ければ、\n1週間でこのvcチャンネルは削除されます。\n\n' +
+          '※トラブルがあった場合は、削除延長を押して下さい。'
         )
-        .setColor(0xe74c3c);
+        .setColor(0x000000); // 終了時は黒
 
       const completionRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-          .setCustomId('ride|control|sub=extend')
+          .setCustomId(`ride|control|sub=extend&rid=${rideId}`)
           .setLabel('削除延長')
           .setStyle(ButtonStyle.Danger)
       );

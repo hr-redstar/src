@@ -18,6 +18,7 @@ const PANEL_BUILDERS = {
   user_reg_panel: require('../../登録処理/利用者登録').buildUserRegPanelMessage,
   user_check_panel: require('../../登録処理/ユーザー確認パネル').buildUserCheckPanelMessage,
   rating_rank_panel: require('../../管理者パネル/口コミランクパネル構築').buildRatingRankPanelMessage,
+  operator_panel: require('../../運営者パネル/メイン').buildOperatorPanelMessage,
 };
 
 /**
@@ -33,6 +34,7 @@ const TYPE_MAP = {
   ratingRank: 'rating_rank_panel',
   admin: 'admin_panel',
   guide: 'guide_panel',
+  operator: 'operator_panel',
 };
 
 /**
@@ -63,6 +65,8 @@ async function deployPanel({ guild, channelId, panelType: rawType, user }) {
       }
       payload = await builder(guild, totalCount, guild.client);
     } else if (panelType === 'admin_panel') {
+      payload = await builder(guild, config, guild.client);
+    } else if (panelType === 'operator_panel') {
       const config = await loadConfig(guild.id);
       payload = await builder(guild, config, guild.client);
     } else if (panelType === 'rating_rank_panel') {
@@ -115,6 +119,7 @@ async function deployPanel({ guild, channelId, panelType: rawType, user }) {
     rating_rank_panel: 'ratingRank',
     admin_panel: 'admin',
     guide_panel: 'guide',
+    operator_panel: 'operatorPanel',
   };
 
   const targetKey = keyMap[panelType];

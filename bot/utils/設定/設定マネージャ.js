@@ -19,9 +19,9 @@ function normalizeConfig(cfg = {}) {
       rideList: { messageId: null, channelId: null },
       ratingRank: { messageId: null, channelId: null },
       carpoolPanel: { messageId: null, channelId: null },
-      globalLog: { messageId: null, channelId: null },
-      globalLogThread: { messageId: null, channelId: null },
       operatorLog: { messageId: null, channelId: null },
+      globalLog: { messageId: null, channelId: null },
+      operatorPanel: { messageId: null, channelId: null },
     },
     roles: {
       drivers: [],
@@ -33,12 +33,11 @@ function normalizeConfig(cfg = {}) {
       userMemo: null,
     },
     logs: {
-      globalChannel: null,
-      globalLogThread: null,
       operatorChannel: null,
       adminLogThread: null,
       adminLogThreadIndex: 1,
       guideChannel: null,
+      globalChannel: null,
     },
     rideShareChannel: null,
     directions: [],
@@ -75,7 +74,6 @@ function normalizeConfig(cfg = {}) {
   // チャンネル・スレッド・ログ移行：channels / threads から logs / rideShareChannel へ
   if (cfg.channels?.rideShare) merged.rideShareChannel = cfg.channels.rideShare;
   if (cfg.channels?.operatorLog) merged.logs.operatorChannel = cfg.channels.operatorLog;
-  if (cfg.channels?.globalLog) merged.logs.globalChannel = cfg.channels.globalLog;
 
   if (cfg.threads?.adminLog) merged.logs.adminLogThread = cfg.threads.adminLog;
   if (cfg.threads?.adminLogIndex) merged.logs.adminLogThreadIndex = cfg.threads.adminLogIndex;
@@ -85,8 +83,6 @@ function normalizeConfig(cfg = {}) {
     merged.rideShareChannel = merged.panels.carpoolPanel.channelId;
   if (merged.panels.operatorLog?.channelId)
     merged.logs.operatorChannel = merged.panels.operatorLog.channelId;
-  if (merged.panels.globalLog?.channelId)
-    merged.logs.globalChannel = merged.panels.globalLog.channelId;
 
   // パネル移行 (panelMessages -> panels)
   const mapPanel = (newKey, oldKey) => {

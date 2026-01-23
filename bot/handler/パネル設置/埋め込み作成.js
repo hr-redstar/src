@@ -9,7 +9,10 @@ function panelLine(guildId, label, data) {
   if (!data || !data.channelId || !data.messageId) {
     return `**${label}**\n⚠️ 未設置`;
   }
-  return `**${label}**\n<#${data.channelId}> [パネルメッセージ](https://discord.com/channels/${guildId}/${data.channelId}/${data.messageId})`;
+  // テキストチャンネルリンク + パネルメッセージリンク
+  const channelLink = `<#${data.channelId}>`;
+  const messageLink = `[パネルメッセージ](https://discord.com/channels/${guildId}/${data.channelId}/${data.messageId})`;
+  return `**${label}**\n${channelLink} ${messageLink}`;
 }
 
 /**
@@ -20,6 +23,7 @@ module.exports = function buildPanelSetupEmbed(config, guildId, client) {
 
   const lines = [
     panelLine(guildId, '管理者パネル', panels.admin),
+    panelLine(guildId, '運営者パネル', panels.operatorPanel),
     panelLine(guildId, '送迎者パネル', panels.driverPanel),
     panelLine(guildId, '利用者パネル', panels.userPanel),
     panelLine(guildId, '送迎者登録パネル', panels.driverRegister),

@@ -1,7 +1,6 @@
 // handler/相乗り/却下モーダル.js
 const { EmbedBuilder } = require('discord.js');
 const { postOperatorLog } = require('../../utils/ログ/運営者ログ');
-const { postGlobalLog } = require('../../utils/ログ/グローバルログ');
 const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 
@@ -40,10 +39,6 @@ module.exports = {
           embeds: [logEmbed],
         }).catch(() => null);
 
-        await postGlobalLog({
-          guild: interaction.guild,
-          embeds: [logEmbed],
-        }).catch(() => null);
 
         await interaction.editReply(`✅ 却下しました (理由送信済み)`);
       },

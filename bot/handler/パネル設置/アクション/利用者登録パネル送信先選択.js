@@ -1,6 +1,6 @@
-﻿const { installPanel } = require('../共通/設置テンプレ');
+﻿﻿const { installPanel } = require('../共通/設置テンプレ');
 const { updatePanelSetupPanel } = require('../メイン');
-const { buildUserRegisterPanelMessage } = require('../../登録処理/利用者登録');
+const { buildUserRegPanelMessage } = require('../../登録処理/利用者登録');
 const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 const { CUSTOM_ID, MessageFlags } = require('../共通/_panelSetupCommon');
@@ -28,7 +28,7 @@ module.exports = {
           panelKey: 'userRegister',
           panelName: '利用者登録パネル',
           channel,
-          buildMessage: () => buildUserRegisterPanelMessage(guild, interaction.client),
+          buildMessage: () => buildUserRegPanelMessage(guild, interaction.client),
         });
 
         if (ok) {

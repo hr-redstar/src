@@ -5,18 +5,18 @@ const { sendOrUpdatePanel } = require('../handler/共通/パネル送信');
 const store = require('../utils/ストレージ/ストア共通');
 const paths = require('../utils/ストレージ/ストレージパス');
 const { buildAdminPanelMessage } = require('../handler/管理者パネル/メイン');
-const { buildDriverPanelMessage } = require('../handler/送迎パネル/メイン');
+const { buildDriverPanelMessage, buildRideListPanelMessage } = require('../handler/送迎パネル/メイン');
 const { buildUserPanelMessage } = require('../handler/利用者パネル/メイン');
 const { buildDriverRegPanelMessage } = require('../handler/登録処理/送迎者登録');
 const { buildUserRegPanelMessage } = require('../handler/登録処理/利用者登録');
 const { buildUserCheckPanelMessage } = require('../handler/登録処理/ユーザー確認パネル');
-const { buildRideListPanelMessage } = require('../handler/送迎パネル/埋め込み作成');
 const { buildGuidePanelMessage } = require('../handler/送迎パネル/案内パネル');
 const { ensureGuideChannel } = require('../handler/共通/ガイドチャンネル作成');
 const { buildPrivateVcGuide } = require('../handler/ガイド/プライベートVC');
 const { buildUserMemoGuide } = require('../handler/ガイド/個人メモ');
 
 const { buildRatingRankPanelMessage } = require('../handler/管理者パネル/口コミランクパネル構築');
+const { buildOperatorPanelMessage } = require('../handler/運営者パネル/メイン');
 
 module.exports = {
   name: Events.ClientReady,
@@ -126,6 +126,8 @@ module.exports = {
                     return buildRideListPanelMessage(guild, client);
                   case 'ratingRank':
                     return buildRatingRankPanelMessage(guild);
+                  case 'operatorPanel':
+                    return await buildOperatorPanelMessage(guild, config, client);
                   case 'guide':
                     return buildGuidePanelMessage(guild, config, client);
                   default:

@@ -31,8 +31,8 @@ module.exports = async (interaction, client, parsed) => {
 
   if (driver) {
     const threadPolicy = storeParam === 'none'
-      ? { enabled: false, range: null }
-      : { enabled: true, range: storeParam };
+      ? { enabled: false, period: null }
+      : { enabled: true, period: storeParam };
 
     await saveDriver(interaction.guild.id, interaction.user.id, {
       ...driver,

@@ -30,7 +30,7 @@ module.exports = {
     let content = '📂 運営者ログを送信するチャンネルを選択してください。';
     if (config.logs?.operatorChannel || config.channels?.operatorLog) {
       const chId = config.channels?.operatorLog || config.logs?.operatorChannel;
-      content = `⚠️ すでに <#${chId}> が通知先に設定されています。\n\n新しい通知先を選択してください：`;
+      content = `⚠️ すでに <#${chId}> が通知先に設定されています。\n変更すると、以前の設定は上書きされます。\n\n新しい通知先を選択してください：`;
     }
 
     await interaction.editReply({

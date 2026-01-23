@@ -27,7 +27,6 @@ const ROUTES = {
                 guide: './パネル設置/アクション/案内パネル送信先選択',
                 ratingRank: './パネル設置/アクション/口コミランクパネル送信先選択',
                 carpool: './パネル設置/アクション/相乗りパネル送信先選択',
-                globalLog: './パネル設置/アクション/グローバルログパネル送信先選択',
                 operatorLog: './パネル設置/アクション/運営者ログパネル送信先選択',
             };
             const path = map[panel];
@@ -86,6 +85,21 @@ const ROUTES = {
         return null;
     },
     guide: () => guideMain || (guideMain = require('./ガイド/メイン')),
+    inquiry: () => require('./共通/InquiryRouter'),
+    op: (parsed) => {
+        const action = parsed.action;
+        if (action === 'directions') {
+            if (parsed.params?.sub === 'list_register') return require('./運営者パネル/方角リスト登録');
+            if (parsed.params?.sub === 'detail_register') return require('./運営者パネル/方角詳細登録');
+            if (parsed.params?.sub === 'modal') return require('./運営者パネル/方角リスト保存');
+            if (parsed.params?.sub === 'detail_modal') return require('./運営者パネル/方角詳細保存');
+        }
+        if (action === 'credits') {
+            if (parsed.params?.sub === 'modal') return require('./運営者パネル/ユーザークレジット登録完了');
+            return require('./運営者パネル/ユーザークレジット登録');
+        }
+        return require('./運営者パネル/メイン');
+    },
 };
 
 /**

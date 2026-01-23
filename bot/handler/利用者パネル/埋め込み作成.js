@@ -17,17 +17,19 @@ function buildUserPanelEmbed(guild, rideCount = 0, client) {
   });
 }
 
+const { addInquiryButtonToComponents } = require('../共通/InquiryPanel');
+
 /**
  * 利用者パネルのボタンを生成
  */
 function buildUserPanelComponents() {
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId('user|ride|sub=request')
+      .setCustomId('dispatch|order|sub=direction&type=cast')
       .setLabel('配車依頼')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
-      .setCustomId('user|ride|sub=guest')
+      .setCustomId('dispatch|order|sub=guest_modal&type=guest')
       .setLabel('ゲスト送迎依頼')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
@@ -35,7 +37,8 @@ function buildUserPanelComponents() {
       .setLabel('登録状態確認')
       .setStyle(ButtonStyle.Success)
   );
-  return [row];
+  const components = [row];
+  return addInquiryButtonToComponents(components);
 }
 
 /**

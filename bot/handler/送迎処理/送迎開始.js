@@ -1,5 +1,5 @@
 ﻿const store = require('../../utils/ストレージ/ストア共通');
-const updateRideListPanel = require('./一覧パネル更新');
+const { updateRideListPanel } = require('./一覧パネル更新');
 const { updateDriverPanel } = require('../送迎パネル/メイン');
 const { loadDriver } = require('../../utils/driversStore'); // New Store
 const { loadUser } = require('../../utils/usersStore'); // (Added for user name/loc)
@@ -27,9 +27,7 @@ module.exports = async function (interaction, targetId) {
       // 各データの読み込み
       const paths = require('../../utils/ストレージ/ストレージパス');
       const driverProfile = await loadDriver(guildId, driverId);
-      const userProfile = await store
-        .readJson(paths.userProfileJson(guildId, passengerId))
-        .catch(() => null);
+      const userProfile = await loadUser(guildId, passengerId);
 
       if (!driverProfile) {
         return interaction.editReply({ content: '⚠️ 送迎者データが見つかりません。' });
@@ -49,14 +47,14 @@ module.exports = async function (interaction, targetId) {
 
       const rideEntry = {
         driverId,
-        driverName: driverProfile?.name || '不明',
+        driverName: driverProfile?.nickname || driverProfile?.name || '不明',
         carInfo: driverProfile?.car || '不明',
         waitStartTime: driverProfile?.lastWaitStart || matchTimeStr, // 待機開始が見つからなければ現在時刻
-        waitLocation: driverProfile?.stop || '不明', // 待機場所
+        waitLocation: driverProfile?.stop && driverProfile?.stop !== '不明' ? driverProfile.stop : '待機中', // 待機場所 (v2.8.2)
         matchTime: matchTimeStr,
         passenger: {
           id: passengerId,
-          name: userProfile?.name || '不明',
+          name: userProfile?.storeName || userProfile?.name || '不明',
           location: userProfile?.mark || '不明', // 住所・目印
         },
         carpool: [], // 初期は空
@@ -87,8 +85,8 @@ module.exports = async function (interaction, targetId) {
       // -------------------------------------------
 
       const rideId = `${driverId}_${Date.now()}_${guildId}`;
-      // Driver Location logic: Try active location, then registered stop, then unknown
-      const driverLoc = driverProfile.currentLocation || driverProfile.stop || '不明';
+      // Driver Location logic: currentLocation (updated by Panel) or fallback (v2.8.2)
+      const driverLoc = driverProfile.currentLocation || (driverProfile.stop && driverProfile.stop !== '不明' ? driverProfile.stop : '待機中');
       const userLoc = userProfile.mark || '不明';
       const dest = userProfile.name || '不明';
 
@@ -187,26 +185,8 @@ module.exports = async function (interaction, targetId) {
       }
       // ----------------------------
 
-      // 相乗り募集投稿
-      const carpoolNotice = require('../相乗り/通知');
-      const noticeMessageId = await carpoolNotice.postCarpoolNotice({
-        guild: interaction.guild,
-        rideId,
-        rideId,
-        driverLocation: driverLoc,
-        userLandmark: userLoc,
-        destination: dest,
-        capacity: driverProfile.capacity || 1,
-        currentUsers: 1,
-        departureTime: new Date().toLocaleTimeString('ja-JP', {
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-        driverUser: interaction.user,
-      });
-
       await interaction.followUp({
-        content: `ユーザー <@${targetId}> の送迎を開始しました。\nルート: ${route}\n相乗り募集も投稿しました。${vcInfo}`,
+        content: `ユーザー <@${targetId}> の送迎を開始しました。\nルート: ${route}${vcInfo}`,
         flags: 64,
       });
 

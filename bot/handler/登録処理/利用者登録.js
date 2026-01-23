@@ -1,4 +1,4 @@
-﻿// src/bot/handler/登録処理/利用者登録.js
+﻿﻿// src/bot/handler/登録処理/利用者登録.js
 const {
   ActionRowBuilder,
   ButtonBuilder,
@@ -14,6 +14,7 @@ const logger = require('../../utils/logger');
 const { readJson, writeJson } = require('../../utils/ストレージ/ストア共通');
 const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 const buildPanelMessage_ = require('../../utils/embed/panelMessageTemplate');
+const { sendOrUpdatePanel } = require('../共通/パネル送信');
 const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 const { loadConfig } = require('../../utils/設定/設定マネージャ');
@@ -37,6 +38,7 @@ const { updateUserCheckPanel, upsertRegistrationLedger } = require('./ユーザ�
 // ===== Custom IDs =====
 const CID = {
   BTN_REGISTER: 'reg|user|sub=button',
+  BTN_CHECK: 'reg|user|sub=check',
   MODAL_REGISTER: 'reg|user|sub=modal',
   INP_NAME: 'reg|user|input=name',
   INP_ADDRESS: 'reg|user|input=address',
@@ -60,17 +62,10 @@ function buildUserRegPanelMessage(guild, client) {
   const embed = buildPanelEmbed({
     title: '利用者登録パネル',
     description: `
-利用者登録には以下の情報が必要です。
-ボタンを押して入力してください。
-
-**店舗名 または ニックネーム**
-配車時に表示されるお名前です。
-
-**店舗住所**
-お迎えにあがる正確な住所を入力してください。
-
-**駐車目印**
-送迎車が停車する際の目印（看板、入口横など）を入力してください。
+**利用者登録**
+・店舗名 または ニックネーム
+・店舗住所
+・駐車目印
     `,
     client: botClient,
   });
@@ -83,12 +78,39 @@ function buildUserRegPanelMessage(guild, client) {
       .setLabel('利用者登録')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
-      .setCustomId('ps|check')
+      .setCustomId(CID.BTN_CHECK)
       .setLabel('登録状態確認')
       .setStyle(ButtonStyle.Secondary)
   );
 
   return buildPanelMessage_({ embed, components: [row] });
+}
+
+/**
+ * 利用者登録パネルを更新
+ */
+async function updateUserRegPanel(guild, client) {
+  const config = await loadConfig(guild.id);
+  const panel = config.panels?.userRegister;
+
+  if (!panel || !panel.channelId) return;
+
+  const channel = await guild.channels.fetch(panel.channelId).catch(() => null);
+  if (!channel) return;
+
+  const newMessageId = await sendOrUpdatePanel({
+    channel,
+    messageId: panel.messageId,
+    buildMessage: () => buildUserRegPanelMessage(guild, client),
+    suppressFallback: true,
+  });
+
+  if (newMessageId && newMessageId !== panel.messageId) {
+    if (!config.panels) config.panels = {};
+    if (!config.panels.userRegister) config.panels.userRegister = {};
+    config.panels.userRegister.messageId = newMessageId;
+    await saveConfig(guild.id, config); // saveConfigはloadConfigからインポート済み
+  }
 }
 
 /**
@@ -99,34 +121,68 @@ async function execute(interaction, client, parsed) {
 
   const sub = parsed?.params?.sub;
 
+  // 登録状態確認
+  if (interaction.isButton() && sub === 'check') {
+    return autoInteractionTemplate(interaction, {
+      ack: ACK.REPLY,
+      async run(interaction) {
+        const userId = interaction.user.id;
+        const guildId = interaction.guildId;
+        const fullJson = await loadUserFull(guildId, userId).catch(() => null);
+
+        if (!fullJson || !fullJson.current) {
+          return interaction.editReply({ content: '利用者の登録情報が見つかりません。' });
+        }
+
+        const embed = buildUserRegistrationEmbed(fullJson, interaction.user);
+        return interaction.editReply({ embeds: [embed] });
+      }
+    });
+  }
+
   // ボタン → モーダル (直接 showModal を呼び出す)
   if (interaction.isButton() && sub === 'button') {
+    const userId = interaction.user.id;
+    const guildId = interaction.guildId;
+    const fullJson = await loadUserFull(guildId, userId).catch(() => null);
+    // Handle double-nested current structure (current.current) if exists
+    let existing = fullJson?.current || fullJson || {};
+    if (existing?.current) {
+      existing = existing.current;
+    }
+
     const modal = new ModalBuilder().setCustomId(CID.MODAL_REGISTER).setTitle('利用者登録');
 
     modal.addComponents(
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId(CID.INP_NAME)
-          .setLabel('店舗名 または ニックネーム')
+          .setLabel('店舗名 または ニックネーム (必須)')
           .setStyle(TextInputStyle.Short)
           .setRequired(true)
           .setMaxLength(50)
+          .setPlaceholder('例: キャバクラ〇〇、はなこ')
+          .setValue(existing.storeName || '')
       ),
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId(CID.INP_ADDRESS)
-          .setLabel('店舗住所')
+          .setLabel('店舗住所 (必須)')
           .setStyle(TextInputStyle.Paragraph)
           .setRequired(true)
           .setMaxLength(100)
+          .setPlaceholder('例: 東京都新宿区... 〇〇ビル1F')
+          .setValue(existing.address || '')
       ),
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId(CID.INP_MARK)
-          .setLabel('駐車目印')
+          .setLabel('駐車目印 (必須)')
           .setStyle(TextInputStyle.Paragraph)
           .setRequired(true)
           .setMaxLength(200)
+          .setPlaceholder('例: 大きな青い看板の横、セブンイレブン向かい')
+          .setValue(existing.mark || '')
       )
     );
 
@@ -163,12 +219,13 @@ async function execute(interaction, client, parsed) {
         const { loadConfig } = require('../../utils/設定/設定マネージャ');
         const config = await loadConfig(interaction.guild.id);
 
+        let memoChannel = null;
         if (config.categories?.userMemo) {
           const { findUserMemoChannel } = require('../../utils/findUserMemoChannel');
           const { createUserMemoChannel } = require('../../utils/createUserMemoChannel');
 
           // 既存チャンネル検出
-          let memoChannel = await findUserMemoChannel({
+          memoChannel = await findUserMemoChannel({
             guild: interaction.guild,
             userId: interaction.user.id,
             categoryId: config.categories.userMemo,
@@ -197,13 +254,14 @@ async function execute(interaction, client, parsed) {
                 messageId,
                 fullJson,
                 'user',
-                interaction.user
+                interaction.user,
+                config.ranks?.userRanks || {}
               ).catch((err) => {
                 console.error('登録情報メッセージ更新失敗', err);
               });
             } else {
               // 初回再登録時: 新規メッセージを作成
-              const embed = buildUserRegistrationEmbed(fullJson, interaction.user);
+              const embed = buildUserRegistrationEmbed(fullJson, interaction.user, config.ranks?.userRanks || {});
 
               const sentMessage = await memoChannel.send({ embeds: [embed] }).catch((err) => {
                 console.error('登録情報メッセージ送信失敗', err);
@@ -226,9 +284,9 @@ async function execute(interaction, client, parsed) {
             // なければ新規作成
             const userId = interaction.user.id;
             const fullJson = await loadUserFull(interaction.guildId, userId);
-            const registrationEmbed = buildUserRegistrationEmbed(fullJson, interaction.user);
+            const registrationEmbed = buildUserRegistrationEmbed(fullJson, interaction.user, config.ranks?.userRanks || {});
 
-            memoChannel = await createUserMemoChannel({
+            const createResult = await createUserMemoChannel({
               guild: interaction.guild,
               user: interaction.user,
               categoryId: config.categories.userMemo,
@@ -238,6 +296,20 @@ async function execute(interaction, client, parsed) {
               console.error('メモチャンネル作成失敗', err);
               return null;
             });
+
+            if (createResult) {
+              memoChannel = createResult.channel;
+              if (createResult.registrationMessage) {
+                await saveRegistrationMessageId(
+                  interaction.guild.id,
+                  interaction.user.id,
+                  createResult.registrationMessage.id,
+                  'user'
+                ).catch((err) => {
+                  console.error('メッセージID保存失敗', err);
+                });
+              }
+            }
           }
         }
 
@@ -290,18 +362,33 @@ async function execute(interaction, client, parsed) {
 
         const policyRow = new ActionRowBuilder().addComponents(policyMenu);
 
-        await interaction.editReply({
-          content: '✅ 利用者基本情報の登録が完了しました！\n最後に、**履歴（メモ）のまとめ期間**を選択してください。',
-          components: [policyRow],
-        });
+        if (memoChannel) {
+          const link = `https://discord.com/channels/${interaction.guild.id}/${memoChannel.id}`;
+
+          // メモチャンネルに通知＆ポリシー設定メニューを送信
+          await memoChannel.send({
+            content: '✅ 利用者基本情報の登録が完了しました！\n続けて、以下のメニューから**履歴（メモ）のまとめ期間**を選択してください。',
+            components: [policyRow],
+          });
+
+          // Ephemeralメッセージ: 完了通知と誘導のみ
+          await interaction.editReply({
+            content: `✅ 登録が完了しました！\n\n**あなたの専用メモチャンネル**:\n${link}\n\n👆 上記チャンネルに移動して、履歴のまとめ期間を設定してください。`,
+            components: [],
+          });
+        } else {
+          await interaction.editReply({
+            content: '✅ 登録が完了しました！',
+            components: [],
+          });
+        }
       },
     });
   }
 
-  // --- NEW: 期間選択ハンドラ ---
   if (sub === 'policy') {
     return autoInteractionTemplate(interaction, {
-      ack: ACK.UPDATE,
+      ack: ACK.NONE,
       async run(interaction) {
         const policy = interaction.values[0];
         const userId = parsed?.params?.uid || interaction.user.id;
@@ -315,7 +402,7 @@ async function execute(interaction, client, parsed) {
           await saveUser(interaction.guildId, userId, userData);
         }
 
-        await interaction.editReply({
+        await interaction.update({
           content: `✅ 設定を完了しました！\n期間設定: **${getPolicyLabel(policy)}**\nこれですべての登録が完了です。`,
           components: [],
         });
@@ -329,4 +416,4 @@ function getPolicyLabel(p) {
   return labels[p] || p;
 }
 
-module.exports = { CID, buildUserRegPanelMessage, execute };
+module.exports = { CID, buildUserRegPanelMessage, updateUserRegPanel, execute };

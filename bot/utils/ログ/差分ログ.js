@@ -45,7 +45,7 @@ async function logPanelInstallDiff({ guild, user, panelName, oldChannelId, newCh
 async function logConfigChange({ guild, user, title, oldConfig, newConfig, mapping }) {
   const lines = [];
   for (const [key, label] of Object.entries(mapping)) {
-    // 構造化されたキー (例: logs.globalChannel) に対応
+    // 構造化されたキー (例: logs.operatorChannel) に対応
     const keys = key.split('.');
     let ov = oldConfig;
     let nv = newConfig;

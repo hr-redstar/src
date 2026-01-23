@@ -134,15 +134,24 @@ module.exports = async (interaction) => {
       }
     } else {
       // なければ新規作成
-      memoChannel = await createUserMemoChannel({
+      const { loadDriverFull } = require('../../utils/driversStore');
+      const { buildDriverRegistrationEmbed } = require('../../utils/buildRegistrationInfoEmbed');
+      const fullJson = await loadDriverFull(interaction.guild.id, interaction.user.id);
+      const registrationEmbed = buildDriverRegistrationEmbed(fullJson, interaction.user);
+
+      const createResult = await createUserMemoChannel({
         guild: interaction.guild,
         user: interaction.user,
         categoryId: config.categories.userMemo,
         role: 'driver',
+        registrationEmbed,
       }).catch((err) => {
         console.error('メモチャンネル作成失敗', err);
         return null;
       });
+      if (createResult) {
+        memoChannel = createResult.channel;
+      }
     }
   }
 
@@ -150,8 +159,9 @@ module.exports = async (interaction) => {
   const { updateUserCheckPanel } = require('../登録処理/ユーザー確認パネル');
   await updateUserCheckPanel(interaction.guild, interaction.client).catch(() => null);
 
+  const link = memoChannel ? `\n\n**あなたの専用メモチャンネル**:\nhttps://discord.com/channels/${interaction.guild.id}/${memoChannel.id}` : '';
   await interaction.reply({
-    content: '✅ 送迎者登録が完了しました！',
+    content: `✅ 送迎者登録が完了しました！${link}`,
     flags: MessageFlags.Ephemeral,
   });
 };

@@ -147,8 +147,8 @@ module.exports = {
 
         // 4. パネル更新
         // 送迎一覧パネル更新
-        const updateListPanel = require('./一覧パネル更新');
-        await updateListPanel(interaction.guild, client).catch(() => null);
+        const { updateRideListPanel } = require('./一覧パネル更新');
+        await updateRideListPanel(interaction.guild, client).catch(() => null);
 
         // 必要なら送迎者・利用者パネルも更新すべきだが、今回は一覧パネル更新を優先。
 

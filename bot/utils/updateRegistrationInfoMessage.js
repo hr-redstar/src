@@ -5,8 +5,9 @@
  * @param {Object} registrationJson - 完全な登録JSON（current + history）
  * @param {string} role - 役割 ('driver' または 'user')
  * @param {Object} user - Discordユーザーオブジェクト
+ * @param {Object} userRanks - ユーザーのランク情報 (v2.8.9)
  */
-async function updateRegistrationInfoMessage(channel, messageId, registrationJson, role, user) {
+async function updateRegistrationInfoMessage(channel, messageId, registrationJson, role, user, userRanks = {}) {
   if (!channel || !messageId || !registrationJson) return;
 
   try {
@@ -20,9 +21,9 @@ async function updateRegistrationInfoMessage(channel, messageId, registrationJso
 
     let embed;
     if (role === 'driver') {
-      embed = buildDriverRegistrationEmbed(registrationJson, user);
+      embed = buildDriverRegistrationEmbed(registrationJson, user, userRanks);
     } else {
-      embed = buildUserRegistrationEmbed(registrationJson, user);
+      embed = buildUserRegistrationEmbed(registrationJson, user, userRanks);
     }
 
     // テキストを空にしてEmbedで上書き

@@ -1,35 +1,35 @@
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 const store = require('../../utils/ストレージ/ストア共通');
-const {
-  buildCarpoolAnnouncementEmbed,
-  buildCarpoolAnnouncementComponents,
-} = require('./埋め込み作成');
+const paths = require('../../utils/ストレージ/ストレージパス');
 const { postOperatorLog } = require('../../utils/ログ/運営者ログ');
 
 /**
  * 相乗りキャンセルボタン押下時の処理
  */
 module.exports = {
-  customId: 'carpool|cancel',
   async execute(interaction, client, parsed) {
     return autoInteractionTemplate(interaction, {
-      ack: ACK.REPLY,
+      ack: ACK.AUTO,
       async run(interaction) {
         const rideId = parsed?.params?.rid;
         const type = parsed?.params?.role; // 'requester' or 'driver'
 
         const guildId = interaction.guildId;
-        const paths = require('../../utils/ストレージ/ストレージパス');
-        const ridePath = `${paths.carpoolDir(guildId)}/${rideId}.json`;
-        const rideData = await store.readJson(ridePath).catch(() => null);
+        const activePath = `${paths.activeDispatchDir(guildId)}/${rideId}.json`;
+        const rideData = await store.readJson(activePath).catch(() => null);
 
-        if (!rideData || rideData.status !== 'active') {
-          return interaction.editReply({ content: '⚠️ この相乗り募集は既に終了しています。' });
+        if (!rideData) {
+          return interaction.editReply({ content: '⚠️ 送迎データが見つからないか、既に終了しています。' });
         }
 
         if (type === 'requester') {
           // 利用者本人がキャンセル
+          if (!rideData.carpoolUsers) {
+            return interaction.editReply({ content: '⚠️ 相乗り利用者が登録されていません。' });
+          }
+
           const userIndex = rideData.carpoolUsers.findIndex(
             (u) => u.userId === interaction.user.id
           );
@@ -38,26 +38,20 @@ module.exports = {
           }
 
           const cancelledUser = rideData.carpoolUsers.splice(userIndex, 1)[0];
-          rideData.currentUsers -= cancelledUser.count || 1;
+          await store.writeJson(activePath, rideData);
 
-          await store.writeJson(ridePath, rideData);
+          // 相乗り募集メッセージの更新 (相乗りマネージャを利用)
+          const { postCarpoolRecruitment } = require('../../utils/配車/相乗りマネージャ');
+          await postCarpoolRecruitment(interaction.guild, rideData, interaction.client).catch(() => null);
 
-          // 告知メッセージの更新
-          const channel = await interaction.guild.channels
-            .fetch(rideData.channelId)
-            .catch(() => null);
-          if (channel) {
-            const message = await channel.messages.fetch(rideData.messageId).catch(() => null);
-            if (message) {
-              const isFull = rideData.currentUsers >= rideData.capacity;
-              const embed = buildCarpoolAnnouncementEmbed({
-                ...rideData,
-                botName: interaction.client.user.username,
-                isFull,
-              });
-              const components = buildCarpoolAnnouncementComponents(isFull, rideId);
-              await message.edit({ embeds: [embed], components }).catch(() => null);
-            }
+          // 利用中一覧から削除
+          try {
+            const userInUsePath = paths.userInUseListJson(guildId);
+            const usersInUse = await store.readJson(userInUsePath, []).catch(() => []);
+            const updated = usersInUse.filter(id => id !== interaction.user.id);
+            await store.writeJson(userInUsePath, updated);
+          } catch (e) {
+            console.error('利用中一覧更新エラー(キャンセル)', e);
           }
 
           await interaction.editReply({ content: '✅ 相乗りをキャンセルしました。' });
@@ -79,7 +73,7 @@ module.exports = {
               new EmbedBuilder()
                 .setTitle('⚠️ 相乗りキャンセル')
                 .setColor(0xe67e22)
-                .setDescription(`<@${interaction.user.id}> が相乗りをキャンセルしました。`)
+                .setDescription(`<@${interaction.user.id}> が相乗りをキャンセルしました。\n(送迎ID: ${rideId})`)
                 .setTimestamp(),
             ],
           });

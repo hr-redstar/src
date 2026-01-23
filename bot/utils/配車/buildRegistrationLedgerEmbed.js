@@ -9,15 +9,16 @@ function buildDriverLedgerEmbed(d, user, ratingSummary) {
 
     const embed = new EmbedBuilder()
         .setAuthor({
-            name: `${d.nickname || user.username}（送迎者）`,
+            name: `${d.nickname || user.username} 様`,
             iconURL: user.displayAvatarURL(),
         })
-        .setColor(0x2ecc71) // 緑
+        .setColor(0x2ecc71)
         .setDescription(
-            `**▼ <@${d.userId}>**　${stars}\n` +
-            `> 【ニックネーム】${d.nickname || '未設定'}\n` +
-            `> 【区域】${d.area || '未設定'} 【停留場所】${d.stop || '未設定'}\n` +
-            `> 【車種・ナンバー】${d.car || '未設定'}【人数】${d.capacity || '0'}名`
+            `**▼ <@${d.userId}>**　${stars}\n\n` +
+            `**ニックネーム**: ${d.nickname || '未設定'}\n` +
+            `**車種/カラー/ナンバー**: ${d.car || '未設定'}\n` +
+            `**乗車人数**: ${d.capacity || '0'}名\n` +
+            `**whooID**: ${d.whooId || '未設定'}`
         )
         .setFooter({ text: `userId: ${d.userId}` })
         .setTimestamp();
@@ -33,15 +34,15 @@ function buildUserLedgerEmbed(u, user, ratingSummary) {
 
     const embed = new EmbedBuilder()
         .setAuthor({
-            name: `${u.storeName || user.username}（利用者）`,
+            name: `${u.storeName || user.username} 様`,
             iconURL: user.displayAvatarURL(),
         })
-        .setColor(0x3498db) // 青
+        .setColor(0x3498db)
         .setDescription(
-            `**▼ <@${u.userId}>**　${stars}\n` +
-            `> 【お名前】${u.storeName || '未設定'}\n` +
-            `> 【住所】${u.address || '未設定'}\n` +
-            `> 【駐車目印】${u.mark || '未設定'}`
+            `**▼ <@${u.userId}>**　${stars}\n\n` +
+            `**店舗名/ニックネーム**: ${u.storeName || '未設定'}\n` +
+            `**店舗住所**: ${u.address || '未設定'}\n` +
+            `**駐車目印**: ${u.mark || '未設定'}`
         )
         .setFooter({ text: `userId: ${u.userId}` })
         .setTimestamp();

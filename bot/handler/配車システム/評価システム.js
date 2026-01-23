@@ -60,7 +60,7 @@ async function sendRatingDM(guild, dispatchData) {
     if (!user) return;
     const embed = buildPanelEmbed({
       title: '送迎者・利用者口コミ評価',
-      description: `今回の送迎者を評価してください。\n\n📅 **${dateStr}**\n🗺️ **経路**: ${routeDisplay}\n⏱️ **状況**: ${timeline}`,
+      description: `今回の送迎はいかがでしたか？\n評価をお願いいたします。\n\n📅 **${dateStr}**\n🗺️ **経路**: ${routeDisplay}\n⏱️ **状況**: ${timeline}`,
       color: 0xffd700,
       client: guild.client
     });
@@ -89,7 +89,7 @@ async function sendRatingDM(guild, dispatchData) {
   if (driver) {
     const embed = buildPanelEmbed({
       title: '送迎者・利用者口コミ評価',
-      description: `今回の利用者を評価してください。\n\n📅 **${dateStr}**\n🗺️ **経路**: ${routeDisplay}\n⏱️ **状況**: ${timeline}`,
+      description: `今回の利用者はいかがでしたか？\n評価をお願いいたします。\n\n📅 **${dateStr}**\n🗺️ **経路**: ${routeDisplay}\n⏱️ **状況**: ${timeline}`,
       color: 0xffd700,
       client: guild.client
     });
@@ -137,7 +137,7 @@ function buildRatingButtons(targetType, dispatchId) {
   const row3 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=comment`)
-      .setLabel('💬 口コミ・コメントを書く')
+      .setLabel('💬 コメントも書きたい')
       .setStyle(ButtonStyle.Success)
   );
 
@@ -322,33 +322,48 @@ async function saveRating(guildId, targetType, dispatchId, raterId, data) {
 async function postRatingToMemo(guild, targetType, dispatchId, ratingData) {
   const { loadConfig } = require('../../utils/設定/設定マネージャ');
   const { findUserMemoChannel } = require('../../utils/findUserMemoChannel');
+  const { loadUserFull } = require('../../utils/usersStore');
+  const { loadDriverFull } = require('../../utils/driversStore');
+  const { getOrCreateHistoryThread } = require('../../utils/getOrCreateHistoryThread');
+
   const config = await loadConfig(guild.id);
   const memoCategoryId = config.categories?.userMemo;
   if (!memoCategoryId) return;
 
-  // 評価対象のユーザーIDを特定する必要がある
-  // dispatchId から引くか、保存データに含めるように修正が必要
-  // 今回は簡易的に dispatchId の中間に埋め込まれている userId を使う（命名規則依存）
-  const parts = dispatchId.split('_');
-  // GOタクシー: timestamp_driverId_guildId -> driverId はパーツ[1]
-  // 手動: manual_driverId_targetId_guildId
+  // 1. 配車データの取得
+  const dateObj = new Date(ratingData.updatedAt || Date.now());
+  const y = dateObj.getFullYear();
+  const m = dateObj.getMonth() + 1;
+  const historyPath = `${paths.dispatchHistoryDir(guild.id, y, m)}/${dispatchId}.json`;
+  const dispatchData = await store.readJson(historyPath).catch(() => null);
+
   let targetUserId = null;
-  if (parts[0] === 'manual') {
-    targetUserId = targetType === 'driver' ? parts[1] : parts[2];
+  let routeInfo = '経路情報なし';
+  let threadPolicy = null;
+
+  if (dispatchData) {
+    targetUserId = targetType === 'driver' ? dispatchData.driverId : dispatchData.passengerId;
+    routeInfo = dispatchData.route || dispatchData.direction || routeInfo;
   } else {
-    // 配車開始.js の命名: ${Date.now()}_${driver.userId}_${guild.id}
-    // 利用者がドライバーを評価する場合はパーツ[1]が対象。ドライバーが利用者を評価する場合は...別途特定が必要。
-    // ※ 本来は dispatch データを読み込んで特定するのが確実。
-    const paths = require('../../utils/ストレージ/ストレージパス');
-    const historyPath = `${paths.dispatchHistoryDir(guild.id, new Date().getFullYear(), new Date().getMonth() + 1)}/${dispatchId}.json`;
-    const dispatchData = await store.readJson(historyPath).catch(() => null);
-    if (dispatchData) {
-      targetUserId = targetType === 'driver' ? dispatchData.driverId : dispatchData.passengerId;
+    // フォールバック (dispatchId から推測)
+    const parts = dispatchId.split('_');
+    if (parts[0] === 'manual') {
+      targetUserId = targetType === 'driver' ? parts[1] : parts[2];
     }
   }
 
   if (!targetUserId) return;
 
+  // 2. ユーザーデータとポリシーの取得
+  let fullData = null;
+  if (targetType === 'driver') {
+    fullData = await loadDriverFull(guild.id, targetUserId);
+  } else {
+    fullData = await loadUserFull(guild.id, targetUserId);
+  }
+  threadPolicy = fullData?.threadPolicy;
+
+  // 3. メモチャンネルとスレッドの特定
   const channel = await findUserMemoChannel({
     guild,
     userId: targetUserId,
@@ -356,19 +371,29 @@ async function postRatingToMemo(guild, targetType, dispatchId, ratingData) {
   });
   if (!channel) return;
 
+  const thread = await getOrCreateHistoryThread(channel, threadPolicy, dateObj);
+  const target = thread || channel;
+
+  // 4. 埋め込み作成 (仕様 #30 準拠)
   const starsStr = ratingData.stars ? '⭐'.repeat(ratingData.stars) : '評価なし';
+  const d = String(dateObj.getDate()).padStart(2, '0');
+  const dateStr = `${y}年${m}月${d}日`;
+
   const embed = new EmbedBuilder()
-    .setTitle(`📝 口コミ・評価フィードバック`)
-    .setDescription(`<@${ratingData.raterId}> 様より評価が届きました。`)
+    .setTitle(`送迎者・利用者口コミ評価`)
+    .setDescription(
+      `**${routeInfo}**　${dateStr}\n\n` +
+      `<@${ratingData.raterId}> 様より評価が届きました。`
+    )
     .addFields(
       { name: '満足度', value: starsStr, inline: true },
       { name: 'コメント', value: ratingData.comment || '（なし）', inline: false }
     )
     .setFooter({ text: `送迎ID: ${dispatchId}` })
-    .setTimestamp(new Date(ratingData.updatedAt))
+    .setTimestamp(dateObj)
     .setColor(0xffd700);
 
-  await channel.send({ embeds: [embed] }).catch(() => null);
+  await target.send({ embeds: [embed] }).catch(() => null);
 }
 
 async function findGuildIdByDispatchId(dispatchId) {

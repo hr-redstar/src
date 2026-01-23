@@ -36,11 +36,15 @@ module.exports = {
         });
       }
 
+      const { stopCarpoolRecruitment } = require('../../../utils/配車/相乗りマネージャ');
       if (isDriver) {
         if (dispatchData.driverStartTime)
           return interaction.followUp({ content: '⚠️ 既に開始済みです。', flags: 64 });
         dispatchData.driverStartTime = timeStr;
         await interaction.channel.send(`※送迎開始：送迎者 <@${interaction.user.id}> (${timeStr})`);
+
+        // 相乗り募集を締め切る (v2.8.1)
+        await stopCarpoolRecruitment(guild, dispatchData).catch(() => null);
       } else if (isUser) {
         if (dispatchData.userStartTime)
           return interaction.followUp({ content: '⚠️ 既に開始済みです。', flags: 64 });

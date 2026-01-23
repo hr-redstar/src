@@ -4,7 +4,7 @@ const store = require('../../utils/ストレージ/ストア共通');
 const paths = require('../../utils/ストレージ/ストレージパス');
 const { updateCarpoolMessage } = require('../../utils/配車/相乗りマネージャ.js'); // updateCarpoolはpostRecruitment内で処理するかも要検討だが一旦作る
 const { postCarpoolRecruitment } = require('../../utils/配車/相乗りマネージャ.js');
-const { postGlobalLog } = require('../../utils/ログ/グローバルログ');
+const { postOperatorLog } = require('../../utils/ログ/運営者ログ');
 const {
     onDutyDriversJson,
     globalRideHistoryJson,
@@ -22,7 +22,7 @@ module.exports = {
         const guild = interaction.guild;
 
         return autoInteractionTemplate(interaction, {
-            ack: ACK.UPDATE, // メッセージ更新
+            ack: ACK.AUTO, // メッセージ更新 (deferReplyされるためeditReplyを使用)
             async run(interaction) {
                 const count = parseInt(parsed?.params?.cnt) || 1;
                 const segment = parseInt(parsed?.params?.seg) || 1;
@@ -217,6 +217,30 @@ module.exports = {
                     await requester.send({ embeds: [embed] }).catch(() => null);
                 }
 
+                // --- NEW: メモチャンネル作成・確認 & 登録情報送信 (v2.6.25) ---
+                // 相乗り利用者が初利用の場合などに備え、メモチャンネルを確保し登録情報を送る
+                try {
+                    const { createUserMemoChannel } = require('../../utils/createUserMemoChannel');
+                    const { buildUserRegistrationEmbed } = require('../../utils/buildRegistrationInfoEmbed');
+
+                    // ユーザーデータは上で loadUser 済み (carpoolUser)
+                    if (carpoolUser) {
+                        const registrationEmbed = buildUserRegistrationEmbed(carpoolUser, guild.members.cache.get(userId), config.ranks?.userRanks || {});
+                        const memoChannel = await createUserMemoChannel({
+                            guild,
+                            userId,
+                            username: carpoolUser.name || '不明', // carpoolUser.name を使用
+                            registrationEmbed,
+                            categoryType: 'user'
+                        });
+
+                        // メモチャンネル作成/取得成功ログなどは特に出さない（createUserMemoChannel内で処理されるため）
+                    }
+                } catch (e) {
+                    console.error('相乗り承認時のメモチャンネル処理エラー:', e);
+                }
+
+
                 // 運営者ログ送信 (Task 18 & 22)
                 // 相乗り成立ログは運営者ログに送る
                 const { postOperatorLog } = require('../../utils/ログ/運営者ログ');
@@ -224,8 +248,8 @@ module.exports = {
                 const config = await loadConfig(guild.id);
 
                 let msgLink = '';
-                if (rideData.carpoolMessageId && config.channels?.carpool) {
-                    msgLink = `[募集メッセージ](https://discord.com/channels/${guild.id}/${config.channels.carpool}/${rideData.carpoolMessageId})`;
+                if (rideData.carpoolMessageId && config.rideShareChannel) {
+                    msgLink = `[募集メッセージ](https://discord.com/channels/${guild.id}/${config.rideShareChannel}/${rideData.carpoolMessageId})`;
                 }
 
                 const logEmbed = new EmbedBuilder()
@@ -246,6 +270,7 @@ module.exports = {
                 }).catch(() => null);
 
                 // グローバルログ送信
+                const { postGlobalLog } = require('../../utils/ログ/グローバルログ');
                 await postGlobalLog({
                     guild,
                     embeds: [logEmbed],

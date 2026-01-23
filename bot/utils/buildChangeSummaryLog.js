@@ -11,10 +11,9 @@ function buildChangeSummaryLog(changes, fieldLabels = {}) {
 
   // デフォルトラベル
   const defaultLabels = {
-    area: '区域',
-    stop: '停留場所',
     nickname: 'ニックネーム',
-    car: '車種',
+    whooId: 'whooアカウントID',
+    car: '車種/カラー/ナンバー',
     capacity: '乗車人数',
     storeName: '店舗名',
     mark: '目印',

@@ -13,6 +13,8 @@ async function showDashboard(interaction, client, parsed) {
         ack: ACK.AUTO,
         async run(interaction) {
             const guildId = interaction.guildId;
+            const config = (await require('../../../utils/設定/設定マネージャ').loadConfig(guildId)) || {};
+            const userRanks = config.ranks?.userRanks || {};
 
             // 送迎者ランキング取得
             const driverRanking = await getGuildRanking(guildId, 'driver');
@@ -29,7 +31,8 @@ async function showDashboard(interaction, client, parsed) {
             // 送迎者ランキング文字列作成
             const driverLines = driverRanking.slice(0, 5).map((r, i) => {
                 const stars = '⭐'.repeat(Math.round(r.average));
-                return `${i + 1}. <@${r.userId}> (**${r.average}** ${stars} / ${r.count}件)`;
+                const rank = userRanks[r.userId] ? ` [${userRanks[r.userId]}]` : '';
+                return `${i + 1}. <@${r.userId}>${rank} (**${r.average}** ${stars} / ${r.count}件)`;
             });
             embed.addFields({
                 name: '🚗 送迎者ランキング (TOP 5)',
@@ -40,7 +43,8 @@ async function showDashboard(interaction, client, parsed) {
             // 利用者ランキング文字列作成
             const userLines = userRanking.slice(0, 5).map((r, i) => {
                 const stars = '⭐'.repeat(Math.round(r.average));
-                return `${i + 1}. <@${r.userId}> (**${r.average}** ${stars} / ${r.count}件)`;
+                const rank = userRanks[r.userId] ? ` [${userRanks[r.userId]}]` : '';
+                return `${i + 1}. <@${r.userId}>${rank} (**${r.average}** ${stars} / ${r.count}件)`;
             });
             embed.addFields({
                 name: '👤 利用者ランキング (TOP 5)',

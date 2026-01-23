@@ -1,4 +1,4 @@
-﻿// handler/送迎パネル/アクション/出勤.js
+﻿﻿// handler/送迎パネル/アクション/出勤.js
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
 const store = require('../../../utils/ストレージ/ストア共通');
 const paths = require('../../../utils/ストレージ/ストレージパス');
@@ -18,13 +18,11 @@ module.exports = async function (interaction, client, parsed) {
         const userId = interaction.user.id;
 
         // 入力値取得
-        const stopPlace = interaction.fields.getTextInputValue('input|driver|place');
         const carInfo = interaction.fields.getTextInputValue('input|driver|car');
         const capacity = interaction.fields.getTextInputValue('input|driver|capacity');
 
         const data = {
           userId,
-          stopPlace,
           carInfo,
           capacity,
           timestamp: new Date().toISOString(),
@@ -36,10 +34,7 @@ module.exports = async function (interaction, client, parsed) {
         await store.writeJson(waitPath, data);
 
         // 各パネル更新
-        const { updateDriverPanel } = require('../メイン');
-        const { updateUserPanel } = require('../../利用者パネル/メイン');
-        const { updateRideListPanel } = require('../../送迎処理/一覧パネル更新');
-        const { postGlobalLog } = require('../../../utils/ログ/グローバルログ');
+        const { postOperatorLog } = require('../../../utils/ログ/運営者ログ');
 
         const { getQueue, getPosition } = require('../../../utils/配車/待機列マネージャ');
         const queue = await getQueue(guildId);
@@ -54,12 +49,11 @@ module.exports = async function (interaction, client, parsed) {
             color: 0x2ecc71,
             client: interaction.client,
             fields: [
-              { name: '📍 停留場所', value: stopPlace, inline: true },
-              { name: '📋 車種/人数', value: `${carInfo} (${capacity})`, inline: true }
+              { name: '📋 車種/カラー/ナンバー (人数)', value: `${carInfo} (${capacity})`, inline: true }
             ]
           });
 
-          await postGlobalLog({
+          await postOperatorLog({
             guild: interaction.guild,
             content: '【出勤】送迎車がオンラインになりました。',
             embeds: [embed],
@@ -74,12 +68,6 @@ module.exports = async function (interaction, client, parsed) {
             type: 'on',
           }).catch(() => null);
         }
-
-        await Promise.all([
-          updateDriverPanel(interaction.guild, interaction.client),
-          updateUserPanel(interaction.guild, interaction.client),
-          updateRideListPanel(interaction.guild, interaction.client),
-        ]).catch((err) => console.error('パネル更新失敗', err));
 
         return interaction.editReply({
           content: `✅ 待機中に追加しました。\n現在の待機順位は **第 ${myPosition} 位** です。`,
@@ -120,27 +108,21 @@ module.exports = async function (interaction, client, parsed) {
           currentData = await loadDriver(guildId, userId);
         }
 
-        const defaultPlace = currentData?.stopPlace || currentData?.stop || '';
-        const defaultCar = currentData?.carInfo || currentData?.car || '';
-        const defaultCapacity = currentData?.capacity || '';
+        // Handle double-nested current structure (current.current)
+        const actualData = currentData?.current || currentData;
+
+        const defaultCar = actualData?.car || actualData?.carInfo || '';
+        const defaultCapacity = actualData?.capacity || '';
 
         const modal = new ModalBuilder()
           .setCustomId('driver|on|sub=modal')
           .setTitle('今から行けます（送迎者）');
 
-        const placeInput = new TextInputBuilder()
-          .setCustomId('input|driver|place')
-          .setLabel('停留場所')
-          .setPlaceholder('例：駅南口ロータリー／コンビニ前')
-          .setValue(String(defaultPlace))
-          .setStyle(TextInputStyle.Short)
-          .setRequired(true)
-          .setMaxLength(50);
 
         const carInput = new TextInputBuilder()
           .setCustomId('input|driver|car')
-          .setLabel('車種')
-          .setPlaceholder('例：白プリウス 1234')
+          .setLabel('車種/カラー/ナンバー')
+          .setPlaceholder('例：プリウス 白 1234')
           .setValue(String(defaultCar))
           .setStyle(TextInputStyle.Short)
           .setRequired(true)
@@ -156,7 +138,6 @@ module.exports = async function (interaction, client, parsed) {
           .setMaxLength(20);
 
         modal.addComponents(
-          new ActionRowBuilder().addComponents(placeInput),
           new ActionRowBuilder().addComponents(carInput),
           new ActionRowBuilder().addComponents(capacityInput)
         );

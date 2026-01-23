@@ -5,8 +5,8 @@ const store = require('../../../utils/ストレージ/ストア共通');
 const paths = require('../../../utils/ストレージ/ストレージパス');
 const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
-const buildPanelEmbed = require('../../../utils/embed/embedTemplate');
 const { ButtonBuilder, ButtonStyle } = require('discord.js');
+const { loadConfig } = require('../../../utils/設定/設定マネージャ');
 
 /**
  * 履歴・評価表示ハンドラー
@@ -68,6 +68,8 @@ module.exports = {
  */
 async function showRecentHistory(interaction, client, parsed) {
   const guildId = interaction.guildId;
+  const config = await loadConfig(guildId).catch(() => ({}));
+  const userRanks = config.ranks?.userRanks || {};
   const now = new Date();
   const historyDir = paths.dispatchHistoryDir(guildId, now.getFullYear(), now.getMonth() + 1);
 
@@ -96,8 +98,10 @@ async function showRecentHistory(interaction, client, parsed) {
         }) : '--:--';
 
         const statusIcon = data.status === 'completed' ? '✅' : '🚨';
+        const dRank = userRanks[data.driverId] ? `[${userRanks[data.driverId]}] ` : '';
+        const pRank = userRanks[data.passengerId] ? ` [${userRanks[data.passengerId]}]` : '';
         lines.push(
-          `${statusIcon} \`${time}\` <@${data.driverId}> ➔ <@${data.passengerId}>\n> 🗺️ ${data.direction || '詳細不明'}`
+          `${statusIcon} \`${time}\` ${dRank}<@${data.driverId}> ➔ <@${data.passengerId}>${pRank}\n> 🗺️ ${data.direction || '詳細不明'}`
         );
       }
     }
@@ -175,6 +179,8 @@ async function showHistoryDaySelect(interaction, client, parsed) {
 async function showHistoryResult(interaction, client, parsed) {
   const [y, m, d] = interaction.values[0].split('-');
   const guildId = interaction.guildId;
+  const config = await loadConfig(guildId).catch(() => ({}));
+  const userRanks = config.ranks?.userRanks || {};
   const historyDir = paths.dispatchHistoryDir(guildId, parseInt(y), parseInt(m));
 
   const allFiles = await store.listKeys(historyDir).catch(() => []);
@@ -212,8 +218,10 @@ async function showHistoryResult(interaction, client, parsed) {
       totalPassengers += count;
 
       const carpoolStr = carpoolCount > 0 ? ` (+相乗り${carpoolCount}名)` : '';
+      const dRank = userRanks[r.driverId] ? `[${userRanks[r.driverId]}] ` : '';
+      const pRank = userRanks[r.passengerId] ? ` [${userRanks[r.passengerId]}]` : '';
 
-      return `${statusIcon} \`${startTime}-${endTime}\` <@${r.driverId}> ➔ <@${r.passengerId}>${carpoolStr}\n> 🗺️ ${r.route || r.direction || '不明'} (${count}名)`;
+      return `${statusIcon} \`${startTime}-${endTime}\` ${dRank}<@${r.driverId}> ➔ <@${r.passengerId}>${pRank}${carpoolStr}\n> 🗺️ ${r.route || r.direction || '不明'} (${count}名)`;
     });
 
     embed.setDescription(lines.join('\n\n'));
@@ -232,6 +240,8 @@ async function showHistoryResult(interaction, client, parsed) {
  */
 async function showRatingList(interaction, client, parsed) {
   const guildId = interaction.guildId;
+  const config = await loadConfig(guildId).catch(() => ({}));
+  const userRanks = config.ranks?.userRanks || {};
   const driverRatingDir = `${paths.ratingLogsDir(guildId)}/送迎者`;
   const userRatingDir = `${paths.ratingLogsDir(guildId)}/利用者`;
 
@@ -273,7 +283,8 @@ async function showRatingList(interaction, client, parsed) {
 
         if (dispatchData) {
           const targetId = item.type === '送迎者' ? dispatchData.driverId : dispatchData.passengerId;
-          targetDisplay = `<@${targetId}>`;
+          const rank = userRanks[targetId] ? ` [${userRanks[targetId]}]` : '';
+          targetDisplay = `<@${targetId}>${rank}`;
         }
 
         lines.push(

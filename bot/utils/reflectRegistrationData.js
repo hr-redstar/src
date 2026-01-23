@@ -25,10 +25,9 @@ ${title}
   // 送迎者の場合
   if (role === 'driver') {
     content += `・ニックネーム：${registrationData.nickname || '未入力'}
-・車種：${registrationData.car || '未入力'}
-・対応エリア（区域）：${registrationData.area || '未入力'}
-・停留場所：${registrationData.stop || '未入力'}
-・乗車人数：${registrationData.capacity || '未入力'}`;
+・車種/カラー/ナンバー：${registrationData.car || '未入力'}
+・乗車人数：${registrationData.capacity || '未入力'}
+・whooID：${registrationData.whooId || '未入力'}`;
   }
   // 利用者の場合
   else if (role === 'user') {

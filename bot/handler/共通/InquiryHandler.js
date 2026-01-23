@@ -1,0 +1,72 @@
+const { EmbedBuilder, ThreadAutoArchiveDuration, PermissionFlagsBits } = require('discord.js');
+const { loadConfig } = require('../../utils/設定/設定マネージャ');
+
+/**
+ * 問い合わせ送信時の処理（スレッド作成など）
+ */
+async function handleInquirySubmit(interaction) {
+    const guild = interaction.guild;
+    const user = interaction.user;
+    const title = interaction.fields.getTextInputValue('input|inquiry|title');
+    const body = interaction.fields.getTextInputValue('input|inquiry|body');
+
+    const config = await loadConfig(guild.id);
+    const operatorLogChId = config.logs?.operatorChannel;
+
+    if (!operatorLogChId) {
+        return interaction.editReply('❌ 運営者ログチャンネルが設定されていないため、問い合わせを送信できません。運営にお伝えください。');
+    }
+
+    const channel = await guild.channels.fetch(operatorLogChId).catch(() => null);
+    if (!channel) {
+        return interaction.editReply('❌ 運営者ログチャンネルが見つかりません。');
+    }
+
+    try {
+        // 1. 問い合わせスレッドの作成
+        const threadName = `📩問い合わせ-${user.username}-${title}`.substring(0, 100);
+        const thread = await channel.threads.create({
+            name: threadName,
+            autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
+            reason: `問い合わせによる自動作成 (User: ${user.id})`,
+        });
+
+        // 2. スレッドの権限設定（プライベートスレッドの場合はメンバー追加）
+        // 通常のテキストチャンネル内の公開スレッドの場合、メンバー追加のみで制御可能（他ユーザーには通知されないが閲覧は可能）
+        // もしチャンネル自体が運営者用なら、スレッドもそれを見れる人＋本人に限定される。
+        await thread.members.add(user.id);
+
+        // 3. 初期メッセージの送信
+        const logEmbed = new EmbedBuilder()
+            .setTitle('📩 新規問い合わせ')
+            .setAuthor({ name: user.tag, iconURL: user.displayAvatarURL() })
+            .addFields(
+                { name: '送信者', value: `<@${user.id}> (${user.id})`, inline: true },
+                { name: '件名', value: title, inline: false },
+                { name: '内容', value: body }
+            )
+            .setColor(0x3498db)
+            .setTimestamp();
+
+        await thread.send({
+            content: `🔔 運営者各位：<@${user.id}> 様より問い合わせがありました。\nこのスレッドで対応を行ってください。\n\n<@&${config.operatorRoleId || ''}>`,
+            embeds: [logEmbed],
+        });
+
+        // 4. ユーザーへの完了通知
+        const successEmbed = new EmbedBuilder()
+            .setTitle('✅ 問い合わせを送信しました')
+            .setDescription(`専用スレッド <#${thread.id}> を作成しました。\n運営者が確認次第、こちらで返信いたします。`)
+            .setColor(0x2ecc71);
+
+        return interaction.editReply({ embeds: [successEmbed] });
+
+    } catch (err) {
+        console.error('Inquiry creation failed:', err);
+        return interaction.editReply(`❌ スレッド作成中にエラーが発生しました: ${err.message}`);
+    }
+}
+
+module.exports = {
+    handleInquirySubmit,
+};

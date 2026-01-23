@@ -23,10 +23,9 @@ function buildHistoryLog(historyData, role = 'driver') {
   // 送迎者の場合
   if (role === 'driver') {
     content += `・登録時ニックネーム：${historyData.nickname || '未設定'}
-・車種：${historyData.car || '未設定'}
-・対応エリア：${historyData.area || '未設定'}
-・停留場所：${historyData.stop || '未設定'}
-・乗車人数：${historyData.capacity || '未設定'}`;
+・車種/カラー/ナンバー：${historyData.car || '未設定'}
+・乗車人数：${historyData.capacity || '未設定'}
+・whooID：${historyData.whooId || '未設定'}`;
   }
   // 利用者の場合
   else if (role === 'user') {

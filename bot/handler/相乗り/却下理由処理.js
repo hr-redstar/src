@@ -7,7 +7,6 @@ const {
     EmbedBuilder,
 } = require('discord.js');
 const { postOperatorLog } = require('../../utils/ログ/運営者ログ');
-const { postGlobalLog } = require('../../utils/ログ/グローバルログ');
 const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 
@@ -35,7 +34,7 @@ module.exports = {
 
         // 理由選択済みの場合は即通知
         return autoInteractionTemplate(interaction, {
-            ack: ACK.UPDATE,
+            ack: ACK.AUTO,
             async run(interaction) {
                 await notifyRejection(interaction, userId, reason);
             }
@@ -44,7 +43,7 @@ module.exports = {
 };
 
 async function notifyRejection(interaction, userId, reason) {
-    await interaction.update({ content: `✅ 却下しました (理由: ${reason})`, components: [] });
+    await interaction.editReply({ content: `✅ 却下しました (理由: ${reason})`, components: [] });
     // 元のメッセージ（DM）のボタンも無効化したいが、DMメッセージの編集権限はBotにあるので可能ならやる
     // しかしinteraction.messageはEphemeralなSelectMenuのメッセージなので、元のDMメッセージではない
     // 元のDMを更新するには別途ロジックが必要だが、複雑になるため一旦割愛
@@ -76,8 +75,4 @@ async function notifyRejection(interaction, userId, reason) {
         embeds: [logEmbed],
     }).catch(() => null);
 
-    await postGlobalLog({
-        guild: interaction.guild,
-        embeds: [logEmbed],
-    }).catch(() => null);
 }

@@ -130,12 +130,16 @@ module.exports.createUserMemoChannel = async ({
   const row = new ActionRowBuilder().addComponents(selectMenu);
 
   // 登録情報が渡されていれば送信 (v2.6.4)
-  const { registrationEmbed } = options;
+  const registrationEmbed = options.registrationEmbed;
+  let registrationMessage = null;
   if (registrationEmbed) {
-    await channel.send({ embeds: [registrationEmbed] }).catch(console.error);
+    registrationMessage = await channel.send({ embeds: [registrationEmbed] }).catch((err) => {
+      console.error('登録情報メッセージ送信失敗:', err);
+      return null;
+    });
   }
 
   await channel.send({ embeds: [threadEmbed], components: [row] });
 
-  return channel;
+  return { channel, registrationMessage };
 };

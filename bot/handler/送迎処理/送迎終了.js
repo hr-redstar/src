@@ -1,6 +1,6 @@
 ﻿// handler/送迎処理/送迎終了.js
 const store = require('../../utils/ストレージ/ストア共通');
-const updateRideListPanel = require('./一覧パネル更新');
+const { updateRideListPanel } = require('./一覧パネル更新');
 const { updateDriverPanel } = require('../送迎パネル/メイン');
 
 const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
@@ -19,40 +19,19 @@ module.exports = async function (interaction, targetId) {
       const paths = require('../../utils/ストレージ/ストレージパス');
       const { onDutyDriversJson, globalRideHistoryJson } = paths;
 
-      // このドライバーが担当している「active」な相乗り募集があれば終了させる
-      const carpoolDir = paths.carpoolDir(guildId);
-
+      const { stopCarpoolRecruitment } = require('../../utils/配車/相乗りマネージャ');
       try {
         const files = await store.listKeys(carpoolDir).catch(() => []);
         const jsonFiles = files.filter((f) => f.endsWith('.json'));
         for (const fileKey of jsonFiles) {
           const rideData = await store.readJson(fileKey).catch(() => null);
           if (rideData && rideData.driverId === driverId && rideData.status === 'active') {
-            rideData.status = 'finished';
-            await store.writeJson(fileKey, rideData);
+            // 新しい共通締切ロジックを適用 (v2.8.1)
+            await stopCarpoolRecruitment(interaction.guild, rideData).catch(() => null);
 
             // 送迎件数をインクリメント（待機中データ）
             const { incrementRideCount } = require('../../utils/配車/待機列マネージャ');
             await incrementRideCount(guildId, driverId).catch(() => null);
-
-            // 告知メッセージの更新（満員/終了状態へ）
-            const channel = await interaction.guild.channels
-              .fetch(rideData.channelId)
-              .catch(() => null);
-            if (channel) {
-              const message = await channel.messages.fetch(rideData.messageId).catch(() => null);
-              if (message) {
-                const { buildCarpoolAnnouncementEmbed } = require('../相乗り/埋め込み作成');
-                const embed = buildCarpoolAnnouncementEmbed({
-                  ...rideData,
-                  botName: interaction.client.user.username,
-                  isFull: true,
-                });
-                embed.setTitle('🏁 送迎終了');
-                embed.setColor(0x808080);
-                await message.edit({ embeds: [embed], components: [] }).catch(() => null);
-              }
-            }
           }
         }
       } catch (err) { }
@@ -130,7 +109,7 @@ module.exports = async function (interaction, targetId) {
       // Find VC for this pair (Driver & Passenger)
       const vcId = Object.keys(vcState).find((key) => {
         const s = vcState[key];
-        return s.driverId === driverId && s.userId === passengerId && !s.endedAt;
+        return s.driverId === driverId && s.userId === targetId && !s.endedAt;
       });
 
       if (vcId) {

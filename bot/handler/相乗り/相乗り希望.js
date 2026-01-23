@@ -78,9 +78,17 @@ async function showSegmentSelection(interaction, parsed) {
  * STEP 1: 方面選択
  */
 async function showDirectionSelection(interaction, rideId) {
-  const { loadConfig } = require('../../utils/設定/設定マネージャ');
-  const config = await loadConfig(interaction.guildId);
-  const directions = config.directions || ['立川方面', '八王子市内', '相模原方面', 'その他'];
+  const store = require('../../utils/ストレージ/ストア共通');
+  const paths = require('../../utils/ストレージ/ストレージパス');
+
+  // 運営設定から方角リストを読み込む
+  const dirListPath = paths.directionsListJson(interaction.guildId);
+  const directionsList = await store.readJson(dirListPath, []).catch(() => []);
+
+  // 有効な方角のみを抽出
+  const directions = directionsList
+    .filter((d) => d.enabled !== false)
+    .map((d) => d.name.replace(/【|】/g, ''));
 
   const embed = new EmbedBuilder()
     .setTitle('📢 相乗り希望 - 方面選択')
@@ -90,19 +98,29 @@ async function showDirectionSelection(interaction, rideId) {
   const rows = [];
   let currentRow = new ActionRowBuilder();
 
-  directions.forEach((d, index) => {
-    if (index > 0 && index % 5 === 0) {
-      rows.push(currentRow);
-      currentRow = new ActionRowBuilder();
-    }
+  if (directions.length === 0) {
     currentRow.addComponents(
       new ButtonBuilder()
-        .setCustomId(`carpool|join|sub=dest_input&rid=${rideId}&dir=${d}`)
-        .setLabel(d)
-        .setStyle(ButtonStyle.Success)
+        .setCustomId(`carpool|join|sub=dest_input&rid=${rideId}&dir=指定なし`)
+        .setLabel('指定なし')
+        .setStyle(ButtonStyle.Secondary)
     );
-  });
-  rows.push(currentRow);
+    rows.push(currentRow);
+  } else {
+    directions.forEach((d, index) => {
+      if (index > 0 && index % 5 === 0) {
+        rows.push(currentRow);
+        currentRow = new ActionRowBuilder();
+      }
+      currentRow.addComponents(
+        new ButtonBuilder()
+          .setCustomId(`carpool|join|sub=dest_input&rid=${rideId}&dir=${d}`)
+          .setLabel(d.substring(0, 20))
+          .setStyle(ButtonStyle.Success)
+      );
+    });
+    rows.push(currentRow);
+  }
 
   await interaction.editReply({ embeds: [embed], components: rows });
 }

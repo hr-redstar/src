@@ -29,7 +29,7 @@ module.exports = {
     const config = await loadConfig(interaction.guildId);
     let content = '🚗 相乗り通知を送信するチャンネルを選択してください。';
     if (config.channels?.rideShare) {
-      content = `⚠️ すでに <#${config.channels.rideShare}> が通知先に設定されています。\n\n新しい通知先を選択してください：`;
+      content = `⚠️ すでに <#${config.channels.rideShare}> が通知先に設定されています。\n変更すると、以前の設定は上書きされます。\n\n新しい通知先を選択してください：`;
     }
 
     await interaction.editReply({

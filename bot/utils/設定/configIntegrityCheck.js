@@ -42,7 +42,6 @@ async function checkConfigIntegrity(guild, config) {
         { path: 'categories.privateVc', label: 'Category: privateVc' },
         { path: 'categories.userMemo', label: 'Category: userMemo' },
         { path: 'logs.operatorChannel', label: 'Channel: operatorChannel' },
-        { path: 'logs.globalChannel', label: 'Channel: globalChannel' },
         { path: 'logs.errorLogChannel', label: 'Channel: errorLogChannel' },
     ];
 

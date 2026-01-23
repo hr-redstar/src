@@ -43,9 +43,18 @@ module.exports = {
 
         const row = new ActionRowBuilder().addComponents(select);
 
+        const { loadConfig } = require('../../../utils/設定/設定マネージャ');
+        const config = await loadConfig(interaction.guildId);
+
+        let content = `📝 **案内パネルの設定**\nタイトル: \`${title}\`\n説明文: \`${description}\`\n\n設置先のチャンネルを選択してください。`;
+
+        if (config.panels?.guide?.channelId) {
+          content = `⚠️ すでに <#${config.panels.guide.channelId}> に設置されています。\n新しく設置すると、旧パネルメッセージは自動的に削除されます。\n\n` + content;
+        }
+
         // モーダルの入力内容を一時的に message の content や embed に隠して、次のハンドラーで拾えるようにする
         await interaction.editReply({
-          content: `📝 **案内パネルの設定**\nタイトル: \`${title}\`\n説明文: \`${description}\`\n\n設置先のチャンネルを選択してください。`,
+          content,
           components: [row],
           // 説明文を保持するために伏せ字で置くなどの工夫
         });

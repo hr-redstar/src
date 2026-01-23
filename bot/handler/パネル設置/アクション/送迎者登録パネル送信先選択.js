@@ -1,6 +1,6 @@
-﻿const { installPanel } = require('../共通/設置テンプレ');
+﻿﻿const { installPanel } = require('../共通/設置テンプレ');
 const { updatePanelSetupPanel } = require('../メイン');
-const { buildDriverRegisterPanelMessage } = require('../../登録処理/送迎者登録');
+const { buildDriverRegPanelMessage } = require('../../登録処理/送迎者登録');
 const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 const { CUSTOM_ID, MessageFlags } = require('../共通/_panelSetupCommon');
@@ -28,7 +28,7 @@ module.exports = {
           panelKey: 'driverRegister',
           panelName: '送迎者登録パネル',
           channel,
-          buildMessage: () => buildDriverRegisterPanelMessage(guild, interaction.client),
+          buildMessage: () => buildDriverRegPanelMessage(guild, interaction.client),
         });
 
         if (ok) {

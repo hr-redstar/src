@@ -8,11 +8,12 @@ const { getThreadRange, rangeToWeeks, formatThreadName } = require('./threadRang
  * @returns {Promise<ThreadChannel|null>} 作成または取得したスレッド
  */
 async function getOrCreateHistoryThread(channel, threadPolicy, registrationDate) {
-  if (!threadPolicy?.enabled || !threadPolicy?.range) {
+  const period = threadPolicy?.period || threadPolicy?.range;
+  if (!threadPolicy?.enabled || !period) {
     return null; // スレッド作成なし
   }
 
-  const weeks = rangeToWeeks(threadPolicy.range);
+  const weeks = rangeToWeeks(period);
   if (weeks === 0) return null;
 
   const { start, end } = getThreadRange(registrationDate, weeks);

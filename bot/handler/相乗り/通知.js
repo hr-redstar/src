@@ -1,11 +1,11 @@
 const { EmbedBuilder } = require('discord.js');
-const { loadConfig } = require('../設定/設定マネージャ');
+const { loadConfig } = require('../../utils/設定/設定マネージャ');
 const store = require('../../utils/ストレージ/ストア共通');
 const {
   buildCarpoolAnnouncementEmbed,
   buildCarpoolAnnouncementComponents,
 } = require('./埋め込み作成');
-const { postGlobalLog } = require('../utils/ログ/グローバルログ');
+const { postOperatorLog } = require('../../utils/ログ/運営者ログ');
 
 /**
  * 相乗りチャンネルへ告知を投稿し、グローバルログへも通知する
@@ -68,7 +68,7 @@ async function postCarpoolNotice({
   await store.writeJson(`${paths.carpoolDir(guild.id)}/${rideId}.json`, rideData);
 
   // グローバルログへ通知
-  await postGlobalLog({
+  await postOperatorLog({
     guild,
     embeds: [
       new EmbedBuilder()

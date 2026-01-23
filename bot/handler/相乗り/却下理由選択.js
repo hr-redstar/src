@@ -12,8 +12,11 @@ module.exports = {
     return autoInteractionTemplate(interaction, {
       ack: ACK.REPLY, // エフェメラルでメニューを出す
       async run(interaction) {
+        const rideId = parsed?.params?.rid;
+        const userId = parsed?.params?.uid;
+
         const select = new StringSelectMenuBuilder()
-          .setCustomId(customId)
+          .setCustomId(`carpool|reject_reason|rid=${rideId}&uid=${userId}`)
           .setPlaceholder('却下理由を選択してください')
           .addOptions(
             new StringSelectMenuOptionBuilder()

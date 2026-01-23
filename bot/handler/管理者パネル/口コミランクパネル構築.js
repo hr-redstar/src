@@ -9,9 +9,30 @@ async function buildRatingRankPanelMessage(guild, config = null) {
   const tiers = config.ranks?.tiers || [];
 
   // ランク階級の表示文字列作成
-  const rankTiersText = tiers.length > 0
-    ? tiers.join(' > ')
+  const rankTiers = Array.isArray(config.ranks?.tiers) ? config.ranks.tiers : [];
+  const rankTiersText = rankTiers.length > 0
+    ? rankTiers.join(' > ')
     : '未登録';
+
+  // ランク設定状況の表示
+  let rankSettingsText = '';
+  if (tiers.length > 0) {
+    const userRanks = config.ranks?.userRanks || {};
+    // 逆引き作成: { 'ゴールド': ['id1', 'id2'], ... }
+    const tierMembers = {};
+    tiers.forEach(t => tierMembers[t] = []);
+    Object.entries(userRanks).forEach(([uid, rank]) => {
+      if (tierMembers[rank]) tierMembers[rank].push(uid);
+    });
+
+    rankSettingsText = tiers.map(t => {
+      const members = tierMembers[t];
+      const memberList = members.length > 0 ? members.map(uid => `<@${uid}>`).join(' ') : '（なし）';
+      return `**${t}**\n${memberList}`;
+    }).join('\n\n');
+  } else {
+    rankSettingsText = '(ランク階級が登録されていません)';
+  }
 
   const embed = buildPanelEmbed({
     title: '口コミランクパネル',
@@ -21,13 +42,13 @@ async function buildRatingRankPanelMessage(guild, config = null) {
 ・送迎者・利用者の口コミ評価確認
 ・ランク階級の登録・設定
 
-**ランク階級登録**
+**ランク階級登録（構成）**
 \`\`\`
 ${rankTiersText}
 \`\`\`
 
-**ランク設定**
-(各ユーザーのランク設定状況は統計ダッシュボードで確認可能です)
+**ランク設定状況**
+${rankSettingsText}
     `,
     color: 0xffd700,
     client: guild.client,

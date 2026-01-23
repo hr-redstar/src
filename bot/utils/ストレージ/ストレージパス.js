@@ -162,6 +162,8 @@ module.exports = {
   rideDataJson,
   panelsJson,
   rideRequestsJson,
+  directionsListJson,
+  directionsDetailsJson,
 };
 
 function driverRatingSummaryJson(guildId, userId) {
@@ -169,4 +171,17 @@ function driverRatingSummaryJson(guildId, userId) {
 }
 function userRatingSummaryJson(guildId, userId) {
   return `${userRoot(guildId)}/${userId}/口コミ/summary.json`;
+}
+
+// ===== 運営設定 =====
+function operationSettingsRoot(guildId) {
+  return `${guildRoot(guildId)}/運営設定`;
+}
+
+function directionsListJson(guildId) {
+  return `${operationSettingsRoot(guildId)}/方角リスト.json`;
+}
+
+function directionsDetailsJson(guildId) {
+  return `${operationSettingsRoot(guildId)}/方角リスト詳細.json`;
 }

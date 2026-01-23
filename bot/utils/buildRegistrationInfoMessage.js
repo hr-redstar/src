@@ -30,10 +30,9 @@ function buildRegistrationInfoMessage(
 
     if (role === 'driver') {
       message += `・ニックネーム：${current.nickname || '未設定'}\n`;
-      message += `・車種：${current.car || '未設定'}\n`;
-      message += `・対応エリア：${current.area || '未設定'}\n`;
-      message += `・停留場所：${current.stop || '未設定'}\n`;
+      message += `・車種/カラー/ナンバー：${current.car || '未設定'}\n`;
       message += `・乗車人数：${current.capacity || '未設定'}人\n`;
+      message += `・whooID：${current.whooId || '未設定'}\n`;
     } else {
       message += `・店舗名 / ニックネーム：${current.storeName || '未設定'}\n`;
       message += `・目印：${current.mark || '未設定'}\n`;
@@ -59,10 +58,9 @@ function buildRegistrationInfoMessage(
 
       if (role === 'driver') {
         message += `・ニックネーム：${historyItem.nickname || '未設定'}\n`;
-        message += `・車種：${historyItem.car || '未設定'}\n`;
-        message += `・対応エリア：${historyItem.area || '未設定'}\n`;
-        message += `・停留場所：${historyItem.stop || '未設定'}\n`;
+        message += `・車種/カラー/ナンバー：${historyItem.car || '未設定'}\n`;
         message += `・乗車人数：${historyItem.capacity || '未設定'}人\n`;
+        message += `・whooID：${historyItem.whooId || '未設定'}\n`;
       } else {
         message += `・店舗名 / ニックネーム：${historyItem.storeName || '未設定'}\n`;
         message += `・目印：${historyItem.mark || '未設定'}\n`;
@@ -111,10 +109,9 @@ function buildInitialRegistrationMessage(registrationJson, role, user) {
 
     if (role === 'driver') {
       message += `・ニックネーム：${current.nickname || '未設定'}\n`;
-      message += `・車種：${current.car || '未設定'}\n`;
-      message += `・対応エリア（区域）：${current.area || '未設定'}\n`;
-      message += `・停留場所：${current.stop || '未設定'}\n`;
+      message += `・車種/カラー/ナンバー：${current.car || '未設定'}\n`;
       message += `・乗車人数：${current.capacity || '未設定'}\n`;
+      message += `・whooID：${current.whooId || '未設定'}\n`;
     } else {
       message += `・店舗名 / ニックネーム：${current.storeName || '未設定'}\n`;
       message += `・目印：${current.mark || '未設定'}\n`;

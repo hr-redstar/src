@@ -71,25 +71,30 @@ async function postCarpoolRecruitment(guild, rideData, client) {
   if (rideData.carpoolUsers) {
     for (const user of rideData.carpoolUsers) {
       if (user.location) {
-        routeStr += `→【${user.location}】`;
+        routeStr += ` → 【${user.location}】`;
       } else {
-        routeStr += `→【相乗り】`;
+        routeStr += ` → 【相乗り】`;
       }
     }
   }
 
-  routeStr += `→【${rideData.mark || '不明'}】→【${rideData.destination}】`;
+  routeStr += ` → 【${rideData.direction || '不明'}】`;
 
   const startedAt = new Date(rideData.startedAt);
   const timeStr = startedAt.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 
+  // 方面に紐付く地名リストを取得 (v2.8.0)
+  const areas = config.directionAreas?.[rideData.direction] || [];
+  const areaInfo = areas.length > 0 ? `\n\n📍 **対応エリア（${rideData.direction}）**\n${areas.join(' / ')}` : '';
+
   const embed = new EmbedBuilder()
-    .setTitle('相乗りできます')
+    .setTitle('🚗 相乗り募集中')
     .setDescription(
-      `**${remaining}名まで**\n\n` +
       `**${routeStr}**\n\n` +
-      `送迎者現在地出発時刻： ${timeStr}\n\n` +
-      `※相乗り希望後既に合流できない場合がある為、送迎可能か送迎者から連絡があります。`
+      `👥 **相乗り可能人数**\n最大 ${remaining}名まで` +
+      areaInfo +
+      `\n\n🕒 **出発時刻（送迎者現在地）**\n${timeStr}\n\n` +
+      `⚠️ **注意**\n相乗り希望後、すでに合流が難しい場合があります。その際は送迎可能か送迎者から連絡があります。`
     )
     .setColor(0x00ffff) // Aqua
     .setTimestamp(startedAt);
@@ -118,20 +123,54 @@ async function postCarpoolRecruitment(guild, rideData, client) {
     const activePath = `${paths.activeDispatchDir(guild.id)}/${rideData.rideId}.json`;
     await store.writeJson(activePath, rideData);
 
-    // グローバルログ用にも送信
-    const { postGlobalLog } = require('../ログ/グローバルログ');
-    await postGlobalLog({
+    // 運営者ログ用にも送信
+    const { postOperatorLog } = require('../ログ/運営者ログ');
+    await postOperatorLog({
       guild,
       content: `相乗り募集が開始されました！ [詳細はこちら](${message.url})`,
     }).catch(() => null);
   }
 }
 
-async function getDriverPlace(guildId, userId) {
-  return '送迎中';
+/**
+ * 相乗り募集を締め切る
+ */
+async function stopCarpoolRecruitment(guild, rideData) {
+  const config = await loadConfig(guild.id);
+  const channelId = config.rideShareChannel;
+  if (!channelId || !rideData.carpoolMessageId) return;
+
+  const channel = guild.channels.cache.get(channelId);
+  if (!channel) return;
+
+  const message = await channel.messages.fetch(rideData.carpoolMessageId).catch(() => null);
+  if (!message) return;
+
+  // 方面に紐付く地名リストを取得
+  const areas = config.directionAreas?.[rideData.direction] || [];
+  const areaInfo = areas.length > 0 ? `\n\n📍 **対応エリア（${rideData.direction}）**\n${areas.join(' / ')}` : '';
+
+  const embed = EmbedBuilder.from(message.embeds[0])
+    .setTitle('⛔ 相乗り募集終了')
+    .setColor(0x808080) // Gray
+    .setDescription(
+      message.embeds[0].description.split('\n\n🕒')[0] + // ルートとエリア情報を維持
+      `\n\n🕒 **この募集は締め切られました**\n\n` +
+      `⚠️ **注意**\nすでに送迎が開始されているか、定員に達したため募集を終了しました。`
+    )
+    .setTimestamp();
+
+  await message.edit({ embeds: [embed], components: [] }).catch(() => null);
+
+  // データ更新
+  rideData.carpoolMessageId = null;
+  rideData.carpoolStatus = 'closed';
+  const activePath = `${paths.activeDispatchDir(guild.id)}/${rideData.rideId}.json`;
+  await store.writeJson(activePath, rideData);
 }
 
 module.exports = {
   postCarpoolRecruitment,
+  stopCarpoolRecruitment,
   calculateRemainingCapacity,
 };

@@ -35,6 +35,7 @@ const CUSTOM_ID = {
   SEND_RATING_RANK_PANEL: 'ps|send|panel=ratingRank',
   SEND_GLOBAL_LOG_PANEL: 'ps|send|panel=globalLog',
   SEND_OPERATOR_LOG_PANEL: 'ps|send|panel=operatorLog',
+  SEND_DIRECTIONS_PANEL: 'ps|send|panel=directions',
 
   // チャンネル選択（パネル設置時）
   SELECT_ADMIN_PANEL_CHANNEL: 'ps|select|panel=admin',
@@ -49,6 +50,7 @@ const CUSTOM_ID = {
   SELECT_RATING_RANK_PANEL_CHANNEL: 'ps|select|panel=ratingRank',
   SELECT_GLOBAL_LOG_CHANNEL: 'ps|select|panel=globalLog',
   SELECT_OPERATOR_LOG_CHANNEL: 'ps|select|panel=operatorLog',
+  SELECT_DIRECTIONS_PANEL_CHANNEL: 'ps|select|panel=directions',
 
   // 内部選択用・エイリアス（アクションファイルで使用されている名称）
   SEL_ADMIN_PANEL: 'ps|select|panel=admin',

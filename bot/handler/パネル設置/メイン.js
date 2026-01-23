@@ -86,11 +86,15 @@ async function sendPanelSetupPanel(interaction) {
  * パネルの状態を反映したボタン群を生成
  */
 function buildPanelSetupComponents(config) {
-  // Row 1: 管理者(黒), 送迎者(黒), 利用者(黒) -> Secondary
+  // Row 1: 管理者(黒), 運営者(黒), 送迎者(黒), 利用者(黒)
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(CUSTOM_ID.SEND_ADMIN_PANEL)
       .setLabel('管理者パネル')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId('ps|send|panel=operator')
+      .setLabel('運営者パネル')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(CUSTOM_ID.SEND_DRIVER_PANEL)
@@ -102,7 +106,7 @@ function buildPanelSetupComponents(config) {
       .setStyle(ButtonStyle.Secondary)
   );
 
-  // Row 2: 送迎者登録(グレー), 利用者登録(グレー) -> Secondary
+  // Row 2: 送迎者登録(グレー), 利用者登録(グレー)
   const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(CUSTOM_ID.SEND_DRIVER_REG_PANEL)
@@ -114,7 +118,7 @@ function buildPanelSetupComponents(config) {
       .setStyle(ButtonStyle.Secondary)
   );
 
-  // Row 3: ユーザー確認(青), 送迎一覧(青) -> Primary
+  // Row 3: ユーザー確認(青), 送迎一覧(青)
   const row3 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(CUSTOM_ID.SEND_USER_CHECK_PANEL)
@@ -126,7 +130,7 @@ function buildPanelSetupComponents(config) {
       .setStyle(ButtonStyle.Primary)
   );
 
-  // Row 4: 案内(Secondary), 口コミランク(Secondary)
+  // Row 4: 案内(Secondary), 口コミランク(Secondary), 相乗り(Secondary)
   const row4 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(CUSTOM_ID.SEND_GUIDE_PANEL)
@@ -134,7 +138,11 @@ function buildPanelSetupComponents(config) {
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(CUSTOM_ID.SEND_RATING_RANK_PANEL)
-      .setLabel('口コミランクパネル')
+      .setLabel('口コミランク')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(CUSTOM_ID.SEND_CARPOOL_PANEL)
+      .setLabel('相乗りパネル')
       .setStyle(ButtonStyle.Secondary)
   );
 

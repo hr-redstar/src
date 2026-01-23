@@ -1,8 +1,12 @@
-﻿// handler/送迎パネル/埋め込み作成.js
+﻿﻿// handler/送迎パネル/埋め込み作成.js
 
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 const buildPanelMessage = require('../../utils/embed/panelMessageTemplate');
+const store = require('../../utils/ストレージ/ストア共通');
+const paths = require('../../utils/ストレージ/ストレージパス');
+const { getQueue } = require('../../utils/配車/待機列マネージャ');
+const { loadConfig } = require('../../utils/設定/設定マネージャ');
 
 /**
  * 送迎者パネルの埋め込みを生成
@@ -19,6 +23,8 @@ function buildDriverPanelEmbed(guild, driverCount = 0, client) {
         client: botClient,
     });
 }
+
+const { addInquiryButtonToComponents } = require('../共通/InquiryPanel');
 
 /**
  * 送迎者パネルのボタンを生成
@@ -38,7 +44,8 @@ function buildDriverPanelComponents() {
             .setLabel('現在地更新')
             .setStyle(ButtonStyle.Primary)
     );
-    return [row];
+    const components = [row];
+    return addInquiryButtonToComponents(components);
 }
 
 /**
@@ -55,88 +62,102 @@ function buildDriverPanelMessage(guild, activeCount = 0, client) {
  * 送迎一覧パネルのメッセージペイロードを生成
  * (v1.6.5: Context-Resilient & Self-Sufficient)
  */
-async function buildRideListPanelMessage(guild, client, context = {}) {
-    const guildId = guild.id;
-    const store = require('../../utils/ストレージ/ストア共通');
-    const paths = require('../../utils/ストレージ/ストレージパス');
-    const { getQueue } = require('../../utils/配車/待機列マネージャ');
+async function buildRideListPanelMessage(guild, client) {
+    const queue = await getQueue(guild.id);
+    const config = await loadConfig(guild.id).catch(() => ({}));
+    const userRanks = config.ranks?.userRanks || {};
 
-    const botClient = client || guild.client;
-
-    // 1. 待機中の送迎車
-    let driverWaitingList = context.driverWaitingList;
-    if (driverWaitingList === undefined) {
-        const queue = await getQueue(guildId).catch(() => []);
-        driverWaitingList = queue.length > 0
-            ? queue.map((d, i) => `${i + 1}. <@${d.userId}>`).join('\n')
-            : '現在待機中の送迎車はありません。';
+    // 待機中の利用者リスト読み込み
+    const userWaitDir = paths.waitingUsersDir(guild.id);
+    const userWaitFiles = await store.listKeys(userWaitDir).catch(() => []);
+    const waitingUsers = [];
+    for (const f of userWaitFiles) {
+        if (!f.endsWith('.json')) continue;
+        const data = await store.readJson(f).catch(() => null);
+        if (data) waitingUsers.push(data);
     }
+    // timestamp 順にソート (古い順)
+    waitingUsers.sort((a, b) => new Date(a.timestamp || 0) - new Date(b.timestamp || 0));
 
-    // 2. 待機中の利用者 (未マッチングの依頼)
-    let waitingList = context.waitingList;
-    if (waitingList === undefined) {
-        const userKeys = await store.listKeys(paths.waitingUsersDir(guildId)).catch(() => []);
-        let userListStrings = [];
-        for (const key of userKeys) {
-            if (!key.endsWith('.json')) continue;
-            const data = await store.readJson(key).catch(() => null);
-            if (data && data.userId) {
-                userListStrings.push(`<@${data.userId}> (${data.direction || '不明'})`);
-            }
+    const activeDispatchDir = paths.activeDispatchDir(guild.id);
+    const activeFiles = await store.listKeys(activeDispatchDir).catch(() => []);
+
+    // ファイルの中身を読み込んでIDを取得
+    const activeDispatches = await Promise.all(
+        activeFiles
+            .filter((f) => f.endsWith('.json'))
+            .map((f) => store.readJson(f).catch(() => null))
+    );
+    const validDispatches = activeDispatches.filter((d) => d);
+
+    const allActiveDriverIds = validDispatches.map((d) => d.driverId).filter(Boolean);
+    const activeDriverIds = [...new Set(allActiveDriverIds)];
+    const activeUserIds = [];
+    validDispatches.forEach((d) => {
+        if (d.userId) activeUserIds.push(d.userId);
+        if (Array.isArray(d.carpoolUsers)) {
+            d.carpoolUsers.forEach((u) => {
+                if (u.userId) activeUserIds.push(u.userId);
+            });
         }
-        waitingList = userListStrings.length > 0
-            ? userListStrings.join('\n')
-            : '待機中のユーザーはいません。';
+    });
+    const uniqueActiveUserIds = [...new Set(activeUserIds)];
+
+    // 待機中の送迎車リスト (FIFO順)
+    const waitingDriverLines = [];
+    if (queue.length === 0) {
+        waitingDriverLines.push('待機中の送迎車はいません。');
+    } else {
+        waitingDriverLines.push('`順位｜待機開始｜名前｜待機場所｜車種`');
+        queue.forEach((d, idx) => {
+            const time = d.timestamp ? new Date(d.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+            const place = d.stopPlace || '待機中';
+            const car = d.carInfo || d.car || '-';
+            const rank = userRanks[d.userId] ? `[${userRanks[d.userId]}] ` : '';
+            waitingDriverLines.push(`第${idx + 1}位｜${time}｜${rank}<@${d.userId}>｜${place}｜${car}`);
+        });
     }
 
-    // 3. 送迎中の車両 (配車中一覧)
-    let ridingList = context.ridingList;
-    if (ridingList === undefined) {
-        const activeKeys = await store.listKeys(paths.activeDispatchDir(guildId)).catch(() => []);
-        let activeListStrings = [];
-        for (const key of activeKeys) {
-            if (!key.endsWith('.json')) continue;
-            const data = await store.readJson(key).catch(() => null);
-            if (data && data.driverId && data.passengerId) {
-                activeListStrings.push(`🚖 <@${data.driverId}> ➡️ <@${data.passengerId}> (${data.direction || '不明'})`);
-            }
-        }
-        ridingList = activeListStrings.length > 0
-            ? activeListStrings.join('\n')
-            : '現在送迎中の車両はありません。';
+    // 送迎中リスト
+    const onRouteLines = [];
+    if (validDispatches.length === 0) {
+        onRouteLines.push('現在送迎中の車両はありません。');
+    } else {
+        validDispatches.forEach((d) => {
+            const dest = d.destination || d.direction || '詳細不明';
+            const rank = userRanks[d.driverId] ? `[${userRanks[d.driverId]}] ` : '';
+            onRouteLines.push(`${rank}<@${d.driverId}>　**行先**：${dest}`);
+        });
     }
+
+    // 待機中の利用者リスト
+    const waitingUserLines = [];
+    if (waitingUsers.length === 0) {
+        waitingUserLines.push('待機中のユーザーはいません。');
+    } else {
+        waitingUsers.forEach((u) => {
+            const type = u.guest ? '👤 ゲスト' : '👤 キャスト';
+            const loc = u.destination || u.direction || '詳細不明';
+            const rank = userRanks[u.userId] ? `[${userRanks[u.userId]}] ` : '';
+            waitingUserLines.push(`${rank}<@${u.userId}> (${type} - ${loc})`);
+        });
+    }
+
+    // 利用者リスト (乗車中)
+    const ridingUserLines = uniqueActiveUserIds.map((id) => `<@${id}>`);
+    const ridingUserText = ridingUserLines.length > 0 ? ridingUserLines.join(', ') : 'なし';
 
     const embed = buildPanelEmbed({
         title: '📋 送迎・待機状況 一覧',
-        description: '現在の送迎車の待機状況と、進行中の送迎ステータスをリアルタイムで表示します。',
-        color: 0x3498db,
-        client: botClient,
+        client,
         fields: [
-            {
-                name: '🚗 待機中の送迎車',
-                value: driverWaitingList.includes('<@')
-                    ? driverWaitingList
-                    : `\`${driverWaitingList}\``,
-                inline: false
-            },
-            {
-                name: '👤 待機中の利用者',
-                value: waitingList.includes('<@')
-                    ? waitingList
-                    : `\`${waitingList}\``,
-                inline: false
-            },
-            {
-                name: '🚕 送迎中の車両',
-                value: ridingList.includes('<@')
-                    ? ridingList
-                    : `\`${ridingList}\``,
-                inline: false
-            }
-        ]
+            { name: '🚗 待機中の送迎車（FIFO順）', value: waitingDriverLines.join('\n'), inline: false },
+            { name: '👤 待機中 (利用者)', value: waitingUserLines.join('\n'), inline: false },
+            { name: '🚕 送迎中', value: onRouteLines.join('\n'), inline: false },
+            { name: '👤 乗車中の利用者', value: ridingUserText, inline: false },
+        ],
+        color: 0x3498db,
     });
-
-    embed.setFooter({ text: `最終更新：${new Date().toLocaleString('ja-JP')} ｜ Professional Edition` });
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()

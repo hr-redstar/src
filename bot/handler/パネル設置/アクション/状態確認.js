@@ -7,13 +7,15 @@
 } = require('discord.js');
 const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
+const store = require('../../../utils/ストレージ/ストア共通');
+const paths = require('../../../utils/ストレージ/ストレージパス');
 const { loadConfig } = require('../../../utils/設定/設定マネージャ');
 const { getRatingSummary } = require('../../../utils/ratingsStore');
 
 module.exports = {
   customId: 'ps|check',
   type: 'button',
-  async execute(interaction) {
+  async execute(interaction, client, parsed) {
     return autoInteractionTemplate(interaction, {
       ack: ACK.REPLY, // Ephemeral status check should be a reply
       async run(interaction) {

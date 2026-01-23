@@ -15,19 +15,21 @@ const buildPanelEmbed = require('../../../utils/embed/embedTemplate');
 module.exports = {
   CID,
 
-  /**
-   * ボタン押下：ユーザー選択を表示
-   */
   async startFlow(interaction, client, parsed) {
-    const row = new ActionRowBuilder().addComponents(
-      new UserSelectMenuBuilder()
-        .setCustomId(CID.SEL_USER)
-        .setPlaceholder('ランクを設定するユーザーを選択してください')
-    );
-    return interaction.reply({
-      content: '👤 設定対象のユーザーを選択してください。',
-      components: [row],
-      flags: 64,
+    return autoInteractionTemplate(interaction, {
+      adminOnly: true,
+      ack: ACK.REPLY,
+      async run(interaction) {
+        const row = new ActionRowBuilder().addComponents(
+          new UserSelectMenuBuilder()
+            .setCustomId(CID.SEL_USER)
+            .setPlaceholder('ランクを設定するユーザーを選択してください')
+        );
+        await interaction.editReply({
+          content: '👤 設定対象のユーザーを選択してください。',
+          components: [row],
+        });
+      }
     });
   },
 
@@ -111,6 +113,49 @@ module.exports = {
           color: 0x2ecc71,
           client: interaction.client
         });
+
+        // --- NEW: ユーザーのメモチャンネルに通知 (v2.6.26) ---
+        try {
+          const { loadUser } = require('../../../utils/usersStore');
+          const { createUserMemoChannel } = require('../../../utils/createUserMemoChannel');
+          const { EmbedBuilder } = require('discord.js');
+
+          // ユーザーデータをロード（なければ最低限の情報で作成される）
+          // ここでregistrationEmbedを送るかどうか迷うが、ランク付与されるなら登録済みと仮定
+          // シンプルにランク更新通知のみを送る
+          const userData = await loadUser(interaction.guildId, targetUserId);
+
+          // メモチャンネル確保
+          const memoChannel = await createUserMemoChannel({
+            guild: interaction.guild,
+            userId: targetUserId,
+            username: targetUser.displayName || targetUser.user.username,
+            categoryType: 'user' // ランクは主に利用者のものとしてuserメモへ
+          });
+
+          if (memoChannel) {
+            const notifEmbed = new EmbedBuilder()
+              .setTitle('👑 ランク更新のお知らせ')
+              .setDescription(`管理者により、あなたのランクが更新されました。`)
+              .addFields(
+                { name: '新ランク', value: `**${tierName === 'None' ? 'なし' : tierName}**` }
+              )
+              .setColor(0xffd700) // Gold
+              .setTimestamp();
+
+            await memoChannel.send({ embeds: [notifEmbed] });
+          }
+        } catch (e) {
+          console.error('ランク更新通知送信エラー:', e);
+        }
+
+        // --- NEW: 口コミランクパネルを更新 (v2.8.8) ---
+        try {
+          const { updateRatingRankPanelMessage } = require('../../管理者パネル/口コミランクパネル構築');
+          await updateRatingRankPanelMessage(interaction.guild, config, interaction.client);
+        } catch (e) {
+          console.error('口コミランクパネル更新エラー:', e);
+        }
 
         await interaction.editReply({
           content: null,
