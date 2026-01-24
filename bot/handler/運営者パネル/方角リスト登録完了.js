@@ -6,7 +6,7 @@ const { EmbedBuilder, Colors } = require('discord.js');
 const updateOperatorPanel = require('./updatePanel');
 
 /**
- * 方角リスト登録モーダル送信完了
+ * 方面リスト登録モーダル送信完了
  */
 module.exports = {
   customId: 'op|directions|modal=list_register',
@@ -27,11 +27,11 @@ module.exports = {
 
         if (directionNames.length === 0) {
           return interaction.editReply({
-            content: '❌ 方角名を入力してください。',
+            content: '❌ 方面名を入力してください。',
           });
         }
 
-        // 方角リストを読み込む
+        // 方面リストを読み込む
         const dirListPath = paths.directionsListJson(guildId);
         const directionsList = await store.readJson(dirListPath, []);
 
@@ -39,7 +39,7 @@ module.exports = {
         const skipped = [];
 
         for (const directionName of directionNames) {
-          // 方角名から【】を除去してクリーンアップ
+          // 方面名から【】を除去してクリーンアップ
           const cleanName = directionName.replace(/【|】/g, '');
 
           // 既存データ内で同じクリーンアップ後の名前があるかチェック
@@ -70,13 +70,13 @@ module.exports = {
 
         // 確認埋め込み
         const embed = new EmbedBuilder()
-          .setTitle('✅ 方角リスト登録完了')
+          .setTitle('✅ 方面リスト登録完了')
           .setColor(Colors.Green)
           .setTimestamp();
 
         if (added.length > 0) {
           embed.addFields({
-            name: '追加された方角',
+            name: '追加された方面',
             value: added.map((n) => `• ${n}`).join('\n'),
             inline: false,
           });
@@ -93,7 +93,7 @@ module.exports = {
         if (added.length === 0 && skipped.length > 0) {
           embed.setDescription('❌ すべて既に登録済みです。');
         } else if (added.length > 0) {
-          embed.setDescription(`**${added.length}個**の方角を登録しました。`);
+          embed.setDescription(`**${added.length}個**の方面を登録しました。`);
         }
 
         await interaction.editReply({

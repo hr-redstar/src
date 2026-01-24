@@ -35,7 +35,6 @@ async function postDetailedAttendanceLog({ guild, user, data, type = 'on' }) {
         // 出勤時
         embed.addFields(
             { name: '👤 対象者', value: `<@${user.id}> (${user.tag})`, inline: false },
-            { name: '📍 停留場所', value: `${data.stopPlace || '未設定'}`, inline: true },
             { name: '🚗 車両情報', value: `${data.carInfo || '未設定'}`, inline: true },
             { name: '👥 最大定員', value: `${data.capacity || '未設定'} 名`, inline: true }
         );

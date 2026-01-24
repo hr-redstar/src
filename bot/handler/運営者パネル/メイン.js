@@ -85,40 +85,45 @@ async function sendOperatorPanel(interaction) {
  * 運営者パネルの埋め込みを作成
  */
 async function buildOperatorPanelEmbed(config, guildId, client) {
-  // 方角リストを読み込む
+  // 方面リストを読み込む
   const dirListPath = paths.directionsListJson(guildId);
   const directionsList = await store.readJson(dirListPath, []).catch(() => []);
 
-  // デバッグ: 読み込まれた方角リストを出力
-  console.log('[運営者パネル] 読み込まれた方角リスト:', JSON.stringify(directionsList, null, 2));
-
   const directionNames = directionsList
-    .filter((d) => d.enabled !== false) // 有効な方角のみ
+    .filter((d) => d.enabled !== false) // 有効な方面のみ
     .map((d) => {
-      // 方角名から【】があれば除去
+      // 方面名から【】があれば除去
       const cleanName = d.name.replace(/【|】/g, '');
       return cleanName;
     })
     .join('\n') || '未設定';
 
-  console.log('[運営者パネル] フォーマット後の方角リスト:', directionNames);
-
-  // 方角詳細情報を読み込む
+  // 方面詳細情報を読み込む
   const detailsPath = paths.directionsDetailsJson(guildId);
   const directionDetails = await store.readJson(detailsPath, {}).catch(() => ({}));
+
+  // 利用料読み込み
+  const usageFee = config.usageFee || '未設定';
 
   const embed = new EmbedBuilder()
     .setTitle('🛠 運営者パネル')
     .setColor(Colors.Gold)
-    .addFields({
-      name: '方角リスト',
-      value: `\`\`\`\n${directionNames}\n\`\`\``,
-      inline: false,
-    });
+    .addFields(
+      {
+        name: '方面リスト',
+        value: `\`\`\`\n${directionNames}\n\`\`\``,
+        inline: true,
+      },
+      {
+        name: '利用料設定',
+        value: `\`\`\`\n${usageFee}\n\`\`\``,
+        inline: true,
+      }
+    );
 
-  // 方角詳細セクション
+  // 方面詳細セクション
   embed.addFields({
-    name: '方角詳細',
+    name: '方面詳細',
     value: '　',
     inline: false,
   });
@@ -131,7 +136,7 @@ async function buildOperatorPanelEmbed(config, guildId, client) {
     const dirName = direction ? direction.name.replace(/【|】/g, '') : `${i}行目`;
 
     embed.addFields({
-      name: `方角${i}`,
+      name: `方面${i} (${dirName})`,
       value: `\`\`\`\n${detail}\n\`\`\``,
       inline: false,
     });
@@ -151,31 +156,43 @@ async function buildOperatorPanelEmbed(config, guildId, client) {
  * 運営者パネルのボタン群を生成
  */
 function buildOperatorPanelComponents() {
-  // Row 1: 方角リスト登録、方角詳細登録
+  // Row 1: 方面リスト登録、方面詳細登録
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('op|directions|sub=list_register')
-      .setLabel('方角リスト登録')
+      .setLabel('方面リスト登録')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId('op|directions|sub=detail_register')
-      .setLabel('方角詳細登録')
+      .setLabel('方面詳細登録')
       .setStyle(ButtonStyle.Primary)
   );
 
-  // Row 2: ユーザークレジット登録、ランク設定
+  // Row 2: 利用料設定、ユーザークレジット登録
   const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('op|fee|sub=setting')
+      .setLabel('利用料設定')
+      .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId('op|credits|sub=start')
       .setLabel('ユーザークレジット登録')
-      .setStyle(ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId('adm|rank_manage|sub=start') // 管理者パネルから流用
-      .setLabel('ランク設定')
       .setStyle(ButtonStyle.Success)
   );
 
-  return [row1, row2];
+  // Row 3: 送迎者ランク階級登録、送迎者ランク設定
+  const row3 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('op|rank|sub=class_register')
+      .setLabel('送迎者ランク階級登録')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId('op|rank|sub=assignment_start')
+      .setLabel('送迎者ランク設定')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  return [row1, row2, row3];
 }
 
 async function buildOperatorPanelMessage(guild, cfg, client) {

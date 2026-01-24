@@ -3,10 +3,9 @@ const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 const store = require('../../utils/ストレージ/ストア共通');
 const paths = require('../../utils/ストレージ/ストレージパス');
-const { loadConfig, saveConfig } = require('../../utils/設定/設定マネージャ');
 
 /**
- * 方角リスト登録 - モーダル表示
+ * 方面リスト登録 - モーダル表示
  */
 module.exports = {
   customId: 'op|directions|sub=list_register',
@@ -18,7 +17,7 @@ module.exports = {
       async run(interaction) {
         const guildId = interaction.guildId;
 
-        // 既存の方角リストを読み込む
+        // 既存の方面リストを読み込む
         const dirListPath = paths.directionsListJson(guildId);
         let directionsList = await store.readJson(dirListPath, []);
 
@@ -57,17 +56,17 @@ module.exports = {
 
         const modal = new ModalBuilder()
           .setCustomId('op|directions|modal=list_register')
-          .setTitle('方角リスト登録');
+          .setTitle('方面リスト登録');
 
         const directionInput = new TextInputBuilder()
           .setCustomId('direction_name')
-          .setLabel('方角名（改行で複数登録可能 例：北方面\n南方面）')
+          .setLabel('方面名（改行で複数登録可能 例：北方面\n南方面）')
           .setPlaceholder('北方面\n南方面\n駅方面')
           .setStyle(TextInputStyle.Paragraph)
           .setRequired(true)
           .setMaxLength(500);
 
-        // 既存の方角があればデフォルト値として設定
+        // 既存の方面があればデフォルト値として設定
         if (existingNames) {
           directionInput.setValue(existingNames);
         }

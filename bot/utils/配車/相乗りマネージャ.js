@@ -85,7 +85,7 @@ async function postCarpoolRecruitment(guild, rideData, client) {
 
   // 方面に紐付く地名リストを取得 (v2.8.0)
   const areas = config.directionAreas?.[rideData.direction] || [];
-  const areaInfo = areas.length > 0 ? `\n\n📍 **対応エリア（${rideData.direction}）**\n${areas.join(' / ')}` : '';
+  const areaInfo = areas.length > 0 ? `\n\n📍 **対応方面（${rideData.direction}）**\n${areas.join(' / ')}` : '';
 
   const embed = new EmbedBuilder()
     .setTitle('🚗 相乗り募集中')
@@ -148,13 +148,13 @@ async function stopCarpoolRecruitment(guild, rideData) {
 
   // 方面に紐付く地名リストを取得
   const areas = config.directionAreas?.[rideData.direction] || [];
-  const areaInfo = areas.length > 0 ? `\n\n📍 **対応エリア（${rideData.direction}）**\n${areas.join(' / ')}` : '';
+  const areaInfo = areas.length > 0 ? `\n\n📍 **対応方面（${rideData.direction}）**\n${areas.join(' / ')}` : '';
 
   const embed = EmbedBuilder.from(message.embeds[0])
     .setTitle('⛔ 相乗り募集終了')
     .setColor(0x808080) // Gray
     .setDescription(
-      message.embeds[0].description.split('\n\n🕒')[0] + // ルートとエリア情報を維持
+      message.embeds[0].description.split('\n\n🕒')[0] + // ルートと方面情報を維持
       `\n\n🕒 **この募集は締め切られました**\n\n` +
       `⚠️ **注意**\nすでに送迎が開始されているか、定員に達したため募集を終了しました。`
     )

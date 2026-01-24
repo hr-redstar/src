@@ -49,17 +49,17 @@ module.exports = async function (interaction, targetId) {
         driverId,
         driverName: driverProfile?.nickname || driverProfile?.name || '不明',
         carInfo: driverProfile?.car || '不明',
-        waitStartTime: driverProfile?.lastWaitStart || matchTimeStr, // 待機開始が見つからなければ現在時刻
-        waitLocation: driverProfile?.stop && driverProfile?.stop !== '不明' ? driverProfile.stop : '待機中', // 待機場所 (v2.8.2)
+        waitStartTime: driverProfile?.lastWaitStart || matchTimeStr,
+        waitLocation: '待機中',
         matchTime: matchTimeStr,
         passenger: {
           id: passengerId,
           name: userProfile?.storeName || userProfile?.name || '不明',
-          location: userProfile?.mark || '不明', // 住所・目印
+          location: userProfile?.address || '不明', // 方面
         },
-        carpool: [], // 初期は空
-        startTime: matchTimeStr, // 送迎開始時間（マッチング時とする）
-        vcId: null, // 後で入れる
+        carpool: [],
+        startTime: matchTimeStr,
+        vcId: null,
       };
 
       onDutyList[driverId] = rideEntry;
@@ -85,9 +85,9 @@ module.exports = async function (interaction, targetId) {
       // -------------------------------------------
 
       const rideId = `${driverId}_${Date.now()}_${guildId}`;
-      // Driver Location logic: currentLocation (updated by Panel) or fallback (v2.8.2)
-      const driverLoc = driverProfile.currentLocation || (driverProfile.stop && driverProfile.stop !== '不明' ? driverProfile.stop : '待機中');
-      const userLoc = userProfile.mark || '不明';
+      // Driver Location: Fallback to '待機中' as stop places are removed
+      const driverLoc = driverProfile.currentLocation || '待機中';
+      const userLoc = userProfile.address || '不明';
       const dest = userProfile.name || '不明';
 
       const route = `【${driverLoc}】→【${userLoc}】→【${dest}】`;

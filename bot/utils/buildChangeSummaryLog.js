@@ -16,7 +16,7 @@ function buildChangeSummaryLog(changes, fieldLabels = {}) {
     car: '車種/カラー/ナンバー',
     capacity: '乗車人数',
     storeName: '店舗名',
-    mark: '目印',
+    mark: '方面',
   };
 
   const labels = { ...defaultLabels, ...fieldLabels };

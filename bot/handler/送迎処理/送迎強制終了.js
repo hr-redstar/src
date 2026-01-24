@@ -36,7 +36,7 @@ module.exports = {
           const data = await store.readJson(fileKey).catch(() => null);
           if (!data) continue;
 
-          // 表示: 【現在地】→【住所：目印】→【目的地】
+          // 表示: 【現在地】→【方面】→【目的地】
           // ※ data の中身は 送迎開始.js で書かれた内容に依存。
           // data.route = { from, to } などが入っている想定。
           // passengerId, driverId もある。
@@ -45,14 +45,14 @@ module.exports = {
           // もし data に詳細がない場合は、ID表示などで代用
 
           const label = `送迎ID: ${data.rideId} | ${data.status}`;
-          // 住所情報が data.route にあるか確認 (標準的には route: { from, to } )
+          // 方面情報が data.route にあるか確認 (標準的には route: { from, to } )
           const from = data.route?.from || '不明';
           const to = data.route?.to || '不明';
 
           // description に詳細を入れる
-          // 【現在地】→【住所：目印】→【目的地】 というフォーマット指定だが、
+          // 【現在地】→【方面】→【目的地】 というフォーマット指定だが、
           // "現在地"はドライバーの動的な位置だが、rideデータには "出発地(from)" があるはず。
-          // 利用者登録情報(住所/目印)はここには含まれていない可能性が高いので、
+          // 利用者登録情報(方面)はここには含まれていない可能性が高いので、
           // シンプルに from -> to を表示する。
 
           const desc = `D:<@${data.driverId}> P:<@${data.passengerId}> | ${from} ➔ ${to}`;

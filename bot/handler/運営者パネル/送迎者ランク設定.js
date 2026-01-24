@@ -8,10 +8,10 @@ const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 
 /**
- * ユーザークレジット登録 - ユーザー選択メニューを表示
+ * 送迎者ランク設定 - ユーザー選択メニューを表示
  */
 module.exports = {
-    customId: 'op|credits|sub=start',
+    customId: 'op|rank|sub=assignment_start',
     type: 'button',
     async execute(interaction) {
         return autoInteractionTemplate(interaction, {
@@ -19,14 +19,14 @@ module.exports = {
             adminOnly: true,
             async run(interaction) {
                 const embed = new EmbedBuilder()
-                    .setTitle('💰 ユーザークレジット設定')
-                    .setDescription('クレジットを登録（または変更）したい利用者を選択してください。')
+                    .setTitle('🎖️ 送迎者ランク設定')
+                    .setDescription('ランクを設定したい送迎者（ユーザー）を選択してください。')
                     .setColor(Colors.Gold)
                     .setTimestamp();
 
                 const selectMenu = new UserSelectMenuBuilder()
-                    .setCustomId('op|credits|sub=user_select')
-                    .setPlaceholder('ユーザーを選択してください')
+                    .setCustomId('op|rank|sub=user_select')
+                    .setPlaceholder('送迎者を選択してください')
                     .setMinValues(1)
                     .setMaxValues(1);
 

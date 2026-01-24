@@ -26,10 +26,10 @@ function buildDriverRegistrationEmbed(registrationJson, user, userRanks = {}) {
       {
         name: '📌 最新の登録内容',
         value: [
+          `**活動区域 / 方面**: ${current.area || '未設定'}`,
           `**ニックネーム**: ${current.nickname || '未設定'}`,
           `**車種/カラー/ナンバー**: ${current.car || '未設定'}`,
           `**乗車人数**: ${current.capacity || '未設定'}名`,
-          `**whooID**: ${current.whooId || '未設定'}`,
           `**更新日時**: ${formatDate(current.registeredAt)}`,
         ].join('\n'),
         inline: false
@@ -67,9 +67,8 @@ function buildUserRegistrationEmbed(registrationJson, user, userRanks = {}) {
       {
         name: '📌 最新の登録内容',
         value: [
-          `**店舗名 / ニックネーム**: ${current.storeName || '未設定'}`,
-          `**店舗住所**: ${current.address || '未設定'}`,
-          `**駐車目印**: ${current.mark || '未設定'}`,
+          `**店舗名 / ニックネーム**: ${current.name || current.storeName || '未設定'}`,
+          `**方面**: ${current.mark || current.address || '未設定'}`,
           `**更新日時**: ${formatDate(current.registeredAt)}`,
         ].join('\n'),
         inline: false
@@ -95,16 +94,15 @@ function addHistoryFields(embed, history, role) {
     let info = '';
     if (role === 'driver') {
       info = [
+        `活動区域: ${item.area || '-'}`,
         `ニックネーム: ${item.nickname || '-'}`,
-        `車種/カラー/ナンバー: ${item.car || '-'}`,
+        `車種: ${item.car || '-'}`,
         `乗車人数: ${item.capacity || '-'}人`,
-        `whooID: ${item.whooId || '-'}`,
       ].join('\n');
     } else {
       info = [
-        `店舗名: ${item.storeName || '-'}`,
-        `店舗住所: ${item.address || '-'}`,
-        `駐車目印: ${item.mark || '-'}`,
+        `店舗名: ${item.name || item.storeName || '-'}`,
+        `方面: ${item.mark || item.address || '-'}`,
       ].join('\n');
     }
 

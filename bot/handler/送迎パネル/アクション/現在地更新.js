@@ -1,4 +1,4 @@
-﻿﻿﻿﻿// handler/送迎パネル/アクション/現在地更新.js
+﻿﻿// handler/送迎パネル/アクション/現在地更新.js
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
 
 const autoInteractionTemplate = require('../../共通/autoInteractionTemplate');
@@ -54,7 +54,8 @@ module.exports = async function (interaction, client, parsed, onUpdate) {
 
         const locInput = new TextInputBuilder()
           .setCustomId('input|driver|location')
-          .setLabel('現在の場所')
+          .setLabel('現在地')
+          .setPlaceholder('例：駅前、〇〇ビル前 など')
           .setStyle(TextInputStyle.Short)
           .setRequired(true)
           .setMaxLength(50);

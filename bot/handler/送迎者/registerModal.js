@@ -5,7 +5,6 @@ const { createUserMemoChannel } = require('../../utils/createUserMemoChannel');
 
 module.exports = async (interaction) => {
   const area = interaction.fields.getTextInputValue('input|driver|area');
-  const stop = interaction.fields.getTextInputValue('input|driver|stop');
   const nickname = interaction.fields.getTextInputValue('input|driver|nickname');
   const car = interaction.fields.getTextInputValue('input|driver|car');
   const capacity = Number(interaction.fields.getTextInputValue('input|driver|capacity'));
@@ -20,7 +19,6 @@ module.exports = async (interaction) => {
   const data = {
     userId: interaction.user.id,
     area,
-    stop,
     nickname,
     car,
     capacity,
@@ -48,8 +46,7 @@ module.exports = async (interaction) => {
     .setColor(0x2ecc71)
     .addFields(
       { name: 'ユーザー', value: `<@${interaction.user.id}>`, inline: true },
-      { name: '区域', value: area, inline: true },
-      { name: '停留場所', value: stop, inline: true },
+      { name: '活動区域', value: area, inline: true },
       { name: '車種', value: car || '未設定', inline: true },
       { name: '乗車人数', value: `${capacity}人`, inline: true },
       { name: 'ニックネーム', value: nickname || '未設定', inline: true }

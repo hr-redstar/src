@@ -82,14 +82,12 @@ function buildHistoryEmbed(item, role, rangeText) {
     info = [
       `**ニックネーム**: ${item.nickname || '-'}`,
       `**車種**: ${item.car || '-'}`,
-      `**区域**: ${item.area || '-'}`,
-      `**停留場所**: ${item.stop || '-'}`,
       `**乗車人数**: ${item.capacity || '-'}人`,
     ].join('\n');
   } else {
     info = [
       `**店舗名 / ニックネーム**: ${item.storeName || '-'}`,
-      `**目印**: ${item.mark || '-'}`,
+      `**方面**: ${item.address || '-'}`,
     ].join('\n');
   }
 

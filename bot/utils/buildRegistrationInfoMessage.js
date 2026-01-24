@@ -35,7 +35,7 @@ function buildRegistrationInfoMessage(
       message += `・whooID：${current.whooId || '未設定'}\n`;
     } else {
       message += `・店舗名 / ニックネーム：${current.storeName || '未設定'}\n`;
-      message += `・目印：${current.mark || '未設定'}\n`;
+      message += `・方面：${current.mark || '未設定'}\n`;
     }
 
     if (current.registeredAt) {
@@ -63,7 +63,7 @@ function buildRegistrationInfoMessage(
         message += `・whooID：${historyItem.whooId || '未設定'}\n`;
       } else {
         message += `・店舗名 / ニックネーム：${historyItem.storeName || '未設定'}\n`;
-        message += `・目印：${historyItem.mark || '未設定'}\n`;
+        message += `・方面：${historyItem.mark || '未設定'}\n`;
       }
 
       if (historyItem.oldRegisteredAt && historyItem.changedAt) {
@@ -114,7 +114,7 @@ function buildInitialRegistrationMessage(registrationJson, role, user) {
       message += `・whooID：${current.whooId || '未設定'}\n`;
     } else {
       message += `・店舗名 / ニックネーム：${current.storeName || '未設定'}\n`;
-      message += `・目印：${current.mark || '未設定'}\n`;
+      message += `・方面：${current.mark || '未設定'}\n`;
     }
 
     if (current.registeredAt) {

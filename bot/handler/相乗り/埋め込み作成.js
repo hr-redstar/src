@@ -17,8 +17,8 @@ function buildCarpoolAnnouncementEmbed({
   const remaining = Math.max(capacity - currentUsers, 0);
 
   // ルート表示の組み立て
-  // 承認前：【送迎者現在地】→【利用者の目印】→【目的地】
-  // 承認後：【送迎者現在地】→【相乗り希望者現在地】→【利用者の目印】→【目的地】
+  // 承認前：【送迎者現在地】→【利用者の方面】→【目的地】
+  // 承認後：【送迎者現在地】→【相乗り希望者現在地】→【利用者の方面】→【目的地】
   let routeLine = `【${driverLocation}】`;
   if (carpoolLocation) {
     routeLine += `\n→【${carpoolLocation}】`;

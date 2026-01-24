@@ -10,7 +10,7 @@ const paths = require('../ストレージ/ストレージパス');
  */
 async function forceOffDriver({ guild, driverId, executor }) {
   const guildId = guild.id;
-  
+
   // プロファイル確認 (存在チェック用)
   const profilePath = paths.driverProfileJson(guildId, driverId);
   const profile = await store.readJson(profilePath).catch(() => null);
@@ -18,9 +18,9 @@ async function forceOffDriver({ guild, driverId, executor }) {
   // 待機列から削除
   const waitPath = `${paths.waitingDriversDir(guildId)}/${driverId}.json`;
   const wasWaiting = (await store.readJson(waitPath).catch(() => null)) !== null;
-  
+
   if (wasWaiting) {
-    await store.delete(waitPath);
+    await store.deleteFile(waitPath);
   }
 
   return {

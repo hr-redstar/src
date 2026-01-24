@@ -49,7 +49,8 @@ module.exports = async function (interaction, client, parsed) {
             color: 0x2ecc71,
             client: interaction.client,
             fields: [
-              { name: '📋 車種/カラー/ナンバー (人数)', value: `${carInfo} (${capacity})`, inline: true }
+              { name: '📋 車種/カラー/ナンバー (人数)', value: `${carInfo} (${capacity})`, inline: true },
+              { name: '📍 現在地', value: '待機中', inline: true }
             ]
           });
 

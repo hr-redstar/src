@@ -7,7 +7,7 @@ module.exports = async function userRegisterModal(interaction) {
   const userId = interaction.user.id;
 
   const name = interaction.fields.getTextInputValue('name');
-  const landmark = interaction.fields.getTextInputValue('landmark');
+  const mark = interaction.fields.getTextInputValue('landmark');
 
   // 二重登録防止
   const isRegistered = await isRegisteredUser(guildId, userId);
@@ -20,7 +20,7 @@ module.exports = async function userRegisterModal(interaction) {
 
   const data = {
     name,
-    landmark,
+    mark,
   };
 
   await upsertUserRegistration(guildId, userId, data);
@@ -37,7 +37,7 @@ module.exports = async function userRegisterModal(interaction) {
       `
 **ユーザー** <@${userId}>
 **店舗名 / ニックネーム** ${name}
-**近所の目印** ${landmark}
+**方面** ${mark}
     `
     )
     .setTimestamp();

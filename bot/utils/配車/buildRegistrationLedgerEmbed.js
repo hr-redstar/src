@@ -41,8 +41,7 @@ function buildUserLedgerEmbed(u, user, ratingSummary) {
         .setDescription(
             `**▼ <@${u.userId}>**　${stars}\n\n` +
             `**店舗名/ニックネーム**: ${u.storeName || '未設定'}\n` +
-            `**店舗住所**: ${u.address || '未設定'}\n` +
-            `**駐車目印**: ${u.mark || '未設定'}`
+            `**方面**: ${u.address || '未設定'}`
         )
         .setFooter({ text: `userId: ${u.userId}` })
         .setTimestamp();

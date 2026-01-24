@@ -91,12 +91,25 @@ const ROUTES = {
         if (action === 'directions') {
             if (parsed.params?.sub === 'list_register') return require('./運営者パネル/方角リスト登録');
             if (parsed.params?.sub === 'detail_register') return require('./運営者パネル/方角詳細登録');
-            if (parsed.params?.sub === 'modal') return require('./運営者パネル/方角リスト保存');
-            if (parsed.params?.sub === 'detail_modal') return require('./運営者パネル/方角詳細保存');
+            if (parsed.params?.sub === 'modal') return require('./運営者パネル/方角リスト登録完了');
+            if (parsed.params?.sub === 'detail_modal') return require('./運営者パネル/方角詳細完了');
+            if (parsed.params?.sub === 'detail_input') return require('./運営者パネル/方角リスト詳細入力');
+        }
+        if (action === 'fee') {
+            if (parsed.params?.sub === 'setting') return require('./運営者パネル/利用料設定');
+            if (parsed.params?.sub === 'modal') return require('./運営者パネル/利用料設定完了');
         }
         if (action === 'credits') {
             if (parsed.params?.sub === 'modal') return require('./運営者パネル/ユーザークレジット登録完了');
+            if (parsed.params?.sub === 'user_select') return require('./運営者パネル/ユーザークレジット入力');
             return require('./運営者パネル/ユーザークレジット登録');
+        }
+        if (action === 'rank') {
+            if (parsed.params?.sub === 'class_register') return require('./運営者パネル/送迎者ランク階級登録');
+            if (parsed.params?.sub === 'modal') return require('./運営者パネル/送迎者ランク階級登録完了');
+            if (parsed.params?.sub === 'assignment_start') return require('./運営者パネル/送迎者ランク設定');
+            if (parsed.params?.sub === 'user_select') return require('./運営者パネル/送迎者ランク選択');
+            if (parsed.params?.sub === 'rank_select') return require('./運営者パネル/送迎者ランク設定完了');
         }
         return require('./運営者パネル/メイン');
     },

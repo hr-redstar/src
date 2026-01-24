@@ -7,28 +7,16 @@ module.exports = async (interaction) => {
 
   const modal = new ModalBuilder().setCustomId('reg|driver|sub=modal').setTitle('送迎者登録');
 
-  const nickname = new TextInputBuilder()
-    .setCustomId('input|driver|nickname')
-    .setLabel('ニックネーム')
-    .setStyle(TextInputStyle.Short)
-    .setRequired(false);
-  if (existingData?.nickname) nickname.setValue(existingData.nickname);
-
-  const car = new TextInputBuilder()
-    .setCustomId('input|driver|car')
-    .setLabel('車種/カラー/ナンバー')
-    .setStyle(TextInputStyle.Short)
-    .setRequired(false);
-  if (existingData?.car) car.setValue(existingData.car);
-
-  const capacity = new TextInputBuilder()
-    .setCustomId('input|driver|capacity')
-    .setLabel('乗車人数')
+  const area = new TextInputBuilder()
+    .setCustomId('input|driver|area')
+    .setLabel('活動拠点 / 活動区域')
+    .setPlaceholder('例：駅前、北千住周辺 など')
     .setStyle(TextInputStyle.Short)
     .setRequired(true);
-  if (existingData?.capacity) capacity.setValue(String(existingData.capacity));
+  if (existingData?.area) area.setValue(existingData.area);
 
   modal.addComponents(
+    new ActionRowBuilder().addComponents(area),
     new ActionRowBuilder().addComponents(nickname),
     new ActionRowBuilder().addComponents(car),
     new ActionRowBuilder().addComponents(capacity)

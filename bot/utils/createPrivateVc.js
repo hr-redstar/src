@@ -26,13 +26,13 @@ module.exports.createPrivateVc = async ({
   const min = String(now.getMinutes()).padStart(2, '0');
   const matchTime = `${hh}:${min}`;
 
-  // VC名: MM/DD MatchTime~--:--【送迎者現在地】→【住所・目印】→【目的地】
+  // VC名: MM/DD MatchTime~--:--【送迎者現在地】→【方面】→【目的地】
   // ※送迎者現在地は動的などのため、初期は簡易表示にするか、もしくは仕様通り「MM/DD MatchTime~--:--...」とする
-  // 仕様: MM/DD 21:00~--:--【送迎者現在地】→【住所・目印】→【目的地】
+  // 仕様: MM/DD 21:00~--:--【送迎者現在地】→【方面】→【目的地】
   //   「送迎者現在地」は引数にない場合があるが、pickupLocation (出発点) のことか？
   //   仕様書には「送迎者現在地」とあるが、マッチング時は不明なことが多い。
   //   とりあえず仕様書例のフォーマットに近づける。
-  //   pickupLocation = 住所・目印 (ユーザーの現在地)
+  //   pickupLocation = 方面 (ユーザーの現在地)
   //   destination = 目的地
 
   // VC名の長さ制限(100文字)に注意
@@ -81,8 +81,8 @@ module.exports.createPrivateVc = async ({
     .setTitle(channelName)
     .setDescription(
       `送迎者：<@${driver.id}>\n利用者：<@${user.id}>\n\n` +
-        `**マッチング時間**：${matchTime}\n` +
-        `**向かっています**：--:--`
+      `**マッチング時間**：${matchTime}\n` +
+      `**向かっています**：--:--`
     )
     .addFields(
       { name: '送迎者', value: '送迎開始時間：--:--\n送迎終了時間：--:--', inline: true },

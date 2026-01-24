@@ -64,8 +64,7 @@ function buildUserRegPanelMessage(guild, client) {
     description: `
 **利用者登録**
 ・店舗名 または ニックネーム
-・店舗住所
-・駐車目印
+・方面
     `,
     client: botClient,
   });
@@ -167,22 +166,12 @@ async function execute(interaction, client, parsed) {
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId(CID.INP_ADDRESS)
-          .setLabel('店舗住所 (必須)')
+          .setLabel('方面 (必須)')
           .setStyle(TextInputStyle.Paragraph)
           .setRequired(true)
           .setMaxLength(100)
-          .setPlaceholder('例: 東京都新宿区... 〇〇ビル1F')
+          .setPlaceholder('例: 神奈川方面、23区方面')
           .setValue(existing.address || '')
-      ),
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId(CID.INP_MARK)
-          .setLabel('駐車目印 (必須)')
-          .setStyle(TextInputStyle.Paragraph)
-          .setRequired(true)
-          .setMaxLength(200)
-          .setPlaceholder('例: 大きな青い看板の横、セブンイレブン向かい')
-          .setValue(existing.mark || '')
       )
     );
 
@@ -205,8 +194,7 @@ async function execute(interaction, client, parsed) {
         const registrationData = {
           userId,
           storeName: name, // 利用者の場合は storeName
-          address,
-          mark,
+          address, // 方面を address フィールドに格納 (互換性維持)
           registeredAt: nowIso(),
         };
         await saveUser(guildId, userId, registrationData);
@@ -334,8 +322,7 @@ async function execute(interaction, client, parsed) {
               .addFields(
                 { name: 'ユーザー', value: `<@${userId}>`, inline: true },
                 { name: 'お名前', value: name, inline: true },
-                { name: '住所', value: address, inline: false },
-                { name: '駐車目印', value: mark, inline: false }
+                { name: '方面', value: address, inline: false }
               )
               .setTimestamp();
             await ch.send({ embeds: [logEmbed] }).catch(() => null);

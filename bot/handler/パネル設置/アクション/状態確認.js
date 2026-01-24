@@ -71,7 +71,7 @@ module.exports = {
             desc += `**【👤 利用者情報】**\n`;
             desc += `ニックネーム: \`${userProfile.name}\`\n`;
             desc += `ランク: \`${rank}\` / 評価: ${stars}\n`;
-            desc += `送迎目印: \`${userProfile.mark || '未設定'}\`\n\n`;
+            desc += `方面: \`${userProfile.mark || '未設定'}\`\n\n`;
           }
           if (isDriverRegistered) {
             const rank = userRanks[userId] || '設定なし';
@@ -81,7 +81,7 @@ module.exports = {
             desc += `**【🚗 送迎者情報】**\n`;
             desc += `ニックネーム: \`${driverProfile.nickname}\`\n`;
             desc += `ランク: \`${rank}\` / 評価: ${stars}\n`;
-            desc += `待機場所: \`${driverProfile.stopPlace || driverProfile.stop || '未設定'}\`\n`;
+            desc += `現在地: \`${driverProfile.stopPlace || driverProfile.stop || '未設定'}\`\n`;
             desc += `乗車定員: \`${driverProfile.capacity}\`名\n`;
           }
           embed.setDescription(desc);

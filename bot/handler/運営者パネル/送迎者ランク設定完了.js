@@ -5,23 +5,24 @@ const store = require('../../utils/ストレージ/ストア共通');
 const paths = require('../../utils/ストレージ/ストレージパス');
 
 /**
- * ユーザークレジット登録完了 - データを永続化
+ * 送迎者ランク設定完了 - データを保存
  */
 module.exports = {
-    customId: 'op|credits|sub=modal',
-    type: 'modalSubmit',
+    customId: 'op|rank|sub=rank_select',
+    type: 'selectMenu',
     async execute(interaction, params) {
         return autoInteractionTemplate(interaction, {
             ack: ACK.AUTO,
             adminOnly: true,
             async run(interaction) {
                 const targetUserId = params.uid;
-                const amountInput = interaction.fields.getTextInputValue('amount');
-                const amount = parseInt(amountInput);
+                const newRank = interaction.values[0];
 
-                if (isNaN(amount)) {
+                if (!targetUserId || !newRank) {
                     return interaction.editReply({
-                        content: '❌ クレジット量は数値で入力してください。',
+                        content: '❌ エラー: ユーザー情報の取得に失敗しました。',
+                        embeds: [],
+                        components: [],
                     });
                 }
 
@@ -29,25 +30,27 @@ module.exports = {
                 const userPath = paths.userJson(interaction.guildId, targetUserId);
                 const userData = await store.readJson(userPath, { userId: targetUserId });
 
-                // クレジットを加算
-                const oldCredits = userData.credits || 0;
-                userData.credits = (userData.credits || 0) + amount;
+                // ランクを更新
+                const oldRank = userData.driverRank || '未設定';
+                userData.driverRank = newRank;
 
                 // 保存
                 await store.writeJson(userPath, userData);
 
                 const embed = new EmbedBuilder()
-                    .setTitle('✅ ユーザークレジット登録完了')
-                    .setDescription(`<@${targetUserId}> に **${amount} クレジット** を追加しました。`)
+                    .setTitle('✅ 送迎者ランク設定完了')
+                    .setDescription(`<@${targetUserId}> のランクを更新しました。`)
                     .addFields(
-                        { name: '以前の残高', value: `${oldCredits}`, inline: true },
-                        { name: '追加量', value: `+${amount}`, inline: true },
-                        { name: '現在の残高', value: `${userData.credits}`, inline: true }
+                        { name: '変更前', value: oldRank, inline: true },
+                        { name: '変更後', value: newRank, inline: true }
                     )
                     .setColor(Colors.Green)
                     .setTimestamp();
 
-                await interaction.editReply({ embeds: [embed] });
+                await interaction.editReply({
+                    embeds: [embed],
+                    components: [],
+                });
             },
         });
     },

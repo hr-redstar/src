@@ -35,8 +35,8 @@ module.exports = {
 
                 // ルート更新ロジック (A -> B -> C -> D)
                 const A = rideData.driverPlace || '現在地';
-                const B = rideData.mark || '目印';
-                const C = rideData.destination || '最終目的地';
+                const B = rideData.pickup || '方面';
+                const C = rideData.target || '目的地';
                 const X = carpoolLoc;
 
                 let newRoute = '';
@@ -45,7 +45,7 @@ module.exports = {
                 else newRoute = `【${A}】→【${B}】→【${C}】→【${X}】`;
 
                 rideData.route = newRoute;
-                if (segment === 3) rideData.destination = X; // 最終目的地が更新された場合
+                if (segment === 3) rideData.target = X; // 目的地が更新された場合
 
                 // 相取りユーザー追加
                 if (!rideData.carpoolUsers) rideData.carpoolUsers = [];

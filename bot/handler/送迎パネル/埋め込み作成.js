@@ -108,13 +108,12 @@ async function buildRideListPanelMessage(guild, client) {
     if (queue.length === 0) {
         waitingDriverLines.push('待機中の送迎車はいません。');
     } else {
-        waitingDriverLines.push('`順位｜待機開始｜名前｜待機場所｜車種`');
+        waitingDriverLines.push('`順位｜待機開始｜名前｜車種`');
         queue.forEach((d, idx) => {
             const time = d.timestamp ? new Date(d.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '--:--';
-            const place = d.stopPlace || '待機中';
             const car = d.carInfo || d.car || '-';
             const rank = userRanks[d.userId] ? `[${userRanks[d.userId]}] ` : '';
-            waitingDriverLines.push(`第${idx + 1}位｜${time}｜${rank}<@${d.userId}>｜${place}｜${car}`);
+            waitingDriverLines.push(`第${idx + 1}位｜${time}｜${rank}<@${d.userId}>｜${car}`);
         });
     }
 

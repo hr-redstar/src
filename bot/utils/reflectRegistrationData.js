@@ -32,7 +32,7 @@ ${title}
   // 利用者の場合
   else if (role === 'user') {
     content += `・店舗名：${registrationData.storeName || '未入力'}
-・目印：${registrationData.mark || '未入力'}`;
+・方面：${registrationData.mark || '未入力'}`;
   }
   // 汎用（将来拡張用）
   else {

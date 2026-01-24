@@ -30,7 +30,7 @@ function buildHistoryLog(historyData, role = 'driver') {
   // 利用者の場合
   else if (role === 'user') {
     content += `・店舗名：${historyData.storeName || '未設定'}
-・目印：${historyData.mark || '未設定'}`;
+・方面：${historyData.mark || '未設定'}`;
   }
 
   content += `

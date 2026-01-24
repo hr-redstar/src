@@ -1,11 +1,16 @@
-const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, StringSelectMenuBuilder, ChannelSelectMenuBuilder } = require('discord.js');
+const {
+  ActionRowBuilder,
+  StringSelectMenuBuilder,
+  EmbedBuilder,
+  Colors,
+} = require('discord.js');
 const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 const store = require('../../utils/ストレージ/ストア共通');
 const paths = require('../../utils/ストレージ/ストレージパス');
 
 /**
- * 方角リスト詳細登録 - 方角選択 → 詳細入力
+ * 方面詳細登録 - 方面選択メニューを表示
  */
 module.exports = {
   customId: 'op|directions|sub=detail_register',
@@ -17,36 +22,37 @@ module.exports = {
       async run(interaction) {
         const guildId = interaction.guildId;
 
-        // 現在の方角リストを読み込む
+        // 方面リストを読み込む
         const dirListPath = paths.directionsListJson(guildId);
         const directionsList = await store.readJson(dirListPath, []);
 
-        if (!directionsList || directionsList.length === 0) {
+        if (directionsList.length === 0) {
           return interaction.editReply({
-            content: '❌ 方角リストが見つかりません。\n先に「➕ 方角リスト登録」で方角を登録してください。',
+            content: '⚠️ まず先に「方面リスト登録」で方面を登録してください。',
           });
         }
 
-        // Select Menu を作成
-        const select = new StringSelectMenuBuilder()
-          .setCustomId('op|directions|modal=detail_select')
-          .setPlaceholder('方角を選択してください')
-          .setMinValues(1)
-          .setMaxValues(1);
+        const embed = new EmbedBuilder()
+          .setTitle('📍 方面詳細の登録・更新')
+          .setDescription('詳細を登録（または更新）したい方向を選んでください。')
+          .setColor(Colors.Blue)
+          .setTimestamp();
 
-        // 方角リストの各項目をオプションとして追加
-        directionsList.forEach((dir) => {
-          select.addOptions({
-            label: dir.name || dir,
-            value: dir.id || dir,
-            description: `${dir.name || dir} の詳細情報を設定`,
-          });
-        });
+        const selectMenu = new StringSelectMenuBuilder()
+          .setCustomId('op|directions|sub=detail_input')
+          .setPlaceholder('方面を選択してください')
+          .addOptions(
+            directionsList.map((d, index) => ({
+              label: `${index + 1}. ${d.name}`,
+              value: `${index + 1}行目`, // 内部的には「行目」で正規化
+              description: d.name,
+            }))
+          );
 
-        const row = new ActionRowBuilder().addComponents(select);
+        const row = new ActionRowBuilder().addComponents(selectMenu);
 
         await interaction.editReply({
-          content: '📝 詳細情報を設定する方角を選択してください：',
+          embeds: [embed],
           components: [row],
         });
       },

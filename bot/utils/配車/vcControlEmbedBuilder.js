@@ -28,9 +28,9 @@ function buildVcControlEmbed(data) {
     const dateStr = `${now.getMonth() + 1}/${now.getDate()}`;
     const mTime = matchTime || '--:--';
     const endTimeDisplay = (driverEndTime && userEndTime) ? (driverEndTime) : '--:--';
-    const currentRoute = route || `【${driverPlace || '不明'}】→【${mark || '不明'}】→【${destination || '不明'}】`;
+    const currentRoute = route || `【${driverPlace || '現在地'}】→【${mark || pickup || '方面'}】→【${destination || target || '目的地'}】`;
 
-    // タイトル: 月日 マッチング時間~送迎終了時間【送迎者現在地】→【住所・目印】→【利用者方面・目的地】
+    // タイトル: 月日 HH:mm~HH:mm 【方面】→【方角】
     const title = `${dateStr} ${mTime}~${endTimeDisplay} ${currentRoute}`;
 
     // ステータスに応じた配色
@@ -50,8 +50,8 @@ function buildVcControlEmbed(data) {
         const lastCarpooler = carpoolUsers[carpoolUsers.length - 1];
         // マッチングしたばかり（開始時間が未設定）の最新相乗り者がいれば表示
         if (!lastCarpooler.startTime) {
-            descriptionParts.push(`📢 **相乗り希望者${carpoolUsers.length}が来ました。**`);
-            descriptionParts.push(`> 【${lastCarpooler.location || '方面・目的地'}】 <@${lastCarpooler.userId}>`);
+            descriptionParts.push(`📢 **相乗り希望者が来ました。**`);
+            descriptionParts.push(`> 【${lastCarpooler.location || '方面'}】 <@${lastCarpooler.userId}>`);
             descriptionParts.push('');
         }
     }

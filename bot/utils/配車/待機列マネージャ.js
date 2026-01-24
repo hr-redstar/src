@@ -8,7 +8,7 @@ const paths = require('../ストレージ/ストレージパス');
 async function getQueue(guildId) {
   const dir = paths.waitingDriversDir(guildId);
   const files = await store.listKeys(dir).catch(() => []);
-  
+
   const drivers = [];
   for (const file of files) {
     if (!file.endsWith('.json')) continue;
@@ -41,7 +41,7 @@ async function addToQueue(guildId, driverData) {
 
 async function removeFromQueue(guildId, userId) {
   const waitPath = `${paths.waitingDriversDir(guildId)}/${userId}.json`;
-  await store.delete(waitPath).catch(() => {}); // Ignore if not found
+  await store.deleteFile(waitPath).catch(() => { }); // Ignore if not found
 }
 
 async function updateQueueItem(guildId, userId, updateData) {
