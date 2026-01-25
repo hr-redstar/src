@@ -27,6 +27,13 @@ async function showCarpoolSelectMenu(interaction, actionType, rideId) {
                 return interaction.editReply({ content: '⚠️ 現在、この送迎に相乗り者は登録されていません。' });
             }
 
+            // 権限ガード (送迎者のみ)
+            if (interaction.user.id !== dispatchData.driverId) {
+                return interaction.editReply({
+                    content: '❌ この操作は送迎担当者のみ実行できます。',
+                });
+            }
+
             // アクションに応じたラベルとフィルタリング
             const actionLabels = {
                 carpool_approach: '合流場所へ向かう',
@@ -73,6 +80,14 @@ async function handleCarpoolAction(interaction, client, parsed) {
 
             if (!dispatchData || !dispatchData.carpoolUsers?.[index]) {
                 return interaction.editReply({ content: '⚠️ データが見つかりません。', components: [] });
+            }
+
+            // 権限ガード (送迎者のみ)
+            if (interaction.user.id !== dispatchData.driverId) {
+                return interaction.editReply({
+                    content: '❌ この操作は送迎担当者のみ実行できます。',
+                    components: []
+                });
             }
 
             const targetUser = dispatchData.carpoolUsers[index];

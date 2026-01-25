@@ -11,7 +11,7 @@ const updateOperatorPanel = require('./updatePanel');
 module.exports = {
   customId: 'op|directions|sub=modal',
   type: 'modalSubmit',
-  async execute(interaction) {
+  async execute(interaction, client, parsed) {
     return autoInteractionTemplate(interaction, {
       ack: ACK.AUTO,
       adminOnly: true,

@@ -13,42 +13,55 @@ async function showDashboard(interaction, client, parsed) {
         ack: ACK.AUTO,
         async run(interaction) {
             const guildId = interaction.guildId;
+            const store = require('../../../utils/ストレージ/ストア共通');
             const config = (await require('../../../utils/設定/設定マネージャ').loadConfig(guildId)) || {};
             const userRanks = config.ranks?.userRanks || {};
 
-            // 送迎者ランキング取得
+            // 1. 各種ランキング取得
             const driverRanking = await getGuildRanking(guildId, 'driver');
-            // 利用者ランキング取得
             const userRanking = await getGuildRanking(guildId, 'user');
 
+            // 2. 利用者クレジット集計
+            const allUsers = await store.loadUsers(guildId).catch(() => []);
+            const sortedByCredit = [...allUsers]
+                .filter(u => u.credits !== undefined)
+                .sort((a, b) => b.credits - a.credits);
+
+            const topCredits = sortedByCredit.slice(0, 5);
+            const lowCredits = sortedByCredit.slice(-5).reverse();
+            const totalCreditUnits = sortedByCredit.reduce((sum, u) => sum + (u.credits || 0), 0);
+
             const embed = buildPanelEmbed({
-                title: '📈 統計ダッシュボード（ランキング）',
-                description: '平均点と送迎件数に基づくトップユーザーのリストです。',
+                title: '📈 運営・管理ダッシュボード',
+                description: 'システムの稼働状況、実績、および資産残高を一括表示します。',
                 color: 0xffd700,
                 client: interaction.client
             });
 
-            // 送迎者ランキング文字列作成
+            // 送迎者ランキング
             const driverLines = driverRanking.slice(0, 5).map((r, i) => {
-                const stars = '⭐'.repeat(Math.round(r.average));
-                const rank = userRanks[r.userId] ? ` [${userRanks[r.userId]}]` : '';
-                return `${i + 1}. <@${r.userId}>${rank} (**${r.average}** ${stars} / ${r.count}件)`;
+                const rank = userRanks[r.userId] ? `[${userRanks[r.userId]}] ` : '';
+                return `${i + 1}. ${rank}${r.nickname || '不明'} (${r.average}★ / ${r.count}件)`;
             });
             embed.addFields({
-                name: '🚗 送迎者ランキング (TOP 5)',
-                value: driverLines.join('\n') || 'データなし',
+                name: '🚗 送迎者実績ランキング (TOP 5)',
+                value: `\`\`\`\n${driverLines.join('\n') || 'データなし'}\n\`\`\``,
                 inline: false
             });
 
-            // 利用者ランキング文字列作成
-            const userLines = userRanking.slice(0, 5).map((r, i) => {
-                const stars = '⭐'.repeat(Math.round(r.average));
-                const rank = userRanks[r.userId] ? ` [${userRanks[r.userId]}]` : '';
-                return `${i + 1}. <@${r.userId}>${rank} (**${r.average}** ${stars} / ${r.count}件)`;
-            });
+            // クレジットサマリー
+            const creditTopLines = topCredits.map((u, i) => `${i + 1}. ${u.current?.storeName || u.userId.substring(0, 8)}...: ￥${(u.credits || 0).toLocaleString()}`);
+            const creditLowLines = lowCredits.map((u, i) => `⚠ ${u.current?.storeName || u.userId.substring(0, 8)}...: ￥${(u.credits || 0).toLocaleString()}`);
+
             embed.addFields({
-                name: '👤 利用者ランキング (TOP 5)',
-                value: userLines.join('\n') || 'データなし',
+                name: '💰 利用者クレジット状況',
+                value: [
+                    '**上位残高:**',
+                    `\`\`\`\n${creditTopLines.join('\n') || 'データなし'}\n\`\`\``,
+                    '**不足・注意:**',
+                    `\`\`\`\n${creditLowLines.join('\n') || 'データなし'}\n\`\`\``,
+                    `▫️ システム総資高: **￥${totalCreditUnits.toLocaleString()}**`
+                ].join('\n'),
                 inline: false
             });
 

@@ -3,11 +3,11 @@
 
 const sendPanelSetupPanel = require('./メイン');
 const sendOperatorPanel = require('../運営者パネル/メイン');
-const operatorDirectionsListRegister = require('../運営者パネル/方角リスト登録');
-const operatorDirectionsListRegisterComplete = require('../運営者パネル/方角リスト登録完了');
-const operatorDirectionsDetailRegister = require('../運営者パネル/方角リスト詳細登録');
-const operatorDirectionsDetailInput = require('../運営者パネル/方角リスト詳細入力');
-const operatorDirectionsDetailComplete = require('../運営者パネル/方角リスト詳細完了');
+const operatorDirectionsListRegister = require('../運営者パネル/方面リスト登録');
+const operatorDirectionsListRegisterComplete = require('../運営者パネル/方面リスト登録完了');
+const operatorDirectionsDetailRegister = require('../運営者パネル/方面リスト詳細登録');
+const operatorDirectionsDetailInput = require('../運営者パネル/方面リスト詳細入力');
+const operatorDirectionsDetailComplete = require('../運営者パネル/方面リスト詳細完了');
 const operatorCreditsRegister = require('../運営者パネル/ユーザークレジット登録');
 const operatorCreditsComplete = require('../運営者パネル/ユーザークレジット登録完了');
 

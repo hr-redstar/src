@@ -74,11 +74,11 @@ module.exports = {
 async function showDirectionSelection(interaction, type) {
   const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 
-  // 運営設定から方角リストを読み込む
+  // 運営設定から方面リストを読み込む
   const dirListPath = paths.directionsListJson(interaction.guildId);
   const directionsList = await store.readJson(dirListPath, []).catch(() => []);
 
-  // 有効な方角のみを抽出
+  // 有効な方面のみを抽出
   const directions = directionsList
     .filter((d) => d.enabled !== false)
     .map((d) => d.name.replace(/【|】/g, ''));
@@ -106,7 +106,7 @@ async function showDirectionSelection(interaction, type) {
     );
     rows.push(currentRow);
   } else {
-    // 各方角ボタンを5列x5行まで表示（インデックスを使用）
+    // 各方面ボタンを5列x5行まで表示（インデックスを使用）
     directions.forEach((dir, index) => {
       if (index > 0 && index % 5 === 0) {
         rows.push(currentRow);

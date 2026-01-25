@@ -61,7 +61,7 @@ function buildDispatchEmbed(data) {
     };
     const color = COLOR_MAP[status] || 0x3498db;
 
-    // タイトル: MM/DD HH:mm~HH:mm 【方面】→【方角】
+    // タイトル: MM/DD HH:mm~HH:mm 【方面】→【方面】
     const title = `${date} ${matchTime}~${endTime} 【${pickup}】→【${target}】`;
 
     const embed = new EmbedBuilder()

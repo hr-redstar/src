@@ -82,11 +82,11 @@ async function showDirectionSelection(interaction, rideId) {
   const paths = require('../../utils/ストレージ/ストレージパス');
   const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 
-  // 運営設定から方角リストを読み込む
+  // 運営設定から方面リストを読み込む
   const dirListPath = paths.directionsListJson(interaction.guildId);
   const directionsList = await store.readJson(dirListPath, []).catch(() => []);
 
-  // 有効な方角のみを抽出
+  // 有効な方面のみを抽出
   const directions = directionsList
     .filter((d) => d.enabled !== false)
     .map((d) => d.name.replace(/【|】/g, ''));

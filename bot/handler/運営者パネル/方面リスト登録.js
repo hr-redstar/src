@@ -10,7 +10,7 @@ const paths = require('../../utils/ストレージ/ストレージパス');
 module.exports = {
   customId: 'op|directions|sub=list_register',
   type: 'button',
-  async execute(interaction) {
+  async execute(interaction, client, parsed) {
     return autoInteractionTemplate(interaction, {
       ack: 'none', // モーダルを表示するため defer しない
       adminOnly: true,

@@ -176,24 +176,25 @@ async function handleHistorySearch(interaction, client, parsed) {
   allRecords.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
   const buildPanelEmbed = require('../../../utils/embed/embedTemplate');
-  const embed = buildPanelEmbed({
-    title: `📅 送迎履歴検索結果`,
-    description: `期間: **${startDate.toLocaleDateString('ja-JP')} ～ ${endDate.toLocaleDateString('ja-JP')}**`,
-    color: 0x3498db,
-    client: interaction.client
-  });
 
   if (allRecords.length === 0) {
-    embed.setDescription(embed.data.description + '\n\n該当する履歴は見つかりませんでした。');
+    const embed = buildPanelEmbed({
+      title: `📅 送迎履歴検索結果`,
+      description: [
+        `**検索対象**: ${startDate.toLocaleDateString('ja-JP')} ～ ${endDate.toLocaleDateString('ja-JP')}`,
+        '',
+        '該当する走行データは見つかりませんでした。',
+      ].join('\n'),
+      color: 0x95a5a6,
+      client: interaction.client
+    });
+    return interaction.editReply({ embeds: [embed] });
   } else {
     let totalPassengers = 0;
     const lines = [];
 
     // 表示件数制限 (Discord制限を考慮)
     const displayRecords = allRecords.slice(-15);
-    if (allRecords.length > 15) {
-      lines.push(`⚠️ 件数が多いため、最新の15件のみ表示します。 (${allRecords.length}件中)`);
-    }
 
     displayRecords.forEach((r) => {
       const time = r.createdAt ? new Date(r.createdAt).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' }) + ' ' +
@@ -213,15 +214,28 @@ async function handleHistorySearch(interaction, client, parsed) {
       lines.push(`▫️ \`${time}\` ${dRank}<@${r.driverId}> ➔ ${pMention} (${total}名)\n> 🗺️ ${r.direction || '詳細不明'}`);
     });
 
-    embed.setDescription(embed.data.description + '\n\n' + lines.join('\n'));
-    embed.addFields({
-      name: '📊 集計統計',
-      value: `▫️ 総走行件数: **${allRecords.length}** 件\n▫️ 合計利用者: **${totalPassengers}** 名`,
-      inline: false
+    const embed = buildPanelEmbed({
+      title: `📅 送迎履歴詳細レポート`,
+      description: [
+        `**対象範囲**: ${startDate.toLocaleDateString('ja-JP')} ～ ${endDate.toLocaleDateString('ja-JP')}`,
+        '',
+        allRecords.length > 15 ? `⚠️ **注意**: 最新の 15 件のみ表示しています。` : '',
+        '',
+        ...lines
+      ].join('\n'),
+      fields: [
+        {
+          name: '📊 期間内統計', value: [
+            `▫️ 総走行回数: **${allRecords.length}** 回`,
+            `▫️ 合計利用者: **${totalPassengers}** 名`,
+          ].join('\n'), inline: false
+        }
+      ],
+      color: 0x3498db,
+      client: interaction.client
     });
+    return interaction.editReply({ embeds: [embed] });
   }
-
-  return interaction.editReply({ embeds: [embed] });
 }
 
 /**
@@ -231,8 +245,8 @@ async function showRecentHistory(interaction, client, parsed) {
   const guildId = interaction.guildId;
   const config = await loadConfig(guildId).catch(() => ({}));
   const userRanks = config.ranks?.userRanks || {};
-  const now = new Date();
-  const historyDir = paths.dispatchHistoryDir(guildId, now.getFullYear(), now.getMonth() + 1);
+  const currentMonth = new Date().getMonth() + 1;
+  const historyDir = paths.dispatchHistoryDir(guildId, new Date().getFullYear(), currentMonth);
 
   const files = await store.listKeys(historyDir).catch(() => []);
   const jsonFiles = files
@@ -240,35 +254,40 @@ async function showRecentHistory(interaction, client, parsed) {
     .slice(-10)
     .reverse();
 
-  const embed = buildPanelEmbed({
-    title: '🕒 最近の配車履歴 (最新10件)',
-    color: 0x3498db,
-    client: interaction.client
-  });
-
   if (jsonFiles.length === 0) {
-    embed.setDescription('最近の履歴データは見つかりません。');
+    const embed = buildPanelEmbed({
+      title: '🕒 最新運行状況 (10件)',
+      description: '今月の運行データはまだ記録されていません。',
+      color: 0x95a5a6,
+      client: interaction.client
+    });
+    return interaction.editReply({ embeds: [embed] });
   } else {
     const lines = [];
     for (const fileKey of jsonFiles) {
       const data = await store.readJson(fileKey).catch(() => null);
       if (data) {
         const time = data.createdAt ? new Date(data.createdAt).toLocaleTimeString('ja-JP', {
-          hour: '2-digit',
-          minute: '2-digit',
+          hour: '2-digit', minute: '2-digit'
         }) : '--:--';
 
-        const statusIcon = data.status === 'completed' ? '✅' : '🚨';
+        const statusIcon = (data.status === 'completed' || data.status === 'finished') ? '✅' : '🚨';
         const dRank = userRanks[data.driverId] ? `[${userRanks[data.driverId]}] ` : '';
-        const pRank = userRanks[data.passengerId] ? ` [${userRanks[data.passengerId]}]` : '';
-        lines.push(
-          `${statusIcon} \`${time}\` ${dRank}<@${data.driverId}> ➔ <@${data.passengerId}>${pRank}\n> 🗺️ ${data.direction || '詳細不明'}`
-        );
+        const pId = data.userId || data.passengerId;
+        const pMention = pId ? `<@${pId}>` : (data.guest ? 'ゲスト' : '不明');
+
+        lines.push(`${statusIcon} \`${time}\` ${dRank}<@${data.driverId}> ➔ ${pMention}\n> 📍 ${data.direction || '詳細不明'}`);
       }
     }
-    embed.setDescription(lines.join('\n\n') || '有効な履歴データが読み込めませんでした。');
+
+    const embed = buildPanelEmbed({
+      title: '🕒 最新運行状況 (直近10件)',
+      description: lines.join('\n\n'),
+      color: 0x3498db,
+      client: interaction.client
+    });
+    return interaction.editReply({ embeds: [embed] });
   }
-  return interaction.editReply({ embeds: [embed] });
 }
 
 /**
@@ -420,14 +439,14 @@ async function showRatingList(interaction, client, parsed) {
   allFiles.sort((a, b) => b.path.localeCompare(a.path));
   const recentFiles = allFiles.slice(0, 10);
 
-  const embed = buildPanelEmbed({
-    title: '⭐ 最近の口コミ・評価 (最新10件)',
-    color: 0xffd700,
-    client: interaction.client
-  });
-
   if (recentFiles.length === 0) {
-    embed.setDescription('評価データが見つかりません。');
+    const embed = buildPanelEmbed({
+      title: '⭐ 最新評価フィードバック',
+      description: '口コミデータはまだ投稿されていません。',
+      color: 0x95a5a6,
+      client: interaction.client
+    });
+    return interaction.editReply({ embeds: [embed] });
   } else {
     const lines = [];
     for (const item of recentFiles) {
@@ -449,14 +468,18 @@ async function showRatingList(interaction, client, parsed) {
           targetDisplay = `<@${targetId}>${rank}`;
         }
 
-        lines.push(
-          `**${item.type}評** ${targetDisplay} へ ${stars}\n▫️ 投稿者: <@${data.raterId}>${comment}`
-        );
+        lines.push(`**${item.type}評** ${targetDisplay} ➔ ${stars}${comment}`);
       }
     }
-    embed.setDescription(lines.join('\n\n') || '評価データが読み込めませんでした。');
+
+    const embed = buildPanelEmbed({
+      title: '⭐ 最新評価フィードバック (最新10件)',
+      description: lines.join('\n\n'),
+      color: 0xffd700,
+      client: interaction.client
+    });
+    return interaction.editReply({ embeds: [embed] });
   }
-  return interaction.editReply({ embeds: [embed], components: [] });
 }
 
 /**
@@ -468,30 +491,32 @@ async function showAuditLogs(interaction, client, parsed) {
 
   const logs = await findAuditLogs(guildId, { limit: 12 }).catch(() => []);
 
-  const embed = buildPanelEmbed({
-    title: '📜 システム監査ログ',
-    color: 0x95a5a6, // Gray
-    client: interaction.client
-  });
-
   if (logs.length === 0) {
-    embed.setDescription('監査ログは見つかりませんでした。');
+    const embed = buildPanelEmbed({
+      title: '📜 システム動作ログ',
+      description: '監査対象の動作ログは見つかりませんでした。',
+      color: 0x95a5a6,
+      client: interaction.client
+    });
+    return interaction.editReply({ embeds: [embed] });
   } else {
     const lines = logs.map((log) => {
       const time = log.time ? new Date(log.time).toLocaleTimeString('ja-JP', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
       }) : '--:--';
-      const severity =
-        log.severity === 'ERROR' ? '❌' : log.severity === 'WARN' ? '⚠️' : '▫️';
+      const severity = log.severity === 'ERROR' ? '❌' : (log.severity === 'WARN' ? '⚠️' : 'ℹ️');
       const actorInfo = log.actor ? `(by <@${log.actor}>)` : '';
 
       return `${severity} \`${time}\` **[${log.tag}]** ${log.message} ${actorInfo}`;
     });
-    embed.setDescription(lines.join('\n'));
-    embed.setFooter({ text: '最新12件を表示中 ｜ 管理監査用' });
-  }
 
-  return interaction.editReply({ embeds: [embed], components: [] });
+    const embed = buildPanelEmbed({
+      title: '📜 システム動作ログ',
+      description: lines.join('\n'),
+      color: 0x34495e,
+      client: interaction.client,
+      footer: '最新12件を表示中 ｜ 管理監査システム'
+    });
+    return interaction.editReply({ embeds: [embed] });
+  }
 }

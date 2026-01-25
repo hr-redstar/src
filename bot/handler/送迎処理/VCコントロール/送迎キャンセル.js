@@ -116,7 +116,12 @@ module.exports = {
         console.error('キャンセル時の待機復帰エラー:', e);
       }
 
-      await interaction.followUp({ content: '✅ 送迎をキャンセルしました。待機リストに復帰しています。', flags: 64 });
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      await interaction.followUp({
+        content: `※送迎キャンセル：<@${interaction.user.id}> (${timeStr})`,
+        flags: 64
+      });
     } catch (error) {
       console.error('送迎キャンセルエラー:', error);
       await interaction

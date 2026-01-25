@@ -49,11 +49,13 @@ async function buildRatingRankPanelMessage(guild, config = null) {
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('adm|rank_tiers|sub=start')
-      .setLabel('ランク階級登録')
+      .setLabel('ランク階級')
+      .setEmoji('🏆')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId('adm|rank_set|sub=start')
-      .setLabel('ランク設定')
+      .setLabel('担当ランク')
+      .setEmoji('🎖️')
       .setStyle(ButtonStyle.Primary)
   );
 
@@ -61,11 +63,13 @@ async function buildRatingRankPanelMessage(guild, config = null) {
     new ButtonBuilder()
       .setCustomId('adm|rating_check|sub=start')
       .setLabel('口コミ確認')
+      .setEmoji('💬')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId('adm|stats|sub=start')
-      .setLabel('統計ダッシュボード')
-      .setStyle(ButtonStyle.Secondary)
+      .setLabel('ダッシュボード')
+      .setEmoji('📈')
+      .setStyle(ButtonStyle.Success)
   );
 
   return buildPanelMessage({ embed, components: [row1, row2] });

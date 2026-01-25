@@ -142,57 +142,69 @@ function buildAdminPanelComponents() {
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(CID.BTN_OPERATOR_ROLE)
-      .setLabel('運営者ロール登録')
+      .setLabel('運営者ロール')
+      .setEmoji('🛡️')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId(CID.BTN_DRIVER_ROLE)
-      .setLabel('送迎者ロール登録')
+      .setLabel('送迎者ロール')
+      .setEmoji('🚗')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId(CID.BTN_USER_ROLE)
-      .setLabel('利用者ロール登録')
+      .setLabel('利用者ロール')
+      .setEmoji('👤')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId(CID.BTN_PRIORITY_ROLE)
-      .setLabel('優先配車ロール設定')
+      .setLabel('優先配車')
+      .setEmoji('⭐')
       .setStyle(ButtonStyle.Success)
   );
   const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(CID.BTN_PV_CATEGORY)
-      .setLabel('プライベートvcカテゴリー')
+      .setLabel('送迎VCカテゴリ')
+      .setEmoji('🔒')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId(CID.BTN_MEMO_CATEGORY)
-      .setLabel('ユーザーメモカテゴリー')
+      .setLabel('利用者メモカテゴリ')
+      .setEmoji('📝')
       .setStyle(ButtonStyle.Primary)
   );
   const row3 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(CID.BTN_GLOBAL_LOG)
-      .setLabel('グローバルログ登録')
+      .setLabel('グローバルログ')
+      .setEmoji('🌐')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(CID.BTN_STAFF_LOG)
-      .setLabel('運用者ログ登録')
+      .setLabel('運営者ログ')
+      .setEmoji('🛠️')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(CID.BTN_ADMIN_THREAD)
-      .setLabel('管理者用スレッド作成')
+      .setLabel('スレッド作成')
+      .setEmoji('🧵')
       .setStyle(ButtonStyle.Secondary)
   );
   const row4 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(CID.BTN_CARPOOL_CH)
-      .setLabel('相乗りチャンネル設定')
+      .setLabel('相乗り設定')
+      .setEmoji('🚕')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId(CID.BTN_RANK_MANAGE)
-      .setLabel('口コミランク管理')
+      .setLabel('口コミランク')
+      .setEmoji('📈')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId(CID.BTN_SEND_OP_PANEL)
       .setLabel('運営者パネル')
+      .setEmoji('⚙️')
       .setStyle(ButtonStyle.Primary)
   );
 

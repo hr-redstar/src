@@ -26,11 +26,12 @@ function buildDriverRegistrationEmbed(registrationJson, user, userRanks = {}) {
       {
         name: '📌 最新の登録内容',
         value: [
-          `**活動区域 / 方面**: ${current.area || '未設定'}`,
-          `**ニックネーム**: ${current.nickname || '未設定'}`,
-          `**車種/カラー/ナンバー**: ${current.car || '未設定'}`,
-          `**乗車人数**: ${current.capacity || '未設定'}名`,
-          `**更新日時**: ${formatDate(current.registeredAt)}`,
+          `🗺️ **活動区域 / 方面**: ${current.area || '未設定'}`,
+          `📛 **ニックネーム**: ${current.nickname || '未設定'}`,
+          `🚗 **車種・ナンバー**: ${current.car || '未設定'}`,
+          `👥 **最大乗車人数**: ${current.capacity || '4'}名`,
+          '',
+          `📅 **最終更新**: \`${formatDate(current.registeredAt)}\``,
         ].join('\n'),
         inline: false
       }
@@ -67,10 +68,11 @@ function buildUserRegistrationEmbed(registrationJson, user, userRanks = {}) {
       {
         name: '📌 最新の登録内容',
         value: [
-          `**店舗名 / ニックネーム**: ${current.storeName || current.name || '未設定'}`,
-          `**店舗住所**: ${current.address || '未設定'}`,
-          `**駐車目印**: ${current.mark || '未設定'}`,
-          `**更新日時**: ${formatDate(current.registeredAt)}`,
+          `🏢 **店舗名・ニックネーム**: ${current.storeName || current.name || '未設定'}`,
+          `📍 **店舗住所 / ロケーション**: ${current.address || '未設定'}`,
+          `🅿️ **駐車目印 / 待ち合わせ**: ${current.mark || '未設定'}`,
+          '',
+          `📅 **最終更新**: \`${formatDate(current.registeredAt)}\``,
         ].join('\n'),
         inline: false
       }

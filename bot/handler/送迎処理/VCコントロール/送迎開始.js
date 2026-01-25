@@ -31,6 +31,21 @@ module.exports = {
         });
       }
 
+      // 3. ステータスガード (二重送信防止)
+      if (dispatchData.status === 'riding' || dispatchData.status === 'in_service') {
+        return interaction.reply({
+          content: '⚠️ 既に送迎を開始しています。',
+          flags: 64
+        });
+      }
+
+      if (dispatchData.status === 'finished') {
+        return interaction.reply({
+          content: '⚠️ 送迎は既に終了しています。',
+          flags: 64
+        });
+      }
+
       // 3. 処理開始 (Defer)
       await interaction.deferUpdate();
 

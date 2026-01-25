@@ -8,7 +8,7 @@ const { loadConfig } = require('../../utils/設定/設定マネージャ');
 module.exports = {
     customId: 'op|fee|sub=setting',
     type: 'button',
-    async execute(interaction) {
+    async execute(interaction, client, parsed) {
         return autoInteractionTemplate(interaction, {
             ack: 'none',
             adminOnly: true,

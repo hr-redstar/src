@@ -1,4 +1,6 @@
 const buildPanelEmbed = require('../embed/embedTemplate');
+const store = require('../ストレージ/ストア共通');
+const paths = require('../ストレージ/ストレージパス');
 
 /**
  * 管理者操作ログ（設定変更完了専用）

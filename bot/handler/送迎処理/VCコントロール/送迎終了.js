@@ -86,7 +86,21 @@ module.exports = {
         return interaction.followUp({ content: '⚠️ 送迎データが見つかりません。', flags: 64 });
       }
 
-      // 権限ガードはモーダル表示時に行われているため、ここでは不要
+      // 2. 権限ガード (送迎者のみ)
+      if (interaction.user.id !== dispatchData.driverId) {
+        return interaction.followUp({
+          content: '❌ この操作は送迎担当者のみ実行できます。',
+          flags: 64
+        });
+      }
+
+      // 3. ステータスガード (二重終了防止)
+      if (dispatchData.status === 'finished' || dispatchData.status === 'completed') {
+        return interaction.followUp({
+          content: '⚠️ この送迎は既に終了しています。',
+          flags: 64
+        });
+      }
 
       const guild = interaction.guild;
       const now = new Date();

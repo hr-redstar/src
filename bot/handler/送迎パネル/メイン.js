@@ -168,7 +168,19 @@ async function handleReturnQueueSubmit(interaction, client) {
         return interaction.editReply({ content: '✅ 既に待機リストに登録されています。' });
       }
 
-      // 2. プロフィール取得
+      // 2. 運行中チェック (v2.9.2 Safety Guard)
+      // activeDispatchDir を走査して、自身が driverId である「進行中」の走行がないか確認
+      const activeFiles = await store.listKeys(paths.activeDispatchDir(guildId)).catch(() => []);
+      for (const fileKey of activeFiles) {
+        const rideData = await store.readJson(fileKey).catch(() => null);
+        if (rideData && rideData.driverId === userId && rideData.status !== 'finished' && rideData.status !== 'completed') {
+          return interaction.editReply({
+            content: '⚠️ まだ現在運行中の送迎があります。すべての送迎を終了させてから待機に戻ってください。'
+          });
+        }
+      }
+
+      // 3. プロフィール取得
       const driverData = await loadDriver(guildId, userId).catch(() => null);
       if (!driverData) {
         return interaction.editReply({ content: '⚠️ 送迎者データが見つかりません。通常の出勤ボタンから出勤してください。' });
@@ -210,7 +222,11 @@ async function handleReturnQueueSubmit(interaction, client) {
         embeds: [embed],
       }).catch(() => null);
 
-      return interaction.editReply({ content: '✅ 指定した場所（' + location + '）で待機列に復帰しました。お疲れ様でした！' });
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      return interaction.editReply({
+        content: `※待機復帰：<@${userId}> (${timeStr}) [場所: ${location}]`
+      });
     }
   });
 }

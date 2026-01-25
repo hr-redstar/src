@@ -21,7 +21,10 @@ function buildVcControlEmbed(data) {
         carpoolUsers = [],
         route,
         status,
-        isExtended
+        isExtended,
+        pickup, // Assuming pickup and target are available in data if mark/destination are not
+        target,
+        client // Assuming client is passed in data for footer
     } = data;
 
     const now = new Date();
@@ -30,7 +33,7 @@ function buildVcControlEmbed(data) {
     const endTimeDisplay = (driverEndTime && userEndTime) ? (driverEndTime) : '--:--';
     const currentRoute = route || `【${driverPlace || '現在地'}】→【${mark || pickup || '方面'}】→【${destination || target || '目的地'}】`;
 
-    // タイトル: 月日 HH:mm~HH:mm 【方面】→【方角】
+    // タイトル: 月日 HH:mm~HH:mm 【方面】→【方面】
     const title = `${dateStr} ${mTime}~${endTimeDisplay} ${currentRoute}`;
 
     // ステータスに応じた配色

@@ -10,6 +10,36 @@ module.exports = {
     if (!rideId) return;
 
     try {
+      const guildId = interaction.guildId;
+      const activePath = `${paths.activeDispatchDir(guildId)}/${rideId}.json`;
+      const dispatchData = await store.readJson(activePath).catch(() => null);
+
+      if (!dispatchData) {
+        return interaction.reply({ content: '⚠️ 送迎データが見つかりません。', flags: 64 });
+      }
+
+      // 1. 権限ガード (送迎者のみ)
+      if (interaction.user.id !== dispatchData.driverId) {
+        return interaction.reply({
+          content: '❌ この操作は送迎担当者のみ実行できます。',
+          flags: 64
+        });
+      }
+
+      // 2. ステータスガード (二重送信防止)
+      if (dispatchData.status !== 'dispatching') {
+        const statusLabel = {
+          heading: '既に向かっています',
+          riding: '既に送迎を開始しています',
+          finished: '既に送迎を終了しています'
+        }[dispatchData.status] || '既に処理済み';
+
+        return interaction.reply({
+          content: `⚠️ 操作をスキップしました：${statusLabel}。`,
+          flags: 64
+        });
+      }
+
       await interaction.deferUpdate();
 
       const now = new Date();

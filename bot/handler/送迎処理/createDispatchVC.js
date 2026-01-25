@@ -41,7 +41,7 @@ module.exports = async function createDispatchVC({ guild, requester, driverId, d
     const parentId = config.categories?.privateVc;
     let vcChannel = null;
 
-    // VCタイトル: MM/DD HH:mm~--:-- 【方面】→【方角】
+    // VCタイトル: MM/DD HH:mm~--:-- 【方面】→【方面】
     const standardizedTitle = `${dateStr} ${timeStr}~--:-- 【${pickup}】→【${direction}】`;
 
     if (parentId) {

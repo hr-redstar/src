@@ -180,9 +180,9 @@ function operationSettingsRoot(guildId) {
 }
 
 function directionsListJson(guildId) {
-  return `${operationSettingsRoot(guildId)}/方角リスト.json`;
+  return `${operationSettingsRoot(guildId)}/方面リスト.json`;
 }
 
 function directionsDetailsJson(guildId) {
-  return `${operationSettingsRoot(guildId)}/方角リスト詳細.json`;
+  return `${operationSettingsRoot(guildId)}/方面リスト詳細.json`;
 }

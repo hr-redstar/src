@@ -90,12 +90,8 @@ async function buildOperatorPanelEmbed(config, guildId, client) {
   const directionsList = await store.readJson(dirListPath, []).catch(() => []);
 
   const directionNames = directionsList
-    .filter((d) => d.enabled !== false) // 有効な方面のみ
-    .map((d) => {
-      // 方面名から【】があれば除去
-      const cleanName = d.name.replace(/【|】/g, '');
-      return cleanName;
-    })
+    .filter((d) => d.enabled !== false)
+    .map((d) => `${d.name.replace(/【|】/g, '')}`)
     .join('\n') || '未設定';
 
   // 方面詳細情報を読み込む
@@ -111,25 +107,36 @@ async function buildOperatorPanelEmbed(config, guildId, client) {
   const fields = [
     {
       name: '📋 基本設定情報', value: [
-        `**方面リスト**: \n${directionNames}`,
+        `**方面リスト**:`,
+        `\`\`\`\n${directionNames}\n\`\`\``,
         `**一律利用料**: \`${usageFee}\``,
       ].join('\n'), inline: false
     },
   ];
 
   if (directionsList.length > 0) {
+    const detailList = directionsList.map((d, i) => {
+      const lineKey = `${i + 1}行目`;
+      const detailObj = directionDetails[lineKey];
+      const dirName = d.name.replace(/【|】/g, '');
+
+      // スレッドIDがあればリンク、なければ（移行前）テキストのみ表示
+      if (detailObj && typeof detailObj === 'object' && detailObj.threadId) {
+        return `▫️ **${dirName}**: <#${detailObj.threadId}>`;
+      } else {
+        return `▫️ **${dirName}**: (詳細未登録)`;
+      }
+    }).join('\n');
+
     fields.push({
-      name: '📍 各方面の詳細（駐車目印等）', value: directionsList.map((d, i) => {
-        const lineKey = `${i + 1}行目`;
-        const detail = directionDetails[lineKey] || '未設定';
-        const dirName = d.name.replace(/【|】/g, '');
-        return `**${dirName}**: ${detail}`;
-      }).join('\n'), inline: false
+      name: '📍 各方面の詳細（行先方向の町）',
+      value: detailList || '未設定',
+      inline: false
     });
   }
 
   return buildPanelEmbed({
-    title: '🛠️ 運営者管理システム',
+    title: '🛠️ 運営者パネル',
     description: '運行に必要な方面リスト、利用料、および詳細情報を集約管理します。',
     color: Colors.Gold,
     client,
@@ -141,43 +148,35 @@ async function buildOperatorPanelEmbed(config, guildId, client) {
  * 運営者パネルのボタン群を生成
  */
 function buildOperatorPanelComponents() {
-  // Row 1: 方面リスト登録、方面詳細登録
+  // Row 1: 方面リスト、詳細
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('op|directions|sub=list_register')
-      .setLabel('方面リスト登録')
+      .setLabel('方面リスト')
+      .setEmoji('🗺️')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId('op|directions|sub=detail_register')
-      .setLabel('方面詳細登録')
+      .setLabel('方面詳細情報')
+      .setEmoji('📍')
       .setStyle(ButtonStyle.Primary)
   );
 
-  // Row 2: 利用料設定、ユーザークレジット登録
+  // Row 2: 利用料、クレジット
   const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('op|fee|sub=setting')
       .setLabel('利用料設定')
+      .setEmoji('💰')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId('op|credits|sub=start')
-      .setLabel('ユーザークレジット登録')
+      .setLabel('残高チャージ')
+      .setEmoji('💳')
       .setStyle(ButtonStyle.Success)
   );
 
-  // Row 3: 送迎者ランク階級登録、送迎者ランク設定
-  const row3 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('op|rank|sub=class_register')
-      .setLabel('送迎者ランク階級登録')
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId('op|rank|sub=assignment_start')
-      .setLabel('送迎者ランク設定')
-      .setStyle(ButtonStyle.Secondary)
-  );
-
-  return [row1, row2, row3];
+  return [row1, row2];
 }
 
 async function buildOperatorPanelMessage(guild, cfg, client) {
