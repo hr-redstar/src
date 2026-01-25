@@ -374,24 +374,28 @@ async function postRatingToMemo(guild, targetType, dispatchId, ratingData) {
   const thread = await getOrCreateHistoryThread(channel, threadPolicy, dateObj);
   const target = thread || channel;
 
-  // 4. 埋め込み作成 (仕様 #30 準拠)
+  // 4. 埋め込み作成 (仕様 #30 準拠 - v2.9.2 Professional Layout)
   const starsStr = ratingData.stars ? '⭐'.repeat(ratingData.stars) : '評価なし';
   const d = String(dateObj.getDate()).padStart(2, '0');
   const dateStr = `${y}年${m}月${d}日`;
 
-  const embed = new EmbedBuilder()
-    .setTitle(`送迎者・利用者口コミ評価`)
-    .setDescription(
-      `**${routeInfo}**　${dateStr}\n\n` +
-      `<@${ratingData.raterId}> 様より評価が届きました。`
-    )
-    .addFields(
-      { name: '満足度', value: starsStr, inline: true },
-      { name: 'コメント', value: ratingData.comment || '（なし）', inline: false }
-    )
-    .setFooter({ text: `送迎ID: ${dispatchId}` })
-    .setTimestamp(dateObj)
-    .setColor(0xffd700);
+  const embed = buildPanelEmbed({
+    title: '⭐ 口コミ・評価フィードバック',
+    description: [
+      `**経路**: ${routeInfo}`,
+      `**日付**: ${dateStr}`,
+      '',
+      `<@${ratingData.raterId}> 様よりフィードバックが届きました。`,
+    ].join('\n'),
+    fields: [
+      { name: '満足度', value: `**${starsStr}**`, inline: true },
+      { name: 'コメント', value: `\`\`\`\n${ratingData.comment || '（なし）'}\n\`\`\``, inline: false }
+    ],
+    color: 0xffd700,
+    client: guild.client
+  });
+
+  embed.setFooter({ text: `送迎ID: ${dispatchId}` }).setTimestamp(dateObj);
 
   await target.send({ embeds: [embed] }).catch(() => null);
 }

@@ -358,10 +358,19 @@ async function executeDispatch(interaction, type, dirIdx, direction, persons) {
 
   // 3. 完了応答は createDispatchVC 内で完結させることも可能だが、
   // editReply の最終的なメッセージをここで出す
-  const successEmbed = new EmbedBuilder()
-    .setTitle('✅ 配車依頼完了')
-    .setDescription(`[${dispatchData.driverPlace}] 待機中の <@${driverData.userId}> とマッチングしました。\nDMを確認し、プライベートVCへ参加してください。`)
-    .setColor(0x00ff00);
+  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
+  const successEmbed = buildPanelEmbed({
+    title: '✅ 配車依頼完了',
+    description: [
+      `📍 **出発地**: ${dispatchData.driverPlace}`,
+      `🚗 **担当者**: <@${driverData.userId}>`,
+      '',
+      'マッチングが成功しました。',
+      '専用のプライベートVCが作成されましたので、DMの指示に従って参加してください。'
+    ].join('\n'),
+    color: 0x2ecc71,
+    client: interaction.client
+  });
 
   await interaction.editReply({ content: null, embeds: [successEmbed], components: [] });
 }
@@ -388,11 +397,11 @@ async function handleHeading(interaction, dispatchId) {
   const buildPanelEmbed = require('../../utils/embed/embedTemplate');
   const embed = buildPanelEmbed({
     title: '🚙 向かっています',
-    description: `送迎者が目的地へ向かっています。もう少々お待ちください。`,
+    description: '送迎者が現在地または合流場所へ向かっています。到着まで少々お待ちください。',
     fields: [
       { name: '👤 依頼者', value: data.passengerTag || `<@${data.userId}>`, inline: true },
       { name: '🗺️ 方面/目的地', value: data.direction, inline: true },
-      { name: '⏱️ 向かっています', value: timeStr, inline: false }
+      { name: '⏱️ 更新時刻', value: `\`${timeStr}\``, inline: false }
     ],
     color: 0x3498db,
     client: interaction.client
@@ -456,7 +465,7 @@ async function handleRideStart(interaction, dispatchId) {
   const buildPanelEmbed = require('../../utils/embed/embedTemplate');
   const embed = buildPanelEmbed({
     title: '🚀 送迎開始',
-    description: `送迎が開始されました。安全運転でお願いいたします。`,
+    description: '送迎が正常に開始されました。安全運転でお願いいたします。',
     fields: [
       { name: '👤 依頼者', value: data.passengerTag || `<@${data.userId}>`, inline: true },
       { name: '🚗 送迎者', value: `<@${data.driverId}>`, inline: true },
@@ -518,7 +527,7 @@ async function handleComplete(interaction, dispatchId) {
     title: isBothCompleted ? '✅ 送迎完了' : '🏁 送迎終了（確認待機中）',
     description: isBothCompleted
       ? '送迎がすべて完了しました。お疲れ様でした。'
-      : '送迎の終了を確認しました。相方側の操作を待っています。',
+      : '送迎の終了を確認しました。相手側の操作を待っています。',
     fields: [
       { name: '⏱️ 送迎者終了', value: data.driverEndTime || '--:--', inline: true },
       { name: '⏱️ 利用者終了', value: data.userEndTime || '--:--', inline: true }
@@ -610,15 +619,17 @@ async function handleComplete(interaction, dispatchId) {
 
     await store.deleteFile(activePath).catch(() => null);
 
-    const finishEmbed = new EmbedBuilder()
-      .setTitle('✅ 送迎終了しました')
-      .setDescription('落とし物などのトラブルがなければ、\n1週間でこのVCチャンネルは削除されます。')
-      .setColor(0x00ff00);
+    const finishEmbed = buildPanelEmbed({
+      title: '✅ 送迎終了しました',
+      description: '落とし物などのトラブルがなければ、1週間でこのVCチャンネルは自動的に削除されます。',
+      color: 0x2ecc71,
+      client: interaction.client
+    });
 
     const finishRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`dispatch|order|sub=extend&did=${dispatchId}`)
-        .setLabel('削除延長')
+        .setLabel('削除期間を延長する')
         .setStyle(ButtonStyle.Secondary)
     );
 
@@ -690,6 +701,7 @@ async function handleWaitForDriver(interaction, type, dirIdx, direction, persons
   const store = require('../../utils/ストレージ/ストア共通');
   const paths = require('../../utils/ストレージ/ストレージパス');
   const { updateRideListPanel } = require('../送迎処理/一覧パネル更新');
+  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 
   // インデックスから方面名を取得
   let finalDirection = direction || '指定なし';
@@ -719,10 +731,16 @@ async function handleWaitForDriver(interaction, type, dirIdx, direction, persons
   const fileName = type === 'guest' ? `${interaction.user.id}_guest.json` : `${interaction.user.id}.json`;
   await store.writeJson(`${waitDir}/${fileName}`, waitData);
 
-  const embed = new EmbedBuilder()
-    .setTitle('✅ 待機リスト登録完了')
-    .setDescription('待機リストに登録しました。送迎車が空き次第、通知またはマッチングされます。\nしばらくお待ちください。')
-    .setColor(0x2ecc71);
+  const embed = buildPanelEmbed({
+    title: '✅ 待機リスト登録完了',
+    description: '申し訳ありません、現在対応可能な送迎車がございません。待機リストに登録いたしましたので、車両が空き次第優先的にマッチング・通知が行われます。',
+    fields: [
+      { name: '📍 希望方面', value: finalDirection, inline: true },
+      { name: '👥 希望人数', value: `${persons}名`, inline: true }
+    ],
+    color: 0x2ecc71,
+    client: interaction.client
+  });
 
   await interaction.editReply({
     embeds: [embed],

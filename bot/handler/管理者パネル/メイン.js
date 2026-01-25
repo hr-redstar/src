@@ -107,40 +107,32 @@ function buildAdminPanelEmbed(guild, cfg, client) {
   const cats = cfg.categories || {};
 
   return buildPanelEmbed({
-    title: '管理者パネル',
-    description: `
-**運営者ロール**
-${mentionRoles(roles.operators)}
-
-**送迎者ロール**
-${mentionRoles(roles.drivers)}
-
-**お客様ロール**
-${mentionRoles(roles.users)}
-
-**優先配車ロール**
-${mentionRoles(roles.priorityDrivers)}
-
-**プライベートvcカテゴリー**
-${mentionCategory(cats.privateVc)}
-
-**ユーザーメモカテゴリー**
-${mentionCategory(cats.userMemo)}
-
-
-**運営者ログチャンネル**
-${mentionChannel(logs.operatorChannel)}
-
-**グローバルログ**
-${mentionChannel(logs.globalChannel)}
-
-**管理者用ログスレッド**
-${mentionChannel(logs.adminLogThread)}
-
-**相乗りチャンネル**
-${mentionChannel(cfg.rideShareChannel)}
-
-    `,
+    title: '🛡️ 管理者設定システム',
+    description: 'システム全般の権限、保管場所、およびログの出勤先を管理します。',
+    fields: [
+      {
+        name: '👥 ロール管理', value: [
+          `**運営者**: ${mentionRoles(roles.operators)}`,
+          `**送迎者**: ${mentionRoles(roles.drivers)}`,
+          `**利用者**: ${mentionRoles(roles.users)}`,
+          `**優先配車**: ${mentionRoles(roles.priorityDrivers)}`,
+        ].join('\n'), inline: false
+      },
+      {
+        name: '📂 カテゴリー保管場所', value: [
+          `**プライベートVC**: ${mentionCategory(cats.privateVc)}`,
+          `**個人メモ**: ${mentionCategory(cats.userMemo)}`,
+        ].join('\n'), inline: true
+      },
+      {
+        name: '📝 ログ・通知設定', value: [
+          `**運営者ログ**: ${mentionChannel(logs.operatorChannel)}`,
+          `**グローバルログ**: ${mentionChannel(logs.globalChannel)}`,
+          `**相乗り通知**: ${mentionChannel(cfg.rideShareChannel)}`,
+          `**管理者ログスレ**: ${mentionChannel(logs.adminLogThread)}`,
+        ].join('\n'), inline: true
+      },
+    ],
     client,
     color: 0x3498db,
   });

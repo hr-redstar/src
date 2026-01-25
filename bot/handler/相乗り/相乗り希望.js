@@ -80,6 +80,7 @@ async function showSegmentSelection(interaction, parsed) {
 async function showDirectionSelection(interaction, rideId) {
   const store = require('../../utils/ストレージ/ストア共通');
   const paths = require('../../utils/ストレージ/ストレージパス');
+  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 
   // 運営設定から方角リストを読み込む
   const dirListPath = paths.directionsListJson(interaction.guildId);
@@ -90,10 +91,12 @@ async function showDirectionSelection(interaction, rideId) {
     .filter((d) => d.enabled !== false)
     .map((d) => d.name.replace(/【|】/g, ''));
 
-  const embed = new EmbedBuilder()
-    .setTitle('📢 相乗り希望 - 方面選択')
-    .setDescription('合流地点または目的地の方面を選択してください。')
-    .setColor(0x3498db);
+  const embed = buildPanelEmbed({
+    title: '🤝 相乗り希望 - 方面選択',
+    description: 'まずは合流地点または目的地の方面を選択してください。',
+    color: 0x3498db,
+    client: interaction.client
+  });
 
   const rows = [];
   let currentRow = new ActionRowBuilder();
@@ -116,7 +119,7 @@ async function showDirectionSelection(interaction, rideId) {
         new ButtonBuilder()
           .setCustomId(`carpool|join|sub=dest_input&rid=${rideId}&dir=${d}`)
           .setLabel(d.substring(0, 20))
-          .setStyle(ButtonStyle.Success)
+          .setStyle(ButtonStyle.Primary)
       );
     });
     rows.push(currentRow);
@@ -129,20 +132,26 @@ async function showDirectionSelection(interaction, rideId) {
  * STEP 2: 目的地入力ボタン
  */
 async function showDestInput(interaction, rideId, direction) {
-  const embed = new EmbedBuilder()
-    .setTitle('📢 相乗り希望 - 目的地入力')
-    .setDescription(
-      `方面: **${direction}**\n\n具体的な目的地（合流場所）を入力してください（任意）。\n※入力が難しい場合は、そのまま「次へ」進めます。`
-    )
-    .setColor(0x3498db);
+  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
+  const embed = buildPanelEmbed({
+    title: '🤝 相乗り希望 - 目的地入力',
+    description: [
+      `選択された方面: **${direction}**`,
+      '',
+      '具体的な目的地（合流場所）がわかる場合は詳細を入力してください。',
+      '※入力が難しい場合は「スキップ」して次へ進めます。'
+    ].join('\n'),
+    color: 0x3498db,
+    client: interaction.client
+  });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`carpool|join|sub=dest_modal_trigger&rid=${rideId}&dir=${direction}`)
       .setLabel('🎯 目的地を入力する')
-      .setStyle(ButtonStyle.Primary),
+      .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
-      .setCustomId(`carpool|join|sub=dest_modal_trigger&rid=${rideId}&dir=${direction}&dest=`) // 既存のモーダル(人数)へ
+      .setCustomId(`carpool|join|sub=dest_modal_trigger&rid=${rideId}&dir=${direction}&dest=`)
       .setLabel('スキップして次へ')
       .setStyle(ButtonStyle.Secondary)
   );

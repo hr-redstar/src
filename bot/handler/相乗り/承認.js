@@ -202,67 +202,43 @@ module.exports = {
                 // ユーザーへ通知
                 const requester = await guild.members.fetch(userId).catch(() => null);
                 if (requester) {
-                    const embed = new EmbedBuilder()
-                        .setTitle('✅ 相乗り承認')
-                        .setDescription(
-                            `ドライバーが相乗りリクエストを承認しました！\nプライベートVCに参加して合流してください。`
-                        )
-                        .addFields({
-                            name: 'VCリンク',
+                    const embed = buildPanelEmbed({
+                        title: '✅ 相乗り承認',
+                        description: 'ドライバーがあなたの相乗りリクエストを承認しました！\n専用のプライベートVCに参加して、合流の調整を行ってください。',
+                        color: 0x2ecc71,
+                        client: client,
+                        fields: [{
+                            name: '🔗 VCリンク',
                             value: rideData.vcId
                                 ? `[こちらから参加](https://discord.com/channels/${guild.id}/${rideData.vcId})`
-                                : 'リンク不明',
-                        })
-                        .setColor(0x00ff00);
+                                : 'リンクを発行できませんでした',
+                        }]
+                    });
                     await requester.send({ embeds: [embed] }).catch(() => null);
                 }
 
-                // --- NEW: メモチャンネル作成・確認 & 登録情報送信 (v2.6.25) ---
-                // 相乗り利用者が初利用の場合などに備え、メモチャンネルを確保し登録情報を送る
-                try {
-                    const { createUserMemoChannel } = require('../../utils/createUserMemoChannel');
-                    const { buildUserRegistrationEmbed } = require('../../utils/buildRegistrationInfoEmbed');
-
-                    // ユーザーデータは上で loadUser 済み (carpoolUser)
-                    if (carpoolUser) {
-                        const registrationEmbed = buildUserRegistrationEmbed(carpoolUser, guild.members.cache.get(userId), config.ranks?.userRanks || {});
-                        const memoChannel = await createUserMemoChannel({
-                            guild,
-                            userId,
-                            username: carpoolUser.name || '不明', // carpoolUser.name を使用
-                            registrationEmbed,
-                            categoryType: 'user'
-                        });
-
-                        // メモチャンネル作成/取得成功ログなどは特に出さない（createUserMemoChannel内で処理されるため）
-                    }
-                } catch (e) {
-                    console.error('相乗り承認時のメモチャンネル処理エラー:', e);
-                }
-
-
                 // 運営者ログ送信 (Task 18 & 22)
-                // 相乗り成立ログは運営者ログに送る
                 const { postOperatorLog } = require('../../utils/ログ/運営者ログ');
-                const { loadConfig } = require('../../utils/設定/設定マネージャ'); // config読み込み追加
+                const { loadConfig } = require('../../utils/設定/設定マネージャ');
                 const config = await loadConfig(guild.id);
 
                 let msgLink = '';
                 if (rideData.carpoolMessageId && config.rideShareChannel) {
-                    msgLink = `[募集メッセージ](https://discord.com/channels/${guild.id}/${config.rideShareChannel}/${rideData.carpoolMessageId})`;
+                    msgLink = `[募集メッセージを表示](https://discord.com/channels/${guild.id}/${config.rideShareChannel}/${rideData.carpoolMessageId})`;
                 }
 
-                const logEmbed = new EmbedBuilder()
-                    .setTitle('🤝 相乗り成立')
-                    .setDescription(`以下の相乗りリクエストが承認されました。`)
-                    .addFields(
-                        { name: 'ドライバー', value: `<@${rideData.driverId}>`, inline: true },
-                        { name: '相乗り利用者', value: `<@${userId}>`, inline: true },
-                        { name: '人数', value: `${count}名`, inline: true },
-                        { name: 'リンク', value: msgLink || '不明', inline: false }
-                    )
-                    .setColor(0x00ff00)
-                    .setTimestamp();
+                const logEmbed = buildPanelEmbed({
+                    title: '🤝 相乗り成立',
+                    description: '新しい相乗りマッチングが成立しました。',
+                    color: 0x2ecc71,
+                    client,
+                    fields: [
+                        { name: '🚗 ドライバー', value: `<@${rideData.driverId}>`, inline: true },
+                        { name: '👤 利用者', value: `<@${userId}>`, inline: true },
+                        { name: '👥 人数', value: `${count}名`, inline: true },
+                        { name: '🔗 リンク', value: msgLink || '不明', inline: false }
+                    ]
+                });
 
                 await postOperatorLog({
                     guild,
@@ -277,12 +253,14 @@ module.exports = {
                 }).catch(() => null);
 
                 // ボタン無効化orメッセージ変更
-                const embed = EmbedBuilder.from(interaction.message.embeds[0]);
-                embed.setTitle('✅ 承認済み');
-                embed.setColor(0x00ff00);
-                embed.setFooter({ text: '相乗りが成立しました' });
+                const successEmbed = buildPanelEmbed({
+                    title: '✅ 承認済み',
+                    description: '相乗りリクエストを承認しました。\nルートが自動的に更新されています。',
+                    color: 0x2ecc71,
+                    client
+                });
 
-                await interaction.editReply({ embeds: [embed], components: [] });
+                await interaction.editReply({ embeds: [successEmbed], components: [] });
             },
         });
     },

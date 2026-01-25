@@ -49,26 +49,32 @@ async function notifyRejection(interaction, userId, reason) {
     // 元のDMを更新するには別途ロジックが必要だが、複雑になるため一旦割愛
 
     const requester = await interaction.guild.members.fetch(userId).catch(() => null);
+    const buildPanelEmbed = require('../../utils/embed/embedTemplate');
     if (requester) {
-        const embed = new EmbedBuilder()
-            .setTitle('❌ 相乗りリクエスト却下')
-            .setDescription(`申し訳ありません、ドライバーによりリクエストが却下されました。`)
-            .addFields({ name: '理由', value: reason })
-            .setColor(0xff0000);
+        const embed = buildPanelEmbed({
+            title: '❌ 相乗りリクエスト却下',
+            description: '申し訳ありません。ドライバーの判断により相乗りリクエストが受理されませんでした。',
+            color: 0xff0000,
+            client: interaction.client,
+            fields: [
+                { name: '📍 却下理由', value: reason, inline: false }
+            ]
+        });
         await requester.send({ embeds: [embed] }).catch(() => null);
     }
 
     // ログ出力
-    const logEmbed = new EmbedBuilder()
-        .setTitle('❌ 相乗り却下')
-        .setDescription(`以下の相乗りリクエストが却下されました。`)
-        .addFields(
-            { name: 'ドライバー', value: `<@${interaction.user.id}>`, inline: true },
-            { name: '希望者', value: `<@${userId}>`, inline: true },
-            { name: '理由', value: reason, inline: false }
-        )
-        .setColor(0xff0000)
-        .setTimestamp();
+    const logEmbed = buildPanelEmbed({
+        title: '❌ 相乗り却下',
+        description: '相乗りリクエストがドライバーにより却下されました。',
+        color: 0xff0000,
+        client: interaction.client,
+        fields: [
+            { name: '🚗 ドライバー', value: `<@${interaction.user.id}>`, inline: true },
+            { name: '👤 利用者', value: `<@${userId}>`, inline: true },
+            { name: '📍 却下理由', value: reason, inline: false }
+        ]
+    });
 
     await postOperatorLog({
         guild: interaction.guild,

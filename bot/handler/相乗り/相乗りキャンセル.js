@@ -67,15 +67,21 @@ module.exports = {
           }
 
           // 運営者ログ
+          const buildPanelEmbed = require('../../utils/embed/embedTemplate');
+          const logEmbed = buildPanelEmbed({
+            title: '⚠️ 相乗りキャンセル',
+            description: '相乗り利用者がマッチングをキャンセルしました。',
+            color: 0xe67e22,
+            client: interaction.client,
+            fields: [
+              { name: '👤 利用者', value: `<@${interaction.user.id}>`, inline: true },
+              { name: '🆔 送迎ID', value: `\`${rideId}\``, inline: true }
+            ]
+          });
+
           await postOperatorLog({
             guild: interaction.guild,
-            embeds: [
-              new EmbedBuilder()
-                .setTitle('⚠️ 相乗りキャンセル')
-                .setColor(0xe67e22)
-                .setDescription(`<@${interaction.user.id}> が相乗りをキャンセルしました。\n(送迎ID: ${rideId})`)
-                .setTimestamp(),
-            ],
+            embeds: [logEmbed],
           });
         }
       },

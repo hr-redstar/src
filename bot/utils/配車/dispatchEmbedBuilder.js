@@ -78,10 +78,16 @@ function buildDispatchEmbed(data) {
             '👤 メンバー',
             `送迎者：<@${driverId}>`,
             `利用者：<@${userId}>`,
-            `相乗り者：${(data.carpoolUsers || []).map(u => `<@${u.userId}>`).join(', ') || ''}`,
+            ...(data.carpoolUsers || []).map(u => `相乗り者：<@${u.userId}>`),
             '',
             '⏱️ 進捗ログ',
             `向かっています：${headingTime === '--:--' ? '(未完了)' : headingTime}`,
+            `送迎開始：${startTime === '--:--' ? '(未完了)' : startTime}`,
+            `送迎終了：${endTime === '--:--' ? '(未完了)' : endTime}`,
+            '',
+            ...(data.carpoolUsers || []).map((u, i) =>
+                `**相乗り${i + 1}** 向かっています：${u.headingTime || '--:--'} | 開始：${u.startTime || '--:--'} | 終了：${u.endTime || '--:--'}`
+            ),
         ].join('\n'))
         .setTimestamp();
 

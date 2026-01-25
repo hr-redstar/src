@@ -107,21 +107,33 @@ async function buildOperatorPanelEmbed(config, guildId, client) {
 
   // 共通の埋め込みテンプレートを使用するように修正 (v2.9.2)
   const buildPanelEmbed = require('../../utils/embed/embedTemplate');
-  return buildPanelEmbed({
-    title: '🛠 運営者パネル',
-    color: Colors.Gold,
-    client,
-    fields: [
-      { name: '方面リスト', value: `\`\`\`\n${directionNames}\n\`\`\``, inline: true },
-      { name: '利用料設定', value: `\`\`\`\n${usageFee}\n\`\`\``, inline: true },
-      { name: '方面詳細', value: '　', inline: false },
-      ...directionsList.map((d, i) => {
+
+  const fields = [
+    {
+      name: '📋 基本設定情報', value: [
+        `**方面リスト**: \n${directionNames}`,
+        `**一律利用料**: \`${usageFee}\``,
+      ].join('\n'), inline: false
+    },
+  ];
+
+  if (directionsList.length > 0) {
+    fields.push({
+      name: '📍 各方面の詳細（駐車目印等）', value: directionsList.map((d, i) => {
         const lineKey = `${i + 1}行目`;
         const detail = directionDetails[lineKey] || '未設定';
         const dirName = d.name.replace(/【|】/g, '');
-        return { name: `方面${i + 1} (${dirName})`, value: `\`\`\`\n${detail}\n\`\`\``, inline: false };
-      })
-    ]
+        return `**${dirName}**: ${detail}`;
+      }).join('\n'), inline: false
+    });
+  }
+
+  return buildPanelEmbed({
+    title: '🛠️ 運営者管理システム',
+    description: '運行に必要な方面リスト、利用料、および詳細情報を集約管理します。',
+    color: Colors.Gold,
+    client,
+    fields: fields
   });
 }
 

@@ -80,21 +80,30 @@ async function postCarpoolRecruitment(guild, rideData, client) {
     `現在　${joinedCount}名`
   ].join('\n');
 
-  const embed = new EmbedBuilder()
-    .setDescription(
-      `🕒 出発時刻（送迎者現在地）\n` +
-      `${timeStr}\n\n` +
-      `⚠️ 注意\n` +
-      `相乗り希望後、すでに合流が難しい場合があります。\n` +
-      `その際は送迎可能か送迎者から連絡があります。`
-    )
-    .setColor(0x00ffff) // Aqua
-    .setTimestamp(startedAt);
+  // 埋め込み作成 (v2.9.2 Professional Layout)
+  const buildPanelEmbed = require('../embed/embedTemplate');
+  const embed = buildPanelEmbed({
+    title: '🚗 相乗りメンバー募集中',
+    description: [
+      `**募集人数**: 最大 ${maxCapacity}名まで`,
+      `**現在**: ${joinedCount}名が参加中`,
+      '',
+      `【${from}】 ➔ 【${to}】`,
+    ].join('\n'),
+    fields: [
+      { name: '🕒 出発予定時刻', value: `\`${timeStr}\` (送迎者現在地基準)`, inline: false },
+      { name: '⚠️ 注意事項', value: '相乗り希望後、すでに合流が難しい場合があります。その際は送迎担当者から別途連絡があります。', inline: false }
+    ],
+    color: 0x00ffff, // Aqua
+    client: client
+  });
+
+  embed.setTimestamp(startedAt);
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`carpool|join|rid=${rideData.rideId}`)
-      .setLabel('相乗り希望')
+      .setLabel('相乗りを希望する')
       .setStyle(ButtonStyle.Success)
       .setEmoji('🙋‍♂️')
   );
@@ -103,12 +112,12 @@ async function postCarpoolRecruitment(guild, rideData, client) {
   if (rideData.carpoolMessageId) {
     message = await channel.messages.fetch(rideData.carpoolMessageId).catch(() => null);
     if (message) {
-      await message.edit({ content, embeds: [embed], components: [row] });
+      await message.edit({ content: '', embeds: [embed], components: [row] });
     }
   }
 
   if (!message) {
-    message = await channel.send({ content, embeds: [embed], components: [row] });
+    message = await channel.send({ content: '', embeds: [embed], components: [row] });
 
     // メッセージID保存
     rideData.carpoolMessageId = message.id;
@@ -119,7 +128,7 @@ async function postCarpoolRecruitment(guild, rideData, client) {
     const { postOperatorLog } = require('../ログ/運営者ログ');
     await postOperatorLog({
       guild,
-      content: `相乗り募集が開始されました！ [詳細はこちら](${message.url})`,
+      content: `📢 **相乗り募集が開始されました**\n[募集詳細を確認する](${message.url})`,
     }).catch(() => null);
   }
 }
@@ -138,19 +147,16 @@ async function stopCarpoolRecruitment(guild, rideData) {
   const message = await channel.messages.fetch(rideData.carpoolMessageId).catch(() => null);
   if (!message) return;
 
-  // 方面に紐付く地名リストを取得
-  const areas = config.directionAreas?.[rideData.direction] || [];
-  const areaInfo = areas.length > 0 ? `\n\n📍 **対応方面（${rideData.direction}）**\n${areas.join(' / ')}` : '';
-
-  const embed = EmbedBuilder.from(message.embeds[0])
-    .setTitle('⛔ 相乗り募集終了')
-    .setColor(0x808080) // Gray
-    .setDescription(
-      message.embeds[0].description.split('\n\n🕒')[0] + // ルートと方面情報を維持
-      `\n\n🕒 **この募集は締め切られました**\n\n` +
-      `⚠️ **注意**\nすでに送迎が開始されているか、定員に達したため募集を終了しました。`
-    )
-    .setTimestamp();
+  const buildPanelEmbed = require('../embed/embedTemplate');
+  const embed = buildPanelEmbed({
+    title: '⛔ 相乗り募集終了',
+    description: 'この相乗り募集は締め切られました。',
+    fields: [
+      { name: 'ℹ️ 理由', value: 'すでに走行を開始しているか、定員に達したため募集を終了しました。', inline: false }
+    ],
+    color: 0x808080, // Gray
+    client: message.client
+  });
 
   await message.edit({ content: '', embeds: [embed], components: [] }).catch(() => null);
 
