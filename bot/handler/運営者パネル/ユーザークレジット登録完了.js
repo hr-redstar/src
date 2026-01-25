@@ -10,12 +10,12 @@ const paths = require('../../utils/ストレージ/ストレージパス');
 module.exports = {
     customId: 'op|credits|sub=modal',
     type: 'modalSubmit',
-    async execute(interaction, params) {
+    async execute(interaction, client, parsed) {
         return autoInteractionTemplate(interaction, {
             ack: ACK.AUTO,
             adminOnly: true,
             async run(interaction) {
-                const targetUserId = params.uid;
+                const targetUserId = parsed.uid;
                 const amountInput = interaction.fields.getTextInputValue('amount');
                 const amount = parseInt(amountInput);
 
