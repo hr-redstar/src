@@ -23,11 +23,13 @@ async function sendCriticalAlert({
     const config = await loadConfig(guild.id);
     const color = 0xff0000; // Red for critical
 
-    const embed = new EmbedBuilder()
-        .setTitle(`🚨 【要確認】${title}`)
-        .setDescription(message)
-        .setColor(color)
-        .setTimestamp();
+    const buildPanelEmbed = require('../embed/embedTemplate');
+    const embed = buildPanelEmbed({
+        title: `🚨 【要確認】${title}`,
+        description: message,
+        color: color,
+        client: guild.client,
+    });
 
     if (error) {
         const errorDetail = error.stack

@@ -14,7 +14,7 @@ const { loadDriver } = require('../../utils/driversStore');
 const { loadUser } = require('../../utils/usersStore');
 
 /**
- * 送迎依頼マッチング後のVC作成・通知共通処理 (Professional Edition v2.9.0)
+ * 送迎依頼マッチング後のVC作成・通知共通処理 (High-Performance Edition v2.9.0)
  */
 module.exports = async function createDispatchVC({ guild, requester, driverId, driverPlace, dispatchData, config }) {
     const userId = requester.id;
@@ -83,6 +83,8 @@ module.exports = async function createDispatchVC({ guild, requester, driverId, d
         } catch (e) {
             console.error('VC作成失敗', e);
         }
+    } else {
+        console.warn(`[createDispatchVC] VCカテゴリ(privateVc)が未設定のためVC作成をスキップします。Guild: ${guild.id}`);
     }
 
     // 2. 運営者ログ (MATCHED) - 同一Embed更新方式
@@ -108,14 +110,24 @@ module.exports = async function createDispatchVC({ guild, requester, driverId, d
                 }
 
                 if (userMemoChannel) {
+                    dispatchData.userMemoChannelId = userMemoChannel.id;
+
+                    // スレッドポリシーの取得とスレッド特定 (v2.9.1)
+                    const { loadUserFull } = require('../../utils/usersStore');
+                    const { getOrCreateHistoryThread } = require('../../utils/getOrCreateHistoryThread');
+                    const userFull = await loadUserFull(guild.id, userId).catch(() => null);
+                    const threadPolicy = userFull?.threadPolicy || { enabled: true, period: '1w' }; // デフォルト週次
+
+                    const thread = await getOrCreateHistoryThread(userMemoChannel, threadPolicy, now);
+                    const target = thread || userMemoChannel;
+
+                    if (thread) {
+                        dispatchData.userLogThreadId = thread.id;
+                    }
+
                     const controlEmbed = buildDispatchEmbed(dispatchData);
-                    const memoMsg = await userMemoChannel.send({ embeds: [controlEmbed] });
-                    // スレッド作成
-                    const thread = await memoMsg.threads.create({
-                        name: standardizedTitle.substring(0, 100),
-                        autoArchiveDuration: 10080,
-                        reason: '送迎チャットログ用',
-                    }).catch(() => null);
+                    const memoMsg = await target.send({ embeds: [controlEmbed] });
+                    dispatchData.userMemoMessageId = memoMsg.id;
 
                     // VCステート保存 (後で進捗更新時にスレッドも更新できるように)
                     await updateVcState(guild.id, vcChannel.id, {
@@ -123,6 +135,7 @@ module.exports = async function createDispatchVC({ guild, requester, driverId, d
                         driverId,
                         userMemoChannelId: userMemoChannel.id,
                         userLogThreadId: thread?.id || null,
+                        userMemoMessageId: memoMsg.id,
                         route: standardizedTitle,
                         pickup,
                         target: direction
@@ -165,7 +178,7 @@ module.exports = async function createDispatchVC({ guild, requester, driverId, d
 
     // 6. 相乗り募集開始 (ゲスト以外)
     if (!isGuest) {
-        const { postCarpoolRecruitment } = require('../../../utils/配車/相乗りマネージャ');
+        const { postCarpoolRecruitment } = require('../../utils/配車/相乗りマネージャ');
         postCarpoolRecruitment(guild, dispatchData, guild.client).catch(() => null);
     }
 
@@ -188,7 +201,9 @@ module.exports = async function createDispatchVC({ guild, requester, driverId, d
             ].join('\n'))
             .setColor(0x00ff00).setTimestamp();
         await requester.send({ embeds: [uEmbed] });
-    } catch (e) { }
+    } catch (e) {
+        console.warn(`[createDispatchVC] 利用者へのDM送信失敗: ${e.message}`);
+    }
 
     // 送迎者DM
     try {
@@ -208,7 +223,9 @@ module.exports = async function createDispatchVC({ guild, requester, driverId, d
                 .setColor(0xffa500).setTimestamp();
             await driverMember.send({ embeds: [dEmbed] });
         }
-    } catch (e) { }
+    } catch (e) {
+        console.warn(`[createDispatchVC] 送迎者へのDM送信失敗: ${e.message}`);
+    }
 
     // 8. パネル更新
     await Promise.all([

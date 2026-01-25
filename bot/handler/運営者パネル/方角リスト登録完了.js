@@ -9,7 +9,7 @@ const updateOperatorPanel = require('./updatePanel');
  * 方面リスト登録モーダル送信完了
  */
 module.exports = {
-  customId: 'op|directions|modal=list_register',
+  customId: 'op|directions|sub=modal',
   type: 'modalSubmit',
   async execute(interaction) {
     return autoInteractionTemplate(interaction, {

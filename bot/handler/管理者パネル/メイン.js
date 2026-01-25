@@ -266,7 +266,7 @@ async function execute(interaction, client, parsed) {
       return require('../口コミランクパネル/アクション/ランク設定').startFlow(interaction, client, parsed);
 
     // 履歴・統計
-    if (customId === 'adm|history|sub=start')
+    if (parsed.action === 'history')
       return require('./アクション/履歴表示').execute(interaction, client, parsed);
 
     if (customId === 'adm|stats|sub=start')
@@ -481,9 +481,13 @@ async function execute(interaction, client, parsed) {
 
   // --- モーダル送信時 ---
   if (interaction.isModalSubmit()) {
+    if (parsed.action === 'history') {
+      return require('./アクション/履歴表示').execute(interaction, client, parsed);
+    }
     return autoInteractionTemplate(interaction, {
       adminOnly: true,
       async run(interaction) {
+        // config loading dummy for compatibility
         const cfg = await loadConfig(interaction.guildId);
       },
     });

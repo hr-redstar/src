@@ -1,8 +1,12 @@
-const { ActionRowBuilder, ButtonStyle } = require('discord.js');
+const { ActionRowBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
 const { updateDispatchProgress } = require('../../配車システム/dispatchProgressUpdater');
+const store = require('../../../utils/ストレージ/ストア共通');
+const paths = require('../../../utils/ストレージ/ストレージパス');
 
 /**
- * 送迎開始ボタンハンドラー (Professional Edition)
+ * 送迎開始ボタンハンドラー (v2.9.0)
+ * ・送迎者のみ実行可能
+ * ・ステータスを in_service に変更
  */
 module.exports = {
   async execute(interaction, client, parsed) {
@@ -10,50 +14,64 @@ module.exports = {
     if (!rideId) return;
 
     try {
+      // 1. データ取得
+      const guildId = interaction.guildId;
+      const activePath = `${paths.activeDispatchDir(guildId)}/${rideId}.json`;
+      const dispatchData = await store.readJson(activePath).catch(() => null);
+
+      if (!dispatchData) {
+        return interaction.reply({ content: '⚠️ 送迎データが見つかりません。', flags: 64 });
+      }
+
+      // 2. 権限ガード (送迎者のみ)
+      if (interaction.user.id !== dispatchData.driverId) {
+        return interaction.reply({
+          content: '❌ この操作は送迎担当者のみ実行できます。',
+          flags: 64
+        });
+      }
+
+      // 3. 処理開始 (Defer)
       await interaction.deferUpdate();
 
-      const guild = interaction.guild;
       const now = new Date();
       const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
-      // データ更新
-      const updatedData = await updateDispatchProgress({
-        guild,
+      // 4. データ更新 & ステータス変更
+      // dispatchProgressUpdater が OperatorLog の更新などを担当
+      await updateDispatchProgress({
+        guild: interaction.guild,
         rideId,
-        status: 'STARTED',
+        status: 'IN_SERVICE', // v2.9.0 仕様: in_service
         updates: {
           startTime: timeStr,
           rideStartedAt: now.toISOString()
         }
       });
 
-      if (!updatedData) {
-        return interaction.followUp({ content: '⚠️ 送迎データが見つかりません。', flags: 64 });
-      }
+      // 5. VC内の表示更新
+      // "送迎開始" ボタンを無効化 or 表示変更
+      // v2.9.0 では "送迎者: ✅ 表示, 利用者: ❌ 非表示" とあるが、
+      // 既存のメッセージ上のボタンを特定のユーザーだけに隠すことはできないため、
+      // ここでは実行済みであることを示してボタンを無効化する。
 
-      const isDriver = interaction.user.id === updatedData.driverId;
-      const isUser = interaction.user.id === updatedData.userId;
-      const carpoolIndex = (updatedData.carpoolUsers || []).findIndex(u => u.userId === interaction.user.id);
-
-      await interaction.channel.send(`※送迎開始通知：<@${interaction.user.id}> (${timeStr})`);
-
-      // ボタン表示の更新
       const newComponents = interaction.message.components.map((row) => {
         const newRow = ActionRowBuilder.from(row);
         newRow.components.forEach((component) => {
           if (component.customId === interaction.customId) {
-            let label = component.label;
-            if (isDriver && !label.includes('済')) label += '(送迎者済)';
-            else if (isUser && !label.includes('済')) label += '(利用者済)';
-            else if (carpoolIndex >= 0 && !label.includes('済')) label += `(計${carpoolIndex + 1}済)`;
-
-            component.setLabel(label);
+            component.setLabel('送迎中').setDisabled(true).setStyle(ButtonStyle.Success);
           }
         });
         return newRow;
       });
 
       await interaction.editReply({ components: newComponents });
+
+      // チャンネル通知 (本人にのみ ephemeral)
+      await interaction.followUp({
+        content: `※送迎開始：<@${interaction.user.id}> (${timeStr})`,
+        flags: 64
+      });
 
     } catch (error) {
       console.error('送迎開始エラー:', error);

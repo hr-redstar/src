@@ -89,11 +89,11 @@ const ROUTES = {
     op: (parsed) => {
         const action = parsed.action;
         if (action === 'directions') {
-            if (parsed.params?.sub === 'list_register') return require('./運営者パネル/方角リスト登録');
-            if (parsed.params?.sub === 'detail_register') return require('./運営者パネル/方角詳細登録');
-            if (parsed.params?.sub === 'modal') return require('./運営者パネル/方角リスト登録完了');
-            if (parsed.params?.sub === 'detail_modal') return require('./運営者パネル/方角詳細完了');
-            if (parsed.params?.sub === 'detail_input') return require('./運営者パネル/方角リスト詳細入力');
+            if (parsed.params?.sub === 'list_register') return require('./運営者パネル/方面リスト登録');
+            if (parsed.params?.sub === 'detail_register') return require('./運営者パネル/方面リスト詳細登録');
+            if (parsed.params?.sub === 'modal') return require('./運営者パネル/方面リスト登録完了');
+            if (parsed.params?.sub === 'detail_modal') return require('./運営者パネル/方面リスト詳細完了');
+            if (parsed.params?.sub === 'detail_input') return require('./運営者パネル/方面リスト詳細入力');
         }
         if (action === 'fee') {
             if (parsed.params?.sub === 'setting') return require('./運営者パネル/利用料設定');

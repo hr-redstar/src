@@ -76,10 +76,15 @@ function buildVcControlEmbed(data) {
         .setTitle(title.substring(0, 256))
         .setDescription(descriptionParts.join('\n'))
         .setColor(color)
-        .setTimestamp()
-        .setFooter({ text: '送迎管理システム Professional Edition' });
+        .setTimestamp();
 
-    return embed;
+    const username = data.client?.user?.username || '送迎bot';
+    const avatarURL = data.client?.user?.displayAvatarURL?.() || null;
+
+    return embed.setFooter({
+        text: `${username}｜${new Date().toLocaleString('ja-JP')}`,
+        iconURL: avatarURL
+    });
 }
 
 module.exports = { buildVcControlEmbed };

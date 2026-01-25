@@ -40,7 +40,7 @@ async function postDetailedAttendanceLog({ guild, user, data, type = 'on' }) {
         );
     }
 
-    embed.setFooter({ text: `記録日時: ${nowStr} ｜ v1.8.0 Detailed Log` });
+    // フッターはテンプレートに任せる (v2.9.2)
 
     // 1. 運営者ログ (通常のテキストチャンネル)
     const { postOperatorLog } = require('./運営者ログ');

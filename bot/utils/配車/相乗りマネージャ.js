@@ -64,37 +64,29 @@ async function postCarpoolRecruitment(guild, rideData, client) {
     return;
   }
 
-  // ルート表示の生成
-  let routeStr = `【${rideData.driverPlace || '現在地'}】`;
-
-  // 相乗り経由地を追加
-  if (rideData.carpoolUsers) {
-    for (const user of rideData.carpoolUsers) {
-      if (user.location) {
-        routeStr += ` → 【${user.location}】`;
-      } else {
-        routeStr += ` → 【相乗り】`;
-      }
-    }
-  }
-
-  routeStr += ` → 【${rideData.direction || '不明'}】`;
+  // ルート詳細
+  const from = rideData.driverPlace || '現在地';
+  const to = rideData.direction || '不明';
 
   const startedAt = new Date(rideData.startedAt);
   const timeStr = startedAt.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 
-  // 方面に紐付く地名リストを取得 (v2.8.0)
-  const areas = config.directionAreas?.[rideData.direction] || [];
-  const areaInfo = areas.length > 0 ? `\n\n📍 **対応方面（${rideData.direction}）**\n${areas.join(' / ')}` : '';
+  const joinedCount = (rideData.carpoolUsers || []).reduce((sum, u) => sum + (u.count || 1), 0);
+  const maxCapacity = remaining + joinedCount;
+
+  const content = [
+    `🚗 相乗り募集中　最大　${maxCapacity}名まで`,
+    `【${from}】 → 【${to}】`,
+    `現在　${joinedCount}名`
+  ].join('\n');
 
   const embed = new EmbedBuilder()
-    .setTitle('🚗 相乗り募集中')
     .setDescription(
-      `**${routeStr}**\n\n` +
-      `👥 **相乗り可能人数**\n最大 ${remaining}名まで` +
-      areaInfo +
-      `\n\n🕒 **出発時刻（送迎者現在地）**\n${timeStr}\n\n` +
-      `⚠️ **注意**\n相乗り希望後、すでに合流が難しい場合があります。その際は送迎可能か送迎者から連絡があります。`
+      `🕒 出発時刻（送迎者現在地）\n` +
+      `${timeStr}\n\n` +
+      `⚠️ 注意\n` +
+      `相乗り希望後、すでに合流が難しい場合があります。\n` +
+      `その際は送迎可能か送迎者から連絡があります。`
     )
     .setColor(0x00ffff) // Aqua
     .setTimestamp(startedAt);
@@ -111,12 +103,12 @@ async function postCarpoolRecruitment(guild, rideData, client) {
   if (rideData.carpoolMessageId) {
     message = await channel.messages.fetch(rideData.carpoolMessageId).catch(() => null);
     if (message) {
-      await message.edit({ embeds: [embed], components: [row] });
+      await message.edit({ content, embeds: [embed], components: [row] });
     }
   }
 
   if (!message) {
-    message = await channel.send({ embeds: [embed], components: [row] });
+    message = await channel.send({ content, embeds: [embed], components: [row] });
 
     // メッセージID保存
     rideData.carpoolMessageId = message.id;
@@ -160,7 +152,7 @@ async function stopCarpoolRecruitment(guild, rideData) {
     )
     .setTimestamp();
 
-  await message.edit({ embeds: [embed], components: [] }).catch(() => null);
+  await message.edit({ content: '', embeds: [embed], components: [] }).catch(() => null);
 
   // データ更新
   rideData.carpoolMessageId = null;

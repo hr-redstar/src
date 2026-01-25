@@ -11,21 +11,46 @@ const paths = require('../ストレージ/ストレージパス');
 async function forceOffDriver({ guild, driverId, executor }) {
   const guildId = guild.id;
 
-  // プロファイル確認 (存在チェック用)
+  // 1. プロファイル確認
   const profilePath = paths.driverProfileJson(guildId, driverId);
   const profile = await store.readJson(profilePath).catch(() => null);
 
-  // 待機列から削除
+  // 2. 待機列から削除
   const waitPath = `${paths.waitingDriversDir(guildId)}/${driverId}.json`;
   const wasWaiting = (await store.readJson(waitPath).catch(() => null)) !== null;
-
   if (wasWaiting) {
-    await store.deleteFile(waitPath);
+    await store.deleteFile(waitPath).catch(() => { });
+  }
+
+  // 3. 配車中の送迎をクリーンアップ
+  let clearedCount = 0;
+  const activeDir = paths.activeDispatchDir(guildId);
+  const activeFiles = await store.listKeys(activeDir).catch(() => []);
+  const { stopCarpoolRecruitment } = require('../配車/相乗りマネージャ');
+
+  for (const fileKey of activeFiles) {
+    if (!fileKey.endsWith('.json')) continue;
+    const data = await store.readJson(fileKey).catch(() => null);
+    if (data && data.driverId === driverId) {
+      // 相乗り募集があれば停止
+      if (data.carpoolMessageId) {
+        await stopCarpoolRecruitment(guild, data).catch(() => null);
+      }
+      // VC削除
+      if (data.vcId) {
+        const vc = await guild.channels.fetch(data.vcId).catch(() => null);
+        if (vc) await vc.delete('ドライバー強制退勤による削除').catch(() => null);
+      }
+      // データ削除
+      await store.deleteFile(fileKey).catch(() => null);
+      clearedCount++;
+    }
   }
 
   return {
     profile,
     wasWaiting,
+    clearedCount
   };
 }
 

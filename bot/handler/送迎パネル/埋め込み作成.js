@@ -18,7 +18,7 @@ function buildDriverPanelEmbed(guild, driverCount = 0, client) {
         description: `
 送迎者の出勤・退勤・現在地の更新を行います。
 
-現在の出勤中ドライバー: **${driverCount}** 名
+現在の出勤中ドライバー: ${driverCount} 名
     `,
         client: botClient,
     });
@@ -33,7 +33,7 @@ function buildDriverPanelComponents() {
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('driver|on')
-            .setLabel('今から行けます')
+            .setLabel('出勤')
             .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
             .setCustomId('driver|off')
@@ -108,12 +108,13 @@ async function buildRideListPanelMessage(guild, client) {
     if (queue.length === 0) {
         waitingDriverLines.push('待機中の送迎車はいません。');
     } else {
-        waitingDriverLines.push('`順位｜待機開始｜名前｜車種`');
+        waitingDriverLines.push('`順位｜待機開始｜名前｜現在地｜車種/カラー/ナンバー`');
         queue.forEach((d, idx) => {
             const time = d.timestamp ? new Date(d.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '--:--';
             const car = d.carInfo || d.car || '-';
+            const place = d.stopPlace || d.place || '不明';
             const rank = userRanks[d.userId] ? `[${userRanks[d.userId]}] ` : '';
-            waitingDriverLines.push(`第${idx + 1}位｜${time}｜${rank}<@${d.userId}>｜${car}`);
+            waitingDriverLines.push(`第${idx + 1}位｜${time}｜${rank}<@${d.userId}>｜${place}｜${car}`);
         });
     }
 
@@ -135,10 +136,9 @@ async function buildRideListPanelMessage(guild, client) {
         waitingUserLines.push('待機中のユーザーはいません。');
     } else {
         waitingUsers.forEach((u) => {
-            const type = u.guest ? '👤 ゲスト' : '👤 キャスト';
             const loc = u.destination || u.direction || '詳細不明';
             const rank = userRanks[u.userId] ? `[${userRanks[u.userId]}] ` : '';
-            waitingUserLines.push(`${rank}<@${u.userId}> (${type} - ${loc})`);
+            waitingUserLines.push(`${rank}<@${u.userId}> (${loc})`);
         });
     }
 
@@ -147,26 +147,29 @@ async function buildRideListPanelMessage(guild, client) {
     const ridingUserText = ridingUserLines.length > 0 ? ridingUserLines.join(', ') : 'なし';
 
     const embed = buildPanelEmbed({
-        title: '📋 送迎・待機状況 一覧',
+        title: '送迎一覧パネル',
+        description: '現在の待機状況と送迎中のステータスを表示します。',
         client,
         fields: [
             { name: '🚗 待機中の送迎車（FIFO順）', value: waitingDriverLines.join('\n'), inline: false },
-            { name: '👤 待機中 (利用者)', value: waitingUserLines.join('\n'), inline: false },
+            { name: '👤 待機中', value: waitingUserLines.join('\n'), inline: false },
             { name: '🚕 送迎中', value: onRouteLines.join('\n'), inline: false },
-            { name: '👤 乗車中の利用者', value: ridingUserText, inline: false },
         ],
         color: 0x3498db,
     });
 
-    const row = new ActionRowBuilder().addComponents(
+    const rowHistory = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('adm|history|sub=recent')
-            .setLabel('送迎履歴直近10件')
+            .setLabel('配車履歴(最新10件)')
             .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
             .setCustomId('adm|history|sub=detail')
             .setLabel('送迎履歴詳しく')
-            .setStyle(ButtonStyle.Primary),
+            .setStyle(ButtonStyle.Primary)
+    );
+
+    const rowAdmin = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('adm|ride|sub=force_end_menu')
             .setLabel('送迎強制終了')
@@ -177,7 +180,7 @@ async function buildRideListPanelMessage(guild, client) {
             .setStyle(ButtonStyle.Danger)
     );
 
-    return buildPanelMessage({ embed, components: [row] });
+    return buildPanelMessage({ embed, components: [rowHistory, rowAdmin] });
 }
 
 module.exports = {

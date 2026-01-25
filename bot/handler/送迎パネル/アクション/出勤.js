@@ -20,11 +20,13 @@ module.exports = async function (interaction, client, parsed) {
         // 入力値取得
         const carInfo = interaction.fields.getTextInputValue('input|driver|car');
         const capacity = interaction.fields.getTextInputValue('input|driver|capacity');
+        const stopPlace = interaction.fields.getTextInputValue('input|driver|location');
 
         const data = {
           userId,
           carInfo,
           capacity,
+          stopPlace,
           timestamp: new Date().toISOString(),
         };
 
@@ -50,7 +52,7 @@ module.exports = async function (interaction, client, parsed) {
             client: interaction.client,
             fields: [
               { name: '📋 車種/カラー/ナンバー (人数)', value: `${carInfo} (${capacity})`, inline: true },
-              { name: '📍 現在地', value: '待機中', inline: true }
+              { name: '📍 現在地', value: stopPlace, inline: true }
             ]
           });
 
@@ -90,7 +92,7 @@ module.exports = async function (interaction, client, parsed) {
         for (const fileKey of dispatchFiles) {
           if (!fileKey.endsWith('.json')) continue;
           const data = await store.readJson(fileKey).catch(() => null);
-          if (data?.driverId === userId) {
+          if (data?.driverId === userId && data?.status !== 'COMPLETED') {
             isDispatching = true;
             break;
           }
@@ -114,10 +116,11 @@ module.exports = async function (interaction, client, parsed) {
 
         const defaultCar = actualData?.car || actualData?.carInfo || '';
         const defaultCapacity = actualData?.capacity || '';
+        const defaultLocation = actualData?.stopPlace || '';
 
         const modal = new ModalBuilder()
           .setCustomId('driver|on|sub=modal')
-          .setTitle('今から行けます（送迎者）');
+          .setTitle('出勤（送迎者）');
 
 
         const carInput = new TextInputBuilder()
@@ -138,9 +141,19 @@ module.exports = async function (interaction, client, parsed) {
           .setRequired(true)
           .setMaxLength(20);
 
+        const locationInput = new TextInputBuilder()
+          .setCustomId('input|driver|location')
+          .setLabel('現在地')
+          .setPlaceholder('例：ローソン前、〇〇ビル付近')
+          .setValue(String(defaultLocation))
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+          .setMaxLength(50);
+
         modal.addComponents(
           new ActionRowBuilder().addComponents(carInput),
-          new ActionRowBuilder().addComponents(capacityInput)
+          new ActionRowBuilder().addComponents(capacityInput),
+          new ActionRowBuilder().addComponents(locationInput)
         );
 
         await interaction.showModal(modal);

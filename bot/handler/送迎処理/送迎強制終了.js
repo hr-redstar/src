@@ -141,14 +141,34 @@ module.exports = {
             userId: rideData.passengerId,
             area: rideData.route || rideData.direction || rideData.area,
             count: rideData.count,
+            forcedEndTime: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
             endedAt: new Date().toISOString(),
           }
         }).catch(() => null);
 
-        // 4. パネル更新
-        // 送迎一覧パネル更新
-        const { updateRideListPanel } = require('./一覧パネル更新');
-        await updateRideListPanel(interaction.guild, client).catch(() => null);
+        // 4. 待機列へ自動復帰 (v2.9.0)
+        try {
+          const { loadDriver } = require('../../utils/driversStore');
+          const { addToQueue } = require('../../utils/配車/待機列マネージャ');
+          const driverData = await loadDriver(guildId, rideData.driverId);
+          if (driverData) {
+            const actualData = driverData.current || driverData;
+            const queueData = {
+              userId: rideData.driverId,
+              carInfo: actualData.car || actualData.carInfo || '不明',
+              capacity: actualData.capacity || '不明',
+              stopPlace: actualData.stopPlace || '不明',
+              timestamp: new Date().toISOString(), // 待機序列は最後尾へ
+            };
+            await addToQueue(guildId, queueData);
+          }
+        } catch (e) {
+          console.error('強制終了時の待機復帰エラー:', e);
+        }
+
+        // 5. パネル更新
+        const { updateRelevantPanels } = require('../送迎パネル/メイン');
+        await updateRelevantPanels(interaction.guild, client);
 
         // 必要なら送迎者・利用者パネルも更新すべきだが、今回は一覧パネル更新を優先。
 

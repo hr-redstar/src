@@ -46,12 +46,21 @@ async function updateRideOperatorLog({ guild, rideId, status, data }) {
             }
         }
 
+        const statusTextMap = {
+            'MATCHED': 'マッチング',
+            'HEADING': '向かっています',
+            'STARTED': '送迎中',
+            'ENDED': '送迎終了',
+            'FORCED': '送迎終了 (強制)'
+        };
+        const content = statusTextMap[status] || '進行中';
+
         const embed = buildRideEmbed({ status, data: combinedData });
 
         if (!logRef) {
             // 新規送信
             if (status === 'MATCHED' || status === 'STARTED') {
-                const message = await channel.send({ embeds: [embed] }).catch(err => {
+                const message = await channel.send({ content, embeds: [embed] }).catch(err => {
                     logger.error(`運営者ログ送信失敗: ${err.message}`);
                     return null;
                 });
@@ -70,7 +79,8 @@ async function updateRideOperatorLog({ guild, rideId, status, data }) {
             if (threadOrChannel) {
                 const message = await threadOrChannel.messages.fetch(logRef.messageId).catch(() => null);
                 if (message) {
-                    await message.edit({ embeds: [embed] }).catch(err => {
+                    console.log(`[rideLogManager] 運営者ログを編集します: rideId=${rideId}, status=${status}, times=[H:${combinedData.headingTime}, S:${combinedData.startTime}, E:${combinedData.endTime}]`);
+                    await message.edit({ content, embeds: [embed] }).catch(err => {
                         logger.error(`運営者ログ編集失敗: ${err.message}`);
                     });
 

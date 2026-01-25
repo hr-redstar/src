@@ -10,7 +10,7 @@ function buildUserPanelEmbed(guild, rideCount = 0, client) {
   return buildPanelEmbed({
     title: '利用者パネル',
     description: `
-現在の送迎車： **${rideCount}** 台
+現在の送迎車： ${rideCount} 台
 自分・ゲストの送迎依頼ができます
     `,
     client: botClient,
@@ -33,7 +33,7 @@ function buildUserPanelComponents() {
       .setLabel('ゲスト送迎依頼')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
-      .setCustomId('user|check')
+      .setCustomId('reg|user|sub=check')
       .setLabel('登録状態確認')
       .setStyle(ButtonStyle.Success)
   );

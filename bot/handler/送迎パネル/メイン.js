@@ -1,4 +1,4 @@
-﻿﻿﻿﻿// handler/送迎パネル/メイン.js
+﻿﻿// handler/送迎パネル/メイン.js
 const { EmbedBuilder } = require('discord.js');
 const logger = require('../../utils/logger');
 const store = require('../../utils/ストレージ/ストア共通');
@@ -108,6 +108,13 @@ async function execute(interaction, client, parsed) {
   } else if (action === 'location') {
     // 現在地更新処理（完了後にパネル更新が必要な場合があるため、更新関数を渡す）
     return locationAction(interaction, client, parsed, () => updateRelevantPanels(interaction.guild, client));
+  } else if (action === 'return_queue') {
+    // sub=submit があれば処理、なければモーダル表示
+    if (parsed.params?.sub === 'submit') {
+      await handleReturnQueueSubmit(interaction, client);
+    } else {
+      await showReturnQueueModal(interaction);
+    }
   } else {
     // 不明なアクションの場合は何もしない
     return;
@@ -115,6 +122,97 @@ async function execute(interaction, client, parsed) {
 
   // 出勤・退勤処理後にパネルを更新
   updateRelevantPanels(interaction.guild, client);
+}
+
+/**
+ * 待機列復帰前の現在地入力モーダルを表示
+ */
+async function showReturnQueueModal(interaction) {
+  const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
+
+  const modal = new ModalBuilder()
+    .setCustomId('driver|return_queue|sub=submit')
+    .setTitle('待機列に復帰');
+
+  const input = new TextInputBuilder()
+    .setCustomId('location')
+    .setLabel('現在の居場所 (必須)')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('例: 〇〇駅前、△△ビル付近')
+    .setRequired(true)
+    .setMaxLength(50);
+
+  modal.addComponents(new ActionRowBuilder().addComponents(input));
+  await interaction.showModal(modal);
+}
+
+/**
+ * 送迎終了後に待機列へ復帰する処理 (モーダル送信後)
+ */
+async function handleReturnQueueSubmit(interaction, client) {
+  const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
+  const { ACK } = autoInteractionTemplate;
+  const { loadDriver } = require('../../utils/driversStore');
+
+  return autoInteractionTemplate(interaction, {
+    ack: ACK.REPLY_EPHEMERAL,
+    async run(interaction) {
+      const guildId = interaction.guildId;
+      const userId = interaction.user.id;
+      const location = interaction.fields.getTextInputValue('location');
+
+      // 1. 待機中チェック
+      const waitPath = `${paths.waitingDriversDir(guildId)}/${userId}.json`;
+      const isWaiting = (await store.readJson(waitPath).catch(() => null)) !== null;
+      if (isWaiting) {
+        return interaction.editReply({ content: '✅ 既に待機リストに登録されています。' });
+      }
+
+      // 2. プロフィール取得
+      const driverData = await loadDriver(guildId, userId).catch(() => null);
+      if (!driverData) {
+        return interaction.editReply({ content: '⚠️ 送迎者データが見つかりません。通常の出勤ボタンから出勤してください。' });
+      }
+
+      const actualData = driverData.current || driverData;
+      const carInfo = actualData.car || actualData.carInfo || '不明';
+      const capacity = actualData.capacity || '不明';
+
+      // 3. 待機列へ追加 (提供された現在地を使用)
+      const queueData = {
+        userId,
+        carInfo,
+        capacity,
+        stopPlace: location,
+        timestamp: new Date().toISOString(),
+      };
+      await store.writeJson(waitPath, queueData);
+
+      // 4. パネル更新
+      updateRelevantPanels(interaction.guild, client);
+
+      // 5. ログ
+      const { postOperatorLog } = require('../../utils/ログ/運営者ログ');
+      const buildPanelEmbed = require('../../utils/embed/embedTemplate');
+      const embed = buildPanelEmbed({
+        title: '🚗 送迎者 待機復帰',
+        description: `<@${userId}> が送迎を終え、待機列に復帰しました。`,
+        color: 0x3498db,
+        client: interaction.client,
+        fields: [
+          { name: '📍 現在地', value: location, inline: true },
+          { name: '📋 車両情報', value: `${carInfo} (${capacity})`, inline: true },
+        ]
+      });
+
+      await postOperatorLog({
+        guild: interaction.guild,
+        embeds: [embed],
+      }).catch(() => null);
+
+      return interaction.editReply({ content: '✅ 指定した場所（' + location + '）で待機列に復帰しました。お疲れ様でした！' });
+    }
+  });
 }
 
 module.exports = {

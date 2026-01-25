@@ -75,7 +75,7 @@ module.exports = {
                 const buildPanelEmbed = require('../../utils/embed/embedTemplate');
                 const embed = buildPanelEmbed({
                     title: '🛑 管理者：強制退勤実行',
-                    description: '強制的に退勤・待機解除させるドライバーを選択してください。\n選択すると即座に処理が実行されます。',
+                    description: '強制退勤させるドライバーを選択してください。\n(選択すると即座に退勤・クリーンアップが行われます)',
                     color: 0xe74c3c,
                     client: interaction.client
                 });

@@ -67,8 +67,9 @@ function buildUserRegistrationEmbed(registrationJson, user, userRanks = {}) {
       {
         name: '📌 最新の登録内容',
         value: [
-          `**店舗名 / ニックネーム**: ${current.name || current.storeName || '未設定'}`,
-          `**方面**: ${current.mark || current.address || '未設定'}`,
+          `**店舗名 / ニックネーム**: ${current.storeName || current.name || '未設定'}`,
+          `**店舗住所**: ${current.address || '未設定'}`,
+          `**駐車目印**: ${current.mark || '未設定'}`,
           `**更新日時**: ${formatDate(current.registeredAt)}`,
         ].join('\n'),
         inline: false

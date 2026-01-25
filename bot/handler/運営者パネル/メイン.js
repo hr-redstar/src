@@ -105,51 +105,24 @@ async function buildOperatorPanelEmbed(config, guildId, client) {
   // 利用料読み込み
   const usageFee = config.usageFee || '未設定';
 
-  const embed = new EmbedBuilder()
-    .setTitle('🛠 運営者パネル')
-    .setColor(Colors.Gold)
-    .addFields(
-      {
-        name: '方面リスト',
-        value: `\`\`\`\n${directionNames}\n\`\`\``,
-        inline: true,
-      },
-      {
-        name: '利用料設定',
-        value: `\`\`\`\n${usageFee}\n\`\`\``,
-        inline: true,
-      }
-    );
-
-  // 方面詳細セクション
-  embed.addFields({
-    name: '方面詳細',
-    value: '　',
-    inline: false,
+  // 共通の埋め込みテンプレートを使用するように修正 (v2.9.2)
+  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
+  return buildPanelEmbed({
+    title: '🛠 運営者パネル',
+    color: Colors.Gold,
+    client,
+    fields: [
+      { name: '方面リスト', value: `\`\`\`\n${directionNames}\n\`\`\``, inline: true },
+      { name: '利用料設定', value: `\`\`\`\n${usageFee}\n\`\`\``, inline: true },
+      { name: '方面詳細', value: '　', inline: false },
+      ...directionsList.map((d, i) => {
+        const lineKey = `${i + 1}行目`;
+        const detail = directionDetails[lineKey] || '未設定';
+        const dirName = d.name.replace(/【|】/g, '');
+        return { name: `方面${i + 1} (${dirName})`, value: `\`\`\`\n${detail}\n\`\`\``, inline: false };
+      })
+    ]
   });
-
-  // 各行の詳細情報を表示
-  for (let i = 1; i <= directionsList.length; i++) {
-    const lineKey = `${i}行目`;
-    const detail = directionDetails[lineKey] || '未設定';
-    const direction = directionsList[i - 1];
-    const dirName = direction ? direction.name.replace(/【|】/g, '') : `${i}行目`;
-
-    embed.addFields({
-      name: `方面${i} (${dirName})`,
-      value: `\`\`\`\n${detail}\n\`\`\``,
-      inline: false,
-    });
-  }
-
-  // フッターに bot 名と日付を表示
-  const botName = client?.user?.username || '送迎bot';
-  const now = new Date();
-  const today = now.toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' });
-  const time = now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-  embed.setFooter({ text: `${botName}•${today} ${time}` });
-
-  return embed;
 }
 
 /**

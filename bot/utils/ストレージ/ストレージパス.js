@@ -148,6 +148,7 @@ module.exports = {
   userRatingJson,
   userRatingSummaryJson,
   userRoot, // Added
+  userJson: userProfileJson, // Backward compatibility alias
 
   waitingDriversDir,
   waitingUsersDir,

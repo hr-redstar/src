@@ -18,7 +18,7 @@ module.exports = {
                 const currentFee = config.usageFee || '';
 
                 const modal = new ModalBuilder()
-                    .setCustomId('op|fee|modal=setting')
+                    .setCustomId('op|fee|sub=modal')
                     .setTitle('利用料の設定');
 
                 const feeInput = new TextInputBuilder()

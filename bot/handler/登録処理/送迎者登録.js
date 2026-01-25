@@ -59,7 +59,7 @@ function buildDriverRegPanelMessage(guild, client) {
   const embed = buildPanelEmbed({
     title: '送迎者登録パネル',
     description: `
-**送迎者登録**
+送迎者登録
 ・ニックネーム
 ・車種/カラー/ナンバー
 ・乗車人数

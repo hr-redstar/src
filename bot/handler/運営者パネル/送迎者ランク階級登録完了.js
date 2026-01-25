@@ -8,7 +8,7 @@ const updateOperatorPanel = require('./updatePanel');
  * 送迎者ランク階級登録完了 - モーダル送信後の処理
  */
 module.exports = {
-    customId: 'op|rank|modal=class_register',
+    customId: 'op|rank|sub=modal',
     type: 'modalSubmit',
     async execute(interaction) {
         return autoInteractionTemplate(interaction, {

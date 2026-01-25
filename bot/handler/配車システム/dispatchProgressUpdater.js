@@ -42,9 +42,10 @@ async function updateDispatchProgress({ guild, rideId, status, updates = {} }) {
 
         // 3. 利用者メモ個人メッセージの更新
         if (dispatchData.userMemoChannelId && dispatchData.userMemoMessageId) {
-            const memoCh = await guild.channels.fetch(dispatchData.userMemoChannelId).catch(() => null);
-            if (memoCh && memoCh.isTextBased()) {
-                const msg = await memoCh.messages.fetch(dispatchData.userMemoMessageId).catch(() => null);
+            const channelId = dispatchData.userLogThreadId || dispatchData.userMemoChannelId;
+            const container = await guild.channels.fetch(channelId).catch(() => null);
+            if (container && container.isTextBased()) {
+                const msg = await container.messages.fetch(dispatchData.userMemoMessageId).catch(() => null);
                 if (msg) {
                     const embed = buildDispatchEmbed(dispatchData);
                     await msg.edit({ embeds: [embed] }).catch(() => null);

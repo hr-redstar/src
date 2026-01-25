@@ -23,10 +23,22 @@ module.exports = {
       return handleStart.execute(interaction, client, parsed);
     }
     if (action === 'end') {
-      return handleEnd.execute(interaction, client, parsed);
+      // 送迎終了ボタン -> 目的地入力モーダルを表示
+      if (!sub) return handleEnd.execute(interaction, client, parsed);
+      // モーダル送信時
+      if (sub === 'submit') return handleEnd.execute(interaction, client, parsed);
     }
     if (action === 'cancel') {
       return handleCancel.execute(interaction, client, parsed);
+    }
+
+    // 相乗り操作系 (v2.9.2 Select Menus)
+    if (action.startsWith('carpool_')) {
+      const carpoolMenu = require('./相乗り操作メニュー');
+      if (action === 'carpool_select') {
+        return carpoolMenu.handleCarpoolAction(interaction, client, parsed);
+      }
+      return carpoolMenu.showCarpoolSelectMenu(interaction, action, rid);
     }
 
     // ride|control|sub=extend
@@ -65,9 +77,14 @@ module.exports = {
           if (logThreadId) {
             const thread = await interaction.guild.channels.fetch(logThreadId).catch(() => null);
             if (thread) {
-              await thread.send({
-                content: `⏳ **保存期間延長**\n実行者: <@${interaction.user.id}>\nチャンネル: <#${channelId}>`,
+              const buildPanelEmbed = require('../../../utils/embed/embedTemplate');
+              const logEmbed = buildPanelEmbed({
+                title: '⏳ 保存期間延長',
+                description: `送迎チャンネルの保存期間が無期限に延長されました。\n\n**実行者:** <@${interaction.user.id}>\n**チャンネル:** <#${channelId}>`,
+                color: 0x3498db,
+                client: client,
               });
+              await thread.send({ embeds: [logEmbed] });
             }
           }
 

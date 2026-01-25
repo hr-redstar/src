@@ -19,7 +19,7 @@ module.exports = {
                 const defaultText = currentRanks.join('\n');
 
                 const modal = new ModalBuilder()
-                    .setCustomId('op|rank|modal=class_register')
+                    .setCustomId('op|rank|sub=modal')
                     .setTitle('送迎者ランク階級登録');
 
                 const ranksInput = new TextInputBuilder()

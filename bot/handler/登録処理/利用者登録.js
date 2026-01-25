@@ -62,7 +62,7 @@ function buildUserRegPanelMessage(guild, client) {
   const embed = buildPanelEmbed({
     title: '利用者登録パネル',
     description: `
-**利用者登録**
+利用者登録
 ・店舗名 または ニックネーム
 ・方面
     `,
@@ -156,22 +156,32 @@ async function execute(interaction, client, parsed) {
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId(CID.INP_NAME)
-          .setLabel('店舗名 または ニックネーム (必須)')
+          .setLabel('店舗名・ニックネーム (必須)')
           .setStyle(TextInputStyle.Short)
           .setRequired(true)
           .setMaxLength(50)
           .setPlaceholder('例: キャバクラ〇〇、はなこ')
-          .setValue(existing.storeName || '')
+          .setValue(existing.storeName || existing.name || '')
       ),
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId(CID.INP_ADDRESS)
-          .setLabel('方面 (必須)')
+          .setLabel('店舗住所')
           .setStyle(TextInputStyle.Paragraph)
-          .setRequired(true)
+          .setRequired(false)
           .setMaxLength(100)
-          .setPlaceholder('例: 神奈川方面、23区方面')
+          .setPlaceholder('店舗の詳しい住所を入力')
           .setValue(existing.address || '')
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId(CID.INP_MARK)
+          .setLabel('駐車目印')
+          .setStyle(TextInputStyle.Paragraph)
+          .setRequired(false)
+          .setMaxLength(100)
+          .setPlaceholder('車両が停まる際の目印（例：〇〇ビル前など）')
+          .setValue(existing.mark || '')
       )
     );
 
@@ -183,9 +193,9 @@ async function execute(interaction, client, parsed) {
     return autoInteractionTemplate(interaction, {
       ack: ACK.REPLY,
       async run(interaction) {
-        const name = interaction.fields.getTextInputValue(CID.INP_NAME)?.trim();
-        const address = interaction.fields.getTextInputValue(CID.INP_ADDRESS)?.trim();
-        const mark = interaction.fields.getTextInputValue(CID.INP_MARK)?.trim();
+        const name = interaction.fields.getTextInputValue(CID.INP_NAME)?.trim() || '未設定';
+        const address = interaction.fields.getTextInputValue(CID.INP_ADDRESS)?.trim() || '未設定';
+        const mark = interaction.fields.getTextInputValue(CID.INP_MARK)?.trim() || '未設定';
 
         const guildId = interaction.guildId;
         const userId = interaction.user.id;
@@ -194,7 +204,9 @@ async function execute(interaction, client, parsed) {
         const registrationData = {
           userId,
           storeName: name, // 利用者の場合は storeName
-          address, // 方面を address フィールドに格納 (互換性維持)
+          name: name,      // 互換性のため
+          address,         // 住所
+          mark,            // 目印
           registeredAt: nowIso(),
         };
         await saveUser(guildId, userId, registrationData);

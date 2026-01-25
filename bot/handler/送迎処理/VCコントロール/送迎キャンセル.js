@@ -75,6 +75,7 @@ module.exports = {
           userId: dispatchData.userId,
           area: dispatchData.direction || dispatchData.route || dispatchData.area,
           count: dispatchData.count,
+          forcedEndTime: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
           endedAt: new Date().toISOString(),
         }
       }).catch(() => null);
@@ -90,7 +91,32 @@ module.exports = {
         console.log('利用者へのキャンセル通知失敗', e);
       }
 
-      await interaction.followUp({ content: '✅ 送迎をキャンセルしました。', flags: 64 });
+      // --- 待機列へ自動復帰 (v2.9.0) ---
+      try {
+        const { loadDriver } = require('../../../utils/driversStore');
+        const { addToQueue } = require('../../../utils/配車/待機列マネージャ');
+        const { updateRelevantPanels } = require('../../送迎パネル/メイン');
+
+        const driverData = await loadDriver(guildId, dispatchData.driverId);
+        if (driverData) {
+          const actualData = driverData.current || driverData;
+          const queueData = {
+            userId: dispatchData.driverId,
+            carInfo: actualData.car || actualData.carInfo || '不明',
+            capacity: actualData.capacity || '不明',
+            stopPlace: actualData.stopPlace || '不明',
+            timestamp: new Date().toISOString(),
+          };
+          await addToQueue(guildId, queueData);
+
+          // パネル更新
+          await updateRelevantPanels(guild, client).catch(() => null);
+        }
+      } catch (e) {
+        console.error('キャンセル時の待機復帰エラー:', e);
+      }
+
+      await interaction.followUp({ content: '✅ 送迎をキャンセルしました。待機リストに復帰しています。', flags: 64 });
     } catch (error) {
       console.error('送迎キャンセルエラー:', error);
       await interaction

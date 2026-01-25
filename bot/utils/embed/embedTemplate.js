@@ -21,7 +21,8 @@ module.exports = function buildPanelEmbed({ title, description, client, fields, 
     .setFooter({
       text: `${username}｜${new Date().toLocaleString('ja-JP')}`,
       iconURL: avatarURL,
-    });
+    })
+    .setTimestamp();
 
   if (color) {
     embed.setColor(color);

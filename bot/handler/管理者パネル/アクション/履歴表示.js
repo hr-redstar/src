@@ -18,12 +18,15 @@ module.exports = {
     // 全てのルートを autoInteractionTemplate で保護
     return autoInteractionTemplate(interaction, {
       adminOnly: true,
-      ack: ACK.AUTO,
+      ack: sub === 'detail' ? ACK.NONE : ACK.AUTO, // モーダルの場合は ACK なし
       async run(interaction) {
         if (sub === 'recent') return showRecentHistory(interaction, client, parsed);
         if (sub === 'rating') return showRatingList(interaction, client, parsed);
         if (sub === 'audit') return showAuditLogs(interaction, client, parsed);
-        if (sub === 'detail') return showHistoryMonthSelect(interaction, client, parsed);
+        if (sub === 'detail') return showHistorySearchModal(interaction);
+        if (sub === 'search_execute') return handleHistorySearch(interaction, client, parsed);
+
+        // legacy compatibility
         if (sub === 'month_sel') return showHistoryDaySelect(interaction, client, parsed);
         if (sub === 'day_sel') return showHistoryResult(interaction, client, parsed);
 
@@ -50,7 +53,7 @@ module.exports = {
             .setStyle(ButtonStyle.Secondary),
           new ButtonBuilder()
             .setCustomId('adm|history|sub=detail')
-            .setLabel('📅 月別履歴検索')
+            .setLabel('📅 詳細履歴検索 (期間指定)')
             .setStyle(ButtonStyle.Secondary)
         );
 
@@ -62,6 +65,164 @@ module.exports = {
     });
   },
 };
+
+/**
+ * 履歴検索モーダルを表示
+ */
+async function showHistorySearchModal(interaction) {
+  const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+
+  const modal = new ModalBuilder()
+    .setCustomId('adm|history|sub=search_execute')
+    .setTitle('送迎履歴 詳細検索');
+
+  const startInput = new TextInputBuilder()
+    .setCustomId('search|start')
+    .setLabel('開始日 (例: 26/01/01 或いは 01/01)')
+    .setPlaceholder('YY/MM/DD 形式で入力してください')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true)
+    .setMaxLength(10);
+
+  const endInput = new TextInputBuilder()
+    .setCustomId('search|end')
+    .setLabel('終了日 (例: 26/01/25 或いは 01/25)')
+    .setPlaceholder('空欄の場合は開始日当日のみ検索します')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(false)
+    .setMaxLength(10);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(startInput),
+    new ActionRowBuilder().addComponents(endInput)
+  );
+
+  return interaction.showModal(modal);
+}
+
+/**
+ * 期間指定検索の実行
+ */
+async function handleHistorySearch(interaction, client, parsed) {
+  const rawStart = interaction.fields.getTextInputValue('search|start')?.trim();
+  const rawEnd = interaction.fields.getTextInputValue('search|end')?.trim() || rawStart;
+
+  const parseDate = (str) => {
+    if (!str) return null;
+    let parts = str.split('/').map(p => parseInt(p, 10));
+    const now = new Date();
+    let y, m, d;
+
+    if (parts.length === 3) {
+      // YY/MM/DD
+      y = parts[0] < 100 ? 2000 + parts[0] : parts[0];
+      m = parts[1];
+      d = parts[2];
+    } else if (parts.length === 2) {
+      // MM/DD (今年と仮定)
+      y = now.getFullYear();
+      m = parts[0];
+      d = parts[1];
+    } else {
+      return null;
+    }
+    const date = new Date(y, m - 1, d, 0, 0, 0);
+    return isNaN(date.getTime()) ? null : date;
+  };
+
+  const startDate = parseDate(rawStart);
+  const endDate = parseDate(rawEnd);
+
+  if (!startDate || !endDate) {
+    return interaction.reply({ content: '⚠️ 日付形式が正しくありません。(例: 26/01/01)', flags: 64 });
+  }
+
+  if (startDate > endDate) {
+    return interaction.reply({ content: '⚠️ 開始日は終了日より前の日付を指定してください。', flags: 64 });
+  }
+
+  await interaction.deferReply({ ephemeral: true });
+
+  const guildId = interaction.guildId;
+  const config = await loadConfig(guildId).catch(() => ({}));
+  const userRanks = config.ranks?.userRanks || {};
+
+  // 検索対象の月フォルダを特定
+  const targetMonths = [];
+  let current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+  while (current <= endDate) {
+    targetMonths.push({ y: current.getFullYear(), m: current.getMonth() + 1 });
+    current.setMonth(current.getMonth() + 1);
+  }
+
+  const allRecords = [];
+  for (const { y, m } of targetMonths) {
+    const dir = paths.dispatchHistoryDir(guildId, y, m);
+    const files = await store.listKeys(dir).catch(() => []);
+    for (const fileKey of files) {
+      if (!fileKey.endsWith('.json')) continue;
+      const data = await store.readJson(fileKey).catch(() => null);
+      if (data) {
+        const cDate = new Date(data.createdAt || data.matchAt || Date.now());
+        // 00:00:00 に正規化して比較
+        const compareDate = new Date(cDate.getFullYear(), cDate.getMonth(), cDate.getDate());
+        if (compareDate >= startDate && compareDate <= endDate) {
+          allRecords.push(data);
+        }
+      }
+    }
+  }
+
+  allRecords.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+  const buildPanelEmbed = require('../../../utils/embed/embedTemplate');
+  const embed = buildPanelEmbed({
+    title: `📅 送迎履歴検索結果`,
+    description: `期間: **${startDate.toLocaleDateString('ja-JP')} ～ ${endDate.toLocaleDateString('ja-JP')}**`,
+    color: 0x3498db,
+    client: interaction.client
+  });
+
+  if (allRecords.length === 0) {
+    embed.setDescription(embed.data.description + '\n\n該当する履歴は見つかりませんでした。');
+  } else {
+    let totalPassengers = 0;
+    const lines = [];
+
+    // 表示件数制限 (Discord制限を考慮)
+    const displayRecords = allRecords.slice(-15);
+    if (allRecords.length > 15) {
+      lines.push(`⚠️ 件数が多いため、最新の15件のみ表示します。 (${allRecords.length}件中)`);
+    }
+
+    displayRecords.forEach((r) => {
+      const time = r.createdAt ? new Date(r.createdAt).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' }) + ' ' +
+        new Date(r.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+
+      const carpoolCount = (r.carpoolUsers || []).reduce((sum, u) => sum + (u.count || 1), 0);
+      const guestCount = r.guest ? 1 : 0;
+      const mainCount = r.userId ? 1 : 0;
+      const total = mainCount + guestCount + carpoolCount;
+
+      totalPassengers += total;
+
+      const dRank = userRanks[r.driverId] ? `[${userRanks[r.driverId]}] ` : '';
+      const pId = r.userId || r.passengerId;
+      const pMention = pId ? `<@${pId}>` : (r.guest ? 'ゲスト' : '不明');
+
+      lines.push(`▫️ \`${time}\` ${dRank}<@${r.driverId}> ➔ ${pMention} (${total}名)\n> 🗺️ ${r.direction || '詳細不明'}`);
+    });
+
+    embed.setDescription(embed.data.description + '\n\n' + lines.join('\n'));
+    embed.addFields({
+      name: '📊 集計統計',
+      value: `▫️ 総走行件数: **${allRecords.length}** 件\n▫️ 合計利用者: **${totalPassengers}** 名`,
+      inline: false
+    });
+  }
+
+  return interaction.editReply({ embeds: [embed] });
+}
 
 /**
  * 直近10件の履歴を表示 (v1.8.0)
@@ -209,9 +370,10 @@ async function showHistoryResult(interaction, client, parsed) {
 
     let totalPassengers = 0;
     const lines = results.map((r) => {
-      const startTime = r.createdAt ? new Date(r.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '--:--';
-      const endTime = r.completedAt ? new Date(r.completedAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '運行中';
-      const statusIcon = r.status === 'completed' ? '✅' : (r.status === 'matched' || r.status === 'in-progress' ? '🚕' : '🚨');
+      const matchT = r.matchTime || (r.createdAt ? new Date(r.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '--:--');
+      const startT = r.startTime !== '--:--' ? r.startTime : null;
+      const endT = r.endTime !== '--:--' ? r.endTime : (r.status === 'COMPLETED' || r.status === 'finished' ? '終了' : '運行中');
+      const rideTimeStr = startT ? ` [実車: ${startT}～${endT}]` : '';
 
       const carpoolCount = r.carpoolUsers ? r.carpoolUsers.reduce((sum, u) => sum + (u.count || 1), 0) : 0;
       const count = (r.count || 1) + carpoolCount;
@@ -221,7 +383,7 @@ async function showHistoryResult(interaction, client, parsed) {
       const dRank = userRanks[r.driverId] ? `[${userRanks[r.driverId]}] ` : '';
       const pRank = userRanks[r.passengerId] ? ` [${userRanks[r.passengerId]}]` : '';
 
-      return `${statusIcon} \`${startTime}-${endTime}\` ${dRank}<@${r.driverId}> ➔ <@${r.passengerId}>${pRank}${carpoolStr}\n> 🗺️ ${r.route || r.direction || '不明'} (${count}名)`;
+      return `${statusIcon} \`${matchT}\`${rideTimeStr} ${dRank}<@${r.driverId}> ➔ <@${r.passengerId}>${pRank}${carpoolStr}\n> 🗺️ ${r.route || r.direction || '不明'} (${count}名)`;
     });
 
     embed.setDescription(lines.join('\n\n'));

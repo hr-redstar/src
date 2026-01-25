@@ -2,7 +2,7 @@ const { updateDispatchProgress } = require('../../配車システム/dispatchPro
 const { ActionRowBuilder } = require('discord.js');
 
 /**
- * 「向かっています」ボタンハンドラー (Professional Edition)
+ * 向かっています 通知処理 (High-Performance Edition)
  */
 module.exports = {
   async execute(interaction, client, parsed) {
@@ -30,8 +30,9 @@ module.exports = {
         return interaction.followUp({ content: '⚠️ 送迎データが見つかりません。', flags: 64 });
       }
 
-      await interaction.channel.send({
+      await interaction.followUp({
         content: `※向かっています：<@${interaction.user.id}> (${timeStr})`,
+        flags: 64
       });
 
       // ボタン無効化

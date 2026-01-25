@@ -55,7 +55,7 @@ module.exports = {
         const existingNames = uniqueList.map((d) => d.name).join('\n');
 
         const modal = new ModalBuilder()
-          .setCustomId('op|directions|modal=list_register')
+          .setCustomId('op|directions|sub=modal')
           .setTitle('方面リスト登録');
 
         const directionInput = new TextInputBuilder()

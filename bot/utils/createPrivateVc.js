@@ -91,16 +91,34 @@ module.exports.createPrivateVc = async ({
     .setColor(0x3498db)
     .setFooter({ text: 'ボタンを押して進行状況を更新してください' });
 
-  // ボタン作成
-  const row = new ActionRowBuilder().addComponents(
+  // ボタン作成 (3列構成 - v2.9.2 Professional Layout)
+  const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`ride|approach|rid=${rideId}`)
       .setLabel('向かっています')
-      .setStyle(ButtonStyle.Primary), // 送迎者のみ
+      .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId(`ride|start|rid=${rideId}`)
       .setLabel('送迎開始')
-      .setStyle(ButtonStyle.Success),
+      .setStyle(ButtonStyle.Success)
+  );
+
+  const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`ride|carpool_approach|rid=${rideId}`)
+      .setLabel('相乗り合流場所へ向かっています')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(`ride|carpool_start|rid=${rideId}`)
+      .setLabel('相乗り者送迎開始')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  const row3 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`ride|carpool_end|rid=${rideId}`)
+      .setLabel('相乗り送迎終了')
+      .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(`ride|end|rid=${rideId}`)
       .setLabel('送迎終了')
@@ -111,7 +129,7 @@ module.exports.createPrivateVc = async ({
   await vc.send({
     content: `<@${driver.id}> <@${user.id}> 送迎マッチングしました！`,
     embeds: [embed],
-    components: [row],
+    components: [row1, row2, row3],
   });
 
   return vc;

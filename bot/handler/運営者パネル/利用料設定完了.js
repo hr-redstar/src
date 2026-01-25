@@ -8,7 +8,7 @@ const updateOperatorPanel = require('./updatePanel');
  * 利用料設定完了 - モーダル送信後の処理
  */
 module.exports = {
-    customId: 'op|fee|modal=setting',
+    customId: 'op|fee|sub=modal',
     type: 'modalSubmit',
     async execute(interaction) {
         return autoInteractionTemplate(interaction, {
