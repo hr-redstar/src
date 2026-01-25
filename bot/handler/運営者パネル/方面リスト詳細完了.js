@@ -87,10 +87,10 @@ module.exports = {
           components: [],
         });
 
-        // パネルを更新
+        // パネルを更新 (視認性向上のため、スレッド作成後は再送信)
         const guild = interaction.guild;
         const client = interaction.client;
-        await updateOperatorPanel(guild, client);
+        await updateOperatorPanel(guild, client, { forceResend: true });
       },
     });
   },

@@ -106,11 +106,10 @@ cp .env.example .env
 npm run dev
 ```
 
-### 品質チェック
-```bash
-npm run lint
-npm run format
-```
+### データ整合性 (Optimistic Locking)
+- **競合回避**: 複数インスタンスからの同時書き込みを防ぐため、GCSの世代番号（Generation Number）を利用した **楽観的ロック** を実装しています。
+- **自動リトライ**: 書き込み時に競合（GCS 412エラー）を検知すると、自動的に最新データを再読み込みして最大5回までリトライします。
+- **実装上の注意**: `updateJson` に渡す更新関数（updaterFn）は副作用のない **純粋関数** として実装してください。
 
 ---
 

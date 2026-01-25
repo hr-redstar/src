@@ -24,20 +24,31 @@ class LocalBackend {
   }
 
   async readJson(key, defaultValue = null) {
+    const { data } = await this.readJsonWithMeta(key, defaultValue);
+    return data;
+  }
+
+  /**
+   * メタデータ付きで読み込み（Localでは互換性のためのダミー）
+   */
+  async readJsonWithMeta(key, defaultValue = null) {
     const filePath = this.getAbsolutePath(key);
     try {
       const buf = await fsp.readFile(filePath);
-      return JSON.parse(buf.toString('utf8'));
+      const data = JSON.parse(buf.toString('utf8'));
+      // Localでは世代番号の代わりにタイムスタンプを返すが、現在の更新ロジックでは使用しない前提
+      return { data, meta: { generation: Date.now() } };
     } catch (e) {
-      if (e.code === 'ENOENT') return defaultValue;
+      if (e.code === 'ENOENT') return { data: defaultValue, meta: { generation: null } };
       throw e;
     }
   }
 
-  async writeJson(key, data) {
+  async writeJson(key, data, options = {}) {
     const filePath = this.getAbsolutePath(key);
     await this.ensureDirForFile(filePath);
 
+    // ローカル環境では ifGenerationMatch は無視する
     const tmpPath = `${filePath}.tmp`;
     const json = JSON.stringify(data, null, 2);
     await fsp.writeFile(tmpPath, json, 'utf8');

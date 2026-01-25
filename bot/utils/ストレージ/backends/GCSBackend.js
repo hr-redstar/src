@@ -41,30 +41,45 @@ class GCSBackend {
     }
 
     async readJson(key, defaultValue = null) {
+        const { data } = await this.readJsonWithMeta(key, defaultValue);
+        return data;
+    }
+
+    /**
+     * メタデータ（世代番号）付きで読み込み
+     */
+    async readJsonWithMeta(key, defaultValue = null) {
         return this._withRetry(async () => {
             const bucket = this.getBucket();
             const objectName = this.normalizeKey(key);
             const file = bucket.file(objectName);
 
             const [exists] = await file.exists();
-            if (!exists) return defaultValue;
+            if (!exists) return { data: defaultValue, meta: { generation: null } };
 
-            const [buf] = await file.download();
-            return JSON.parse(buf.toString('utf8'));
+            const [buf, metadata] = await file.download();
+            const data = JSON.parse(buf.toString('utf8'));
+            return { data, meta: { generation: metadata.generation } };
         });
     }
 
-    async writeJson(key, data) {
+    async writeJson(key, data, options = {}) {
         return this._withRetry(async () => {
             const bucket = this.getBucket();
             const objectName = this.normalizeKey(key);
             const file = bucket.file(objectName);
 
             const json = JSON.stringify(data, null, 2);
-            await file.save(Buffer.from(json, 'utf8'), {
+            const saveOptions = {
                 contentType: 'application/json; charset=utf-8',
                 resumable: false,
-            });
+            };
+
+            if (options.ifGenerationMatch !== undefined) {
+                saveOptions.preconditionOpts = { ifGenerationMatch: options.ifGenerationMatch };
+            }
+
+            await file.save(Buffer.from(json, 'utf8'), saveOptions);
             return true;
         });
     }

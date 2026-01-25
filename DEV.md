@@ -30,6 +30,9 @@ src/
     - フォルダ名: `kebab-case` または日本語 (既存プロジェクトに倣う)
 - **非同期処理**: `async/await` を基本とし、`Promise.then()` は避ける。
 - **エラーハンドリング**: `try-catch` で適切にエラーを捕捉し、`logger.error` でログを出力すること。
+- **データ更新の原則**:
+    - `updateJson(key, default, updaterFn)` を使用してください。
+    - `updaterFn` は競合時に複数回実行される可能性があるため、外部状態の変更やAPI呼び出しを含まない **純粋関数** でなければなりません。
 
 ## 🧩 カスタムID 仕様 (Custom ID Spec)
 

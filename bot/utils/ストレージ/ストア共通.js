@@ -109,12 +109,52 @@ async function listKeys(prefix, options) {
   return await backend.listKeys(prefix, options);
 }
 
+/**
+ * メタデータ付き読み込み (Facade)
+ */
+async function readJsonWithMeta(key, defaultValue = null) {
+  try {
+    return await backend.readJsonWithMeta(key, defaultValue);
+  } catch (error) {
+    logger.error(`[Storage] readJsonWithMeta failed for key: ${key}`, { error: error.message });
+    await notifyStorageError('READ_META', key, error);
+    return { data: defaultValue, meta: { generation: null } };
+  }
+}
+
 async function updateJson(key, defaultValue, updaterFn) {
   invalidateCache(key);
-  const cur = await readJson(key, defaultValue);
-  const next = await updaterFn(cur);
-  await writeJson(key, next);
-  return next;
+
+  const MAX_RETRIES = 5;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      // 1. 最新データとメタデータを読み込み
+      const { data, meta } = await backend.readJsonWithMeta(key, defaultValue);
+
+      // 2. 更新処理の実行 (updaterFn は純粋関数であることが望ましい)
+      const next = await updaterFn(data);
+
+      // 3. 世代番号を指定して書き込み (楽観的ロック)
+      await backend.writeJson(key, next, { ifGenerationMatch: meta.generation });
+
+      return next;
+    } catch (error) {
+      // GCS の 412 Precondition Failed は競合を意味する
+      const isConflict = error.code === 412 || error.message?.includes('precondition');
+
+      if (isConflict && attempt < MAX_RETRIES) {
+        const delay = Math.pow(2, attempt) * 100; // 200ms, 400ms...
+        logger.warn(`[Storage] Conflict detected, retrying... (${attempt}/${MAX_RETRIES}) key: ${key}`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+
+      // 競合以外、またはリトライ上限到達
+      logger.error(`[Storage] updateJson failed for key: ${key} (attempt: ${attempt})`, { error: error.message });
+      await notifyStorageError('UPDATE', key, error);
+      throw error;
+    }
+  }
 }
 
 function getBackendName() {
@@ -184,6 +224,7 @@ module.exports = {
   deleteFile,
   getAbsolutePath,
   updateJson,
+  readJsonWithMeta,
   getBackendName,
   normalizeKey,
   loadDrivers,
