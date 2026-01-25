@@ -13,7 +13,7 @@ const { ACK } = autoInteractionTemplate;
 module.exports = {
     customId: 'op|rank|sub=assignment_start',
     type: 'button',
-    async execute(interaction) {
+    async execute(interaction, client, parsed) {
         return autoInteractionTemplate(interaction, {
             ack: ACK.AUTO,
             adminOnly: true,

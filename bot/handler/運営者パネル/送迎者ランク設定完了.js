@@ -10,12 +10,12 @@ const paths = require('../../utils/ストレージ/ストレージパス');
 module.exports = {
     customId: 'op|rank|sub=rank_select',
     type: 'selectMenu',
-    async execute(interaction, params) {
+    async execute(interaction, client, parsed) {
         return autoInteractionTemplate(interaction, {
             ack: ACK.AUTO,
             adminOnly: true,
             async run(interaction) {
-                const targetUserId = params.uid;
+                const targetUserId = parsed.uid;
                 const newRank = interaction.values[0];
 
                 if (!targetUserId || !newRank) {

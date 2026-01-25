@@ -15,7 +15,7 @@ module.exports = {
             ack: ACK.AUTO,
             adminOnly: true,
             async run(interaction) {
-                const targetUserId = parsed.uid;
+                const targetUserId = parsed?.params?.uid;
                 const amountInput = interaction.fields.getTextInputValue('amount');
                 const amount = parseInt(amountInput);
 
