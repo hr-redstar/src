@@ -16,7 +16,7 @@ const paths = require('../../utils/ストレージ/ストレージパス');
 module.exports = {
     customId: 'op|rank|sub=user_select',
     type: 'userSelect',
-    async execute(interaction) {
+    async execute(interaction, client, parsed) {
         return autoInteractionTemplate(interaction, {
             ack: ACK.AUTO, // コンポーネント更新するので AUTO (REPLY でも可だが)
             adminOnly: true,
