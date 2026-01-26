@@ -1,4 +1,4 @@
-﻿// src/bot/handler/handler.js
+﻿// handler/handler.js
 // interaction を種類ごとに振り分け → customId なら各パネルの index.js に委譲
 const { MessageFlags } = require('discord.js');
 const logger = require('../utils/logger');
@@ -50,12 +50,51 @@ async function handleInteraction(interaction, client) {
 
     const { MessageFlags } = require('discord.js');
 
-    logger.debug('handlerルーティング', {
-      customId: interaction.customId,
-      type: interaction.type,
-      user: interaction.user ? `${interaction.user.tag}(${interaction.user.id})` : 'unknown',
-      guild: interaction.guildId,
-    });
+    // インタラクション情報の整形ログ
+    const guild = interaction.guild;
+    const channel = interaction.channel;
+    const user = interaction.user;
+
+    // インタラクションタイプの判定
+    let interactionType = 'その他';
+    let actionName = interaction.customId || interaction.commandName || '不明';
+
+    if (interaction.isChatInputCommand()) {
+      interactionType = 'コマンド';
+      actionName = `/${interaction.commandName}`;
+    } else if (interaction.isButton()) {
+      interactionType = 'ボタン';
+      // ボタンの場合は表示ラベルとIDを分けて表示
+      const buttonLabel = interaction.message?.components
+        ?.flatMap(row => row.components)
+        ?.find(comp => comp.customId === interaction.customId)
+        ?.label || '不明';
+      actionName = `${buttonLabel} | 【ID】: ${interaction.customId}`;
+    } else if (interaction.isStringSelectMenu()) {
+      interactionType = 'リスト選択';
+      actionName = `【ID】: ${interaction.customId}`;
+    } else if (interaction.isModalSubmit()) {
+      interactionType = 'モーダル入力';
+      actionName = `【ID】: ${interaction.customId}`;
+    }
+
+    // 選択/入力内容の取得
+    let inputContent = '';
+    if (interaction.isStringSelectMenu() && interaction.values) {
+      inputContent = `選択: ${interaction.values.join(', ')}`;
+    } else if (interaction.isModalSubmit()) {
+      const fields = interaction.fields.fields;
+      const fieldValues = Array.from(fields.values()).map(f => `${f.customId}="${f.value}"`).join(', ');
+      inputContent = `入力: ${fieldValues}`;
+    }
+
+    logger.debug([
+      `【ギルド名】: ${guild?.name || '不明'}`,
+      `【テキストチャンネル名】: ${channel?.name || '不明'} | 【ID】: ${channel?.id || '不明'}`,
+      `【${interactionType}】: ${actionName}`,
+      inputContent ? `【入力・選択内容】: ${inputContent}` : '',
+      `【ユーザー名】: ${user?.tag || '不明'} | 【ID】: ${user?.id || '不明'}`
+    ].filter(line => line).join('\n'));
 
     // Slash Command
     if (interaction.isChatInputCommand()) {

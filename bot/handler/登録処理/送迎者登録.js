@@ -3,7 +3,6 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  EmbedBuilder,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
@@ -123,6 +122,7 @@ async function execute(interaction, client, parsed) {
   if (interaction.isButton() && sub === 'check') {
     return autoInteractionTemplate(interaction, {
       ack: ACK.REPLY,
+      panelKey: 'driverRegister',
       async run(interaction) {
         const userId = interaction.user.id;
         const guildId = interaction.guildId;
@@ -246,17 +246,20 @@ async function execute(interaction, client, parsed) {
 
         // ログ出力 (運営者ログ)
         const { postOperatorLog } = require('../../utils/ログ/運営者ログ');
-        const logEmbed = new EmbedBuilder()
-          .setTitle('🚗 送迎者登録')
-          .setColor(0x2ecc71)
-          .addFields(
-            { name: 'ユーザー', value: `<@${userId}>`, inline: true },
-            { name: 'ニックネーム', value: nickname, inline: true },
-            { name: '車種/カラー/ナンバー', value: car, inline: false },
-            { name: '乗車人数', value: `${capacity}人`, inline: true },
-            { name: 'whooアカウントID', value: whooId, inline: true }
-          )
-          .setTimestamp();
+        const logEmbed = buildPanelEmbed({
+          title: '[管理] 送迎者登録受付',
+          description: [
+            `送迎者の登録申請を受理しました。`,
+            '',
+            `👤 ユーザー: <@${userId}>`,
+            `🏷️ ニックネーム: **${nickname}**`,
+            `🚗 車種等: **${car}**`,
+            `👥 乗車可能人数: **${capacity}人**`,
+            `🆔 whooID: **${whooId}**`
+          ].join('\n'),
+          type: 'info',
+          client
+        });
 
         await postOperatorLog({
           guild: interaction.guild,

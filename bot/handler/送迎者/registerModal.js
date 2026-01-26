@@ -1,4 +1,5 @@
-const { MessageFlags, EmbedBuilder } = require('discord.js');
+const { MessageFlags } = require('discord.js');
+const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 const { saveDriver } = require('../../utils/driversStore');
 const { loadConfig } = require('../../utils/設定/設定マネージャ');
 const { createUserMemoChannel } = require('../../utils/createUserMemoChannel');
@@ -41,17 +42,20 @@ module.exports = async (interaction) => {
 
   // 運営者ログ送信
   const { postOperatorLog } = require('../../utils/ログ/運営者ログ');
-  const embed = new EmbedBuilder()
-    .setTitle('🚗 送迎者登録')
-    .setColor(0x2ecc71)
-    .addFields(
-      { name: 'ユーザー', value: `<@${interaction.user.id}>`, inline: true },
-      { name: '活動区域', value: area, inline: true },
-      { name: '車種', value: car || '未設定', inline: true },
-      { name: '乗車人数', value: `${capacity}人`, inline: true },
-      { name: 'ニックネーム', value: nickname || '未設定', inline: true }
-    )
-    .setTimestamp();
+  const embed = buildPanelEmbed({
+    title: '[管理] 送迎者登録完了',
+    description: [
+      `新しい送迎者が登録されました。`,
+      '',
+      `👤 ユーザー: <@${interaction.user.id}>`,
+      `📍 活動区域: **${area}**`,
+      `🚗 車種: **${car || '未設定'}**`,
+      `👥 乗車可能人数: **${capacity}人**`,
+      `🏷️ ニックネーム: **${nickname || '未設定'}**`
+    ].join('\n'),
+    type: 'info',
+    client: interaction.client
+  });
 
   await postOperatorLog({
     guild: interaction.guild,

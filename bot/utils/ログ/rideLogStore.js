@@ -1,3 +1,4 @@
+// utils/ログ/rideLogStore.js
 // src/bot/utils/ログ/rideLogStore.js
 const { readJson, writeJson } = require('../ストレージ/ストア共通');
 const paths = require('../ストレージ/ストレージパス');

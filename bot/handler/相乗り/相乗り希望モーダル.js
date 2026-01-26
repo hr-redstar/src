@@ -1,5 +1,5 @@
 // handler/相乗り/相乗り希望モーダル.js
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 const store = require('../../utils/ストレージ/ストア共通');
 const paths = require('../../utils/ストレージ/ストレージパス');
 const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
@@ -28,50 +28,26 @@ module.exports = {
           return;
         }
 
-        // ドライバーへDM送信
-        const driverId = rideData.driverId;
-        const driverUser = await interaction.guild.members.fetch(driverId).catch(() => null);
-
-        if (!driverUser) {
-          await interaction.editReply('❌ ドライバーが見つかりませんでした。');
-          return;
-        }
-
-        const embed = new EmbedBuilder()
-          .setTitle('📢 相乗り希望')
-          .setDescription(`【**${direction} / ${location}**】で相乗り希望者がいます。`)
-          .addFields(
-            { name: '希望者', value: `<@${userId}>`, inline: true },
-            { name: '人数', value: `${count}名`, inline: true },
-            { name: '希望場所/目的地', value: location, inline: false },
-            {
-              name: '現在のルート',
-              value: `【${rideData.driverPlace || '現在地'}】→【${rideData.mark || '不明'}】→【${rideData.destination}】`,
-            }
-          )
-          .setColor(0xffa500)
-          .setFooter({ text: '許可を押すと区間選択に進みます' });
-
-        const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId(`carpool|join|sub=segment_select&rid=${rideId}&uid=${userId}&cnt=${count}&dir=${direction}&dest=${location}`)
-            .setLabel('許可')
-            .setStyle(ButtonStyle.Success),
-          new ButtonBuilder()
-            .setCustomId(`carpool|reject|rid=${rideId}&uid=${userId}`)
-            .setLabel('却下')
-            .setStyle(ButtonStyle.Danger)
-        );
+        const { sendCarpoolRequestToDriver } = require('./carpoolNotifyDriver');
 
         try {
-          await driverUser.send({ embeds: [embed], components: [row] });
+          await sendCarpoolRequestToDriver({
+            guild: interaction.guild,
+            client,
+            rideId,
+            direction,
+            location,
+            userId,
+            count
+          });
+
           await interaction.editReply(
             '✅ ドライバーに相乗りリクエストを送信しました。\n承認されるまでしばらくお待ちください。'
           );
         } catch (e) {
-          console.error('相乗りリクエストDM送信失敗', e);
+          console.error('相乗りリクエスト送信失敗', e);
           await interaction.editReply(
-            '❌ ドライバーへのリクエスト送信に失敗しました（DM拒否設定など）。'
+            `❌ ${e.message || 'ドライバーへのリクエスト送信に失敗しました（DM拒否設定など）。'}`
           );
         }
       },

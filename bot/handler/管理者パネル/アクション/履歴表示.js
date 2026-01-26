@@ -19,6 +19,7 @@ module.exports = {
     return autoInteractionTemplate(interaction, {
       adminOnly: true,
       ack: sub === 'detail' ? ACK.NONE : ACK.AUTO, // モーダルの場合は ACK なし
+      panelKey: 'rideListPanel',
       async run(interaction) {
         if (sub === 'recent') return showRecentHistory(interaction, client, parsed);
         if (sub === 'rating') return showRatingList(interaction, client, parsed);

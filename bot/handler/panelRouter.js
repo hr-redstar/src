@@ -1,3 +1,4 @@
+// handler/panelRouter.js
 /**
  * パネル操作のルーティング定義
  * namespace に基づいて適切なハンドラーモジュールを解決する
@@ -42,8 +43,16 @@ const ROUTES = {
         }
         return null;
     },
+    setup: () => require('./自動設定/自動設定パネル'),
     driver: () => driverMain || (driverMain = require('./送迎パネル/メイン')),
-    user: () => userMain || (userMain = require('./利用者パネル/メイン')),
+    user: (parsed) => {
+        if (parsed.action === 'credits' && parsed.params?.sub === 'history') {
+            return {
+                execute: (interaction, client) => require('./利用者パネル/アクション/残高履歴').showCreditHistory(interaction, client),
+            };
+        }
+        return userMain || (userMain = require('./利用者パネル/メイン'));
+    },
     reg: (parsed) => {
         if (parsed.action === 'driver') return driverReg || (driverReg = require('./登録処理/送迎者登録'));
         if (parsed.action === 'user') return userReg || (userReg = require('./登録処理/利用者登録'));

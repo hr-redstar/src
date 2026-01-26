@@ -1,4 +1,4 @@
-// src/bot/utils/共通/visibilityManager.js
+// utils/共通/visibilityManager.js
 const { PermissionFlagsBits } = require('discord.js');
 const logger = require('../logger');
 

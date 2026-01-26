@@ -77,19 +77,23 @@ module.exports.createPrivateVc = async ({
   });
 
   // 初期Embed作成
-  const embed = new EmbedBuilder()
-    .setTitle(channelName)
-    .setDescription(
-      `送迎者：<@${driver.id}>\n利用者：<@${user.id}>\n\n` +
-      `**マッチング時間**：${matchTime}\n` +
+  const buildPanelEmbed = require('./embed/embedTemplate');
+  const embed = buildPanelEmbed({
+    title: channelName,
+    description: [
+      `送迎者：<@${driver.id}>`,
+      `利用者：<@${user.id}>`,
+      '',
+      `**マッチング時間**：${matchTime}`,
       `**向かっています**：--:--`
-    )
-    .addFields(
+    ].join('\n'),
+    fields: [
       { name: '送迎者', value: '送迎開始時間：--:--\n送迎終了時間：--:--', inline: true },
       { name: '利用者', value: '送迎開始時間：--:--\n送迎終了時間：--:--', inline: true }
-    )
-    .setColor(0x3498db)
-    .setFooter({ text: 'ボタンを押して進行状況を更新してください' });
+    ],
+    type: 'info',
+    client: guild.client
+  });
 
   // ボタン作成 (3列構成 - v2.9.2 Professional Layout)
   const row1 = new ActionRowBuilder().addComponents(

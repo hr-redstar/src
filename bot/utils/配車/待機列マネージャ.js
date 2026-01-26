@@ -1,31 +1,20 @@
+// utils/配車/待機列マネージャ.js
 const store = require('../ストレージ/ストア共通');
 const paths = require('../ストレージ/ストレージパス');
 
 /**
  * 待機列（Waiting List）を取得する
- * 参加時刻（timestamp）の昇順（先着順）でソートして返す
  */
 async function getQueue(guildId) {
-  const dir = paths.waitingDriversDir(guildId);
-  const files = await store.listKeys(dir).catch(() => []);
+  const waitPath = paths.waitingQueueJson(guildId);
+  const queue = await store.readJson(waitPath, []).catch(() => []);
 
-  const drivers = [];
-  for (const file of files) {
-    if (!file.endsWith('.json')) continue;
-    const data = await store.readJson(file).catch(() => null);
-    if (data) {
-      drivers.push(data);
-    }
-  }
-
-  // timestampで昇順ソート（古い順＝先着順）
-  drivers.sort((a, b) => {
+  // timestampで昇順ソート（念のため）
+  return (queue || []).sort((a, b) => {
     const tA = new Date(a.timestamp).getTime();
     const tB = new Date(b.timestamp).getTime();
     return tA - tB;
   });
-
-  return drivers;
 }
 
 async function getPosition(guildId, userId) {
@@ -34,32 +23,61 @@ async function getPosition(guildId, userId) {
   return index === -1 ? null : index + 1;
 }
 
+/**
+ * 送迎者を待機列に追加 (Atomic)
+ */
 async function addToQueue(guildId, driverData) {
-  const waitPath = `${paths.waitingDriversDir(guildId)}/${driverData.userId}.json`;
-  await store.writeJson(waitPath, driverData);
+  const waitPath = paths.waitingQueueJson(guildId);
+  await store.updateJson(waitPath, [], async (queue) => {
+    const existingIndex = queue.findIndex(d => d.userId === driverData.userId);
+    if (existingIndex !== -1) {
+      queue[existingIndex] = { ...queue[existingIndex], ...driverData };
+    } else {
+      queue.push(driverData);
+    }
+    return queue;
+  });
 }
 
+/**
+ * 送迎者を待機列から削除 (Atomic)
+ */
 async function removeFromQueue(guildId, userId) {
-  const waitPath = `${paths.waitingDriversDir(guildId)}/${userId}.json`;
-  await store.deleteFile(waitPath).catch(() => { }); // Ignore if not found
+  const waitPath = paths.waitingQueueJson(guildId);
+  await store.updateJson(waitPath, [], async (queue) => {
+    return queue.filter(d => d.userId !== userId);
+  });
+}
+
+/**
+ * 次の送迎者を取得し、列から取り出す (Fully Atomic Matching)
+ */
+async function popNextDriver(guildId) {
+  const waitPath = paths.waitingQueueJson(guildId);
+  let poppedDriver = null;
+
+  await store.updateJson(waitPath, [], async (queue) => {
+    if (!queue || queue.length === 0) return queue;
+
+    // ソートを保証
+    queue.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+    poppedDriver = queue.shift();
+    return queue;
+  });
+
+  return poppedDriver;
 }
 
 async function updateQueueItem(guildId, userId, updateData) {
-  const waitPath = `${paths.waitingDriversDir(guildId)}/${userId}.json`;
-  const data = await store.readJson(waitPath).catch(() => null);
-  if (data) {
-    const newData = { ...data, ...updateData };
-    await store.writeJson(waitPath, newData);
-  }
-}
-
-async function popNextDriver(guildId) {
-  const queue = await getQueue(guildId);
-  if (queue.length === 0) return null;
-
-  const nextDriver = queue[0];
-  await removeFromQueue(guildId, nextDriver.userId);
-  return nextDriver;
+  const waitPath = paths.waitingQueueJson(guildId);
+  await store.updateJson(waitPath, [], async (queue) => {
+    const idx = queue.findIndex(d => d.userId === userId);
+    if (idx !== -1) {
+      queue[idx] = { ...queue[idx], ...updateData };
+    }
+    return queue;
+  });
 }
 
 module.exports = {

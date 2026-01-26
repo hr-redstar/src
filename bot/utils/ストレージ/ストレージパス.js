@@ -81,6 +81,10 @@ function userRatingJson(guildId, userId, y, m, d) {
   return `${userRoot(guildId)}/${userId}/口コミ/${ymd}_口コミ.json`;
 }
 
+function rideWaitingQueueJson(guildId) {
+  return `${guildRoot(guildId)}/待機中の利用者/ride_queue.json`;
+}
+
 // 配車システム（FIFO / 進行中）
 function waitingDriversDir(guildId) {
   return `${guildRoot(guildId)}/待機中の送迎者`;
@@ -125,6 +129,10 @@ function rideRequestsJson(guildId) {
   return `${guildRoot(guildId)}/rides.json`;
 }
 
+function waitingQueueJson(guildId) {
+  return `${guildRoot(guildId)}/待機中の送迎者/queue.json`;
+}
+
 module.exports = {
   configJson,
   guildDriverIndexJson,
@@ -165,6 +173,8 @@ module.exports = {
   rideRequestsJson,
   directionsListJson,
   directionsDetailsJson,
+  waitingQueueJson,
+  rideWaitingQueueJson,
 };
 
 function driverRatingSummaryJson(guildId, userId) {

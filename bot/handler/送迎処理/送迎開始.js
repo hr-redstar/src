@@ -11,6 +11,7 @@ const { loadConfig } = require('../../utils/設定/設定マネージャ'); // C
 const { createPrivateVc } = require('../../utils/createPrivateVc'); // VC Utility
 const { updateVcState } = require('../../utils/vcStateStore'); // VC State
 const { ChannelType } = require('discord.js');
+const { RideStatus } = require('../../utils/constants');
 
 const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
@@ -104,7 +105,7 @@ module.exports = async function (interaction, targetId) {
         passengerId,
         route,
         timestamp: Date.now(),
-        status: 'active',
+        status: RideStatus.MATCHED,
       };
       const activePath = `${paths.activeDispatchDir(guildId)}/${rideId}.json`;
       await store.writeJson(activePath, ridingData);
@@ -114,7 +115,7 @@ module.exports = async function (interaction, targetId) {
       await updateRideOperatorLog({
         guild: interaction.guild,
         rideId,
-        status: 'MATCHED',
+        status: RideStatus.MATCHED,
         data: {
           driverId,
           driverNickname: driverProfile.nickname,

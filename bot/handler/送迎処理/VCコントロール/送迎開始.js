@@ -57,7 +57,7 @@ module.exports = {
       await updateDispatchProgress({
         guild: interaction.guild,
         rideId,
-        status: 'IN_SERVICE', // v2.9.0 仕様: in_service
+        status: 'STARTED', // v2.9.2 standardized status
         updates: {
           startTime: timeStr,
           rideStartedAt: now.toISOString()

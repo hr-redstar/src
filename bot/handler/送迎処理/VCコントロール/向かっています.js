@@ -1,5 +1,7 @@
 const { updateDispatchProgress } = require('../../配車システム/dispatchProgressUpdater');
 const { ActionRowBuilder } = require('discord.js');
+const store = require('../../../utils/ストレージ/ストア共通');
+const paths = require('../../../utils/ストレージ/ストレージパス');
 
 /**
  * 向かっています 通知処理 (High-Performance Edition)
@@ -27,11 +29,12 @@ module.exports = {
       }
 
       // 2. ステータスガード (二重送信防止)
-      if (dispatchData.status !== 'dispatching') {
+      const { RideStatus } = require('../../../utils/constants');
+      if (dispatchData.status !== RideStatus.MATCHED && dispatchData.status !== 'dispatching') {
         const statusLabel = {
-          heading: '既に向かっています',
-          riding: '既に送迎を開始しています',
-          finished: '既に送迎を終了しています'
+          HEADING: '既に向かっています',
+          STARTED: '既に送迎を開始しています',
+          COMPLETED: '既に送迎を終了しています'
         }[dispatchData.status] || '既に処理済み';
 
         return interaction.reply({

@@ -1,3 +1,4 @@
+// utils/ログ/管理者ログチャンネル.js
 const { ChannelType } = require('discord.js');
 
 async function logToAdminChannel(guild, cfg, content) {

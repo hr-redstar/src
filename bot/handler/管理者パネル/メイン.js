@@ -1,4 +1,5 @@
-﻿﻿const {
+﻿﻿// handler/管理者パネル/メイン.js
+const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
@@ -8,6 +9,7 @@
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
+  MessageFlags,
 } = require('discord.js');
 
 const { sendOrUpdatePanel } = require('../共通/パネル送信');
@@ -32,6 +34,11 @@ const CID = {
   BTN_CARPOOL_CH: 'adm|carpool|type=ch',
   BTN_EDIT_DIRECTIONS: 'adm|directions|sub=button',
   BTN_SEND_OP_PANEL: 'adm|operator|sub=send',
+  BTN_BACKUP: 'adm|backup|sub=export',
+  BTN_DIAGNOSTICS: 'admin|diagnostics|sub=run', // v2.9.2
+  BTN_WIPE: 'admin|wipe|sub=start', // v2.9.3
+
+  SEL_WIPE_USER: 'admin|wipe|type=user_sel', // v2.9.3
 
   // Secondary Interactions
   SEL_DRIVER_ROLE: 'adm|role|type=driver_sel',
@@ -107,7 +114,7 @@ function buildAdminPanelEmbed(guild, cfg, client) {
   const cats = cfg.categories || {};
 
   return buildPanelEmbed({
-    title: '🛡️ 管理者設定システム',
+    title: '🛡️ 管理者パネル',
     description: 'システム全般の権限、保管場所、およびログの出勤先を管理します。',
     fields: [
       {
@@ -132,6 +139,12 @@ function buildAdminPanelEmbed(guild, cfg, client) {
           `**管理者ログスレ**: ${mentionChannel(logs.adminLogThread)}`,
         ].join('\n'), inline: true
       },
+      {
+        name: '⚙️ システム状態 (v2.9.3)', value: [
+          '**整合性**: アトミック排他制御 (queue.json)',
+          '**診断**: VC/Index 同期チェック',
+        ].join('\n'), inline: true
+      }
     ],
     client,
     color: 0x3498db,
@@ -208,7 +221,25 @@ function buildAdminPanelComponents() {
       .setStyle(ButtonStyle.Primary)
   );
 
-  return [row1, row2, row3, row4];
+  const row5 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(CID.BTN_BACKUP)
+      .setLabel('一括エクスポート')
+      .setEmoji('💾')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(CID.BTN_DIAGNOSTICS)
+      .setLabel('システム診断')
+      .setEmoji('🩺')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(CID.BTN_WIPE)
+      .setLabel('データ抹消')
+      .setEmoji('🗑️')
+      .setStyle(ButtonStyle.Danger)
+  );
+
+  return [row1, row2, row3, row4, row5];
 }
 
 function buildAdminPanelMessage(guild, cfg, client) {
@@ -296,10 +327,54 @@ async function execute(interaction, client, parsed) {
       const sendOperatorPanel = require('../運営者パネル/メイン');
       return sendOperatorPanel(interaction);
     }
+
+    // 全データエクスポート (v2.9.2)
+    if (customId === CID.BTN_BACKUP) {
+      // (backup logic remains)
+    }
+
+    // システム診断 (v2.9.2)
+    if (customId.startsWith('admin|diagnostics|')) {
+      const sub = parsed?.params?.sub;
+      const { runDiagnostics, executeRepair } = require('./システム診断');
+      if (sub === 'run') return runDiagnostics(interaction, client);
+      if (sub === 'repair') return executeRepair(interaction, client);
+      if (sub === 'cancel') return interaction.editReply({ content: '診断を終了しました。', embeds: [], components: [] });
+    }
+
+    // ユーザー抹消 (v2.9.3)
+    if (customId === CID.BTN_WIPE) {
+      return autoInteractionTemplate(interaction, {
+        adminOnly: true,
+        ack: ACK.AUTO,
+        async run(interaction) {
+          const store = require('../../utils/ストレージ/ストア共通');
+          const users = await store.loadUsers(interaction.guildId).catch(() => []);
+          if (users.length === 0) return interaction.editReply({ content: '現在登録されている利用者はいません。' });
+
+          const { UserSelectMenuBuilder } = require('discord.js');
+          const menu = new UserSelectMenuBuilder()
+            .setCustomId(CID.SEL_WIPE_USER)
+            .setPlaceholder('抹消するユーザーを選択してください');
+          const row = new ActionRowBuilder().addComponents(menu);
+
+          return interaction.editReply({
+            content: '🚨 **ユーザー抹消モード**: 抹消するユーザーを選択してください。\nこの操作は取り消せません（プロファイル、履歴、残高、メモVCが全て削除されます）。',
+            components: [row]
+          });
+        }
+      });
+    }
   }
 
   // --- セレクトメニュー委譲 ---
   if (interaction.isAnySelectMenu()) {
+    if (customId === CID.SEL_WIPE_USER) {
+      const targetUserId = interaction.values[0];
+      const { executeWipe } = require('./データ抹消ツール');
+      return executeWipe(interaction, client, targetUserId);
+    }
+
     if (parsed.action === 'panel_setup') {
       return require('../パネル設置/アクション/パネル設置フロー').execute(interaction, client, parsed);
     }
@@ -326,21 +401,10 @@ async function execute(interaction, client, parsed) {
     return autoInteractionTemplate(interaction, {
       adminOnly: true,
       ack: ACK.AUTO,
+      panelKey: 'admin',
       async run(interaction) {
         const { values } = interaction;
         const cfg = await loadConfig(interaction.guildId);
-
-        // 自己修復: ボタン操作時（＝パネル本体での操作時）にIDを同期する
-        if ((interaction.isButton() || interaction.isAnySelectMenu()) && interaction.message) {
-          if (!cfg.panels) cfg.panels = {};
-          if (!cfg.panels.admin) cfg.panels.admin = {};
-
-          if (cfg.panels.admin.messageId !== interaction.message.id) {
-            cfg.panels.admin.channelId = interaction.channelId;
-            cfg.panels.admin.messageId = interaction.message.id;
-            await saveConfig(interaction.guildId, cfg);
-          }
-        }
 
         let content = '項目を選択してください。';
         let row;

@@ -1,6 +1,6 @@
 # アーキテクチャ設計書 (送迎者Bot)
 
-本ドキュメントでは、第3・第4フェーズで確立されたシステムのコア設計方針を記述します。
+本ドキュメントでは、システムのコア設計方針および v3.0.0 で導入された自律制御メカニズムを記述します。
 
 ## 1. Custom ID 設計 (Design Purity)
 Custom ID は以下の仕様に完全準拠し、すべてのハンドラーは `parseCustomId` を通じて構造化データにアクセスします。
@@ -43,14 +43,43 @@ graph LR
     Audit --> File[GCS / Storage]
 ```
 
-- **Human-log**: コンソール出力用。色付きテキストで開発者が直感的に把握可能。
-- **Audit-log**: 構造化JSON。Cloud Logging との親和性が高く、管理者パネルから検索可能。
-- **標準タグ**: `CONFIG`, `SECURITY`, `RIDE`, `ERROR`, `SYSTEM`
+- **Human-log**: コンソール出力用。
+- **Audit-log**: 構造化JSON。管理者パネルから検索可能。
 
-## 4. 障害耐性 (Reliability)
-- **GCSBackend**: ネットワークエラー等の一時的な失敗に対し、最大 3 回の指数バックオフ付きリトライを実施。
-- **Interaction**: エラー発生時も `graceful degradation` により Discord Interaction のタイムアウトや Bot の無応答を防止。
+## 4. 自律型UI・自己修復 (Self-Healing UI) [v3.0.0]
+すべてのパネル・ボタンは「配置場所」を自己宣言し、設定を正常化します。
 
-## 5. 品質保証 (QA Automation)
-- **CI**: GitHub Actions により、すべての PR で `Lint`, `Format`, `Unit Test` の通過を義務付け。
-- **Coverage**: `utils`, `storage`, `parser` などのコアモジュールでカバレッジ 80% 以上を維持。
+```mermaid
+graph TD
+    User[User Click] -->|Interaction| Template[autoInteractionTemplate]
+    Template -->|Sync| Config[config.json]
+    Config -->|PanelID Update| Persistence[(Storage)]
+    Template -->|Logic| Handler[Handler]
+```
+
+- **ID同期プロトコル**: ボタンが押された際、そのメッセージが最新のパネルであると認識し、自動的に `messageId` を更新。
+- **Ephemeralガード**: 一時メッセージ（セレクトメニュー等）による設定の上書きを論理的に遮断。
+
+## 5. サーバー構築自動化 (Auto-Setup Orchestration) [v3.0.0]
+初期デプロイ時のコストを最小化するための全自動セットアップ。
+
+```mermaid
+graph LR
+    Cmd[/自動設定パネル] --> Logic[setupLogic.js]
+    Logic --> Util[setupUtils]
+    Logic --> Builders[Panel Builders]
+    Util -->|Idempotent| Discord[Discord API]
+    Builders -->|Auto-Deploy| Discord
+```
+
+- **べき等実行**: 同名チャンネルがあれば作成をスキップし、構成の同期のみを実施。
+
+## 6. アトミック待機列管理 (Atomic Queue Management) [v3.0.0]
+高負荷時の重複配車を物理的に防止します。
+
+- **`queue.json`**: 単一インデックスによる集中管理。
+- **楽観的ロック**: `store.updateJson` により、競合検出時に自動でリトライを実施。
+
+## 7. 品質保証 (QA Automation)
+- **CI**: GitHub Actions により、PR ごとの品質チェックを実施。
+- **Coverage**: コアモジュールでカバレッジ 80% 以上を維持。

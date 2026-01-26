@@ -44,6 +44,11 @@ function shortenStack(stack, maxLines = 8) {
 function formatMeta(meta) {
   if (!meta) return '';
   if (typeof meta === 'string') return ` | ${meta}`;
+  // 空のオブジェクトや、tag/actor/guildIdのみのオブジェクトは表示しない
+  if (typeof meta === 'object') {
+    const keys = Object.keys(meta).filter(k => !['tag', 'actor', 'guildId'].includes(k));
+    if (keys.length === 0) return '';
+  }
   try {
     return ` | ${util.inspect(meta, { depth: 4, colors: false, compact: true })}`;
   } catch {

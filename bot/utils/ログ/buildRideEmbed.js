@@ -1,3 +1,4 @@
+// utils/ログ/buildRideEmbed.js
 const { buildDispatchEmbed } = require('../配車/dispatchEmbedBuilder');
 
 /**

@@ -11,6 +11,7 @@ module.exports = async function (interaction, client, parsed) {
 
   return autoInteractionTemplate(interaction, {
     ack: isModal ? ACK.REPLY : ACK.NONE,
+    panelKey: 'driverPanel',
     async run(interaction) {
       if (isModal) {
         // --- モーダル送信時 (Modal Submit) ---
@@ -35,11 +36,60 @@ module.exports = async function (interaction, client, parsed) {
 
         await store.writeJson(waitPath, data);
 
+        const { addToQueue, getPosition, popNextDriver } = require('../../../utils/配車/待機列マネージャ');
+
+        await addToQueue(guildId, data);
+
+        // --- ハンドオーバー・クリーンアップ (v2.9.4) ---
+        const { runHandoverCheck } = require('../../../utils/配車/handoverProtocol');
+        await runHandoverCheck(interaction.guild).catch(() => null);
+
+        // --- 空き待ち自動マッチングチェック (v2.9.4) ---
+        const { popNextRideRequest } = require('../../../utils/配車/配車待ちマネージャ');
+        const pendingRequest = await popNextRideRequest(guildId);
+
+        if (pendingRequest) {
+          // このドライバーが今追加されたばかりの先頭ならマッチングを試みる
+          // ただし、popNextDriverで自分自身が取れるとは限らない（他に待機者がいれば古い順）
+          // ここでは「誰かが待機中になったから、誰か一人配車する」というトリガーとして機能
+          const availableDriver = await popNextDriver(guildId);
+          if (availableDriver) {
+            const createDispatchVC = require('../../送迎処理/createDispatchVC');
+            const { loadConfig } = require('../../../utils/設定/設定マネージャ');
+            const config = await loadConfig(guildId);
+            const requester = await client.users.fetch(pendingRequest.userId).catch(() => null);
+
+            if (requester) {
+              const rideId = `${Date.now()}_${requester.id}_${guildId}`;
+              const dispatchData = {
+                rideId,
+                userId: requester.id,
+                driverId: availableDriver.userId,
+                driverPlace: availableDriver.stopPlace || '不明',
+                direction: pendingRequest.direction,
+                count: parseInt(pendingRequest.persons),
+                destination: pendingRequest.destination || pendingRequest.direction,
+                note: pendingRequest.note,
+                status: 'MATCHED',
+                startedAt: new Date().toISOString(),
+                guest: pendingRequest.type === 'guest',
+              };
+
+              await createDispatchVC({
+                guild: interaction.guild,
+                requester,
+                driverId: availableDriver.userId,
+                driverPlace: dispatchData.driverPlace,
+                dispatchData,
+                config
+              }).catch(() => null);
+            }
+          }
+        }
+
         // 各パネル更新
         const { postOperatorLog } = require('../../../utils/ログ/運営者ログ');
-
-        const { getQueue, getPosition } = require('../../../utils/配車/待機列マネージャ');
-        const queue = await getQueue(guildId);
+        const queue = await require('../../../utils/配車/待機列マネージャ').getQueue(guildId);
         const activeCount = queue.length;
         const myPosition = await getPosition(guildId, userId);
 
@@ -80,6 +130,22 @@ module.exports = async function (interaction, client, parsed) {
         const { loadDriver } = require('../../../utils/driversStore');
         const userId = interaction.user.id;
         const guildId = interaction.guildId;
+
+        // 0. 送迎者登録チェック (v2.9.2)
+        const { loadDriverFull } = require('../../../utils/driversStore');
+        const fullDriver = await loadDriverFull(guildId, userId).catch(() => null);
+
+        if (!fullDriver || (!fullDriver.current && !fullDriver.car)) {
+          const { loadConfig } = require('../../../utils/設定/設定マネージャ');
+          const config = await loadConfig(guildId);
+          const regChannelId = config.panels?.driverRegister?.channelId;
+          const regLink = regChannelId ? `\n👉 <#${regChannelId}> から送迎者登録を行ってください。` : '\n管理者へお問い合わせください。';
+
+          return interaction.reply({
+            content: `⚠️ 送迎者登録が必要です。${regLink}`,
+            flags: 64,
+          });
+        }
 
         // 1. 待機中チェック
         const waitPath = `${paths.waitingDriversDir(guildId)}/${userId}.json`;

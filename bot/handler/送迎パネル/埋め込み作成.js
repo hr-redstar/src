@@ -13,13 +13,19 @@ const { loadConfig } = require('../../utils/設定/設定マネージャ');
  */
 function buildDriverPanelEmbed(guild, driverCount = 0, client) {
     const botClient = client || guild.client;
+
+    // driverCount は現在「待機+稼働」の合計として渡されている想定だが、
+    // 必要ならここで内訳を表示するように調整可能。
+    // 現状はシンプルに総数として表示。
+
     return buildPanelEmbed({
         title: '送迎者パネル',
-        description: `
-送迎者の出勤・退勤・現在地の更新を行います。
-
-現在の出勤中ドライバー: ${driverCount} 名
-    `,
+        description: [
+            '送迎者の出勤・退勤・現在地の更新を行います。',
+            '',
+            `現在の出勤中（総数）: **${driverCount}** 名`,
+            '※「出勤」ボタンを押すと待機列の最後尾に追加されます。'
+        ].join('\n'),
         client: botClient,
     });
 }
@@ -67,17 +73,7 @@ async function buildRideListPanelMessage(guild, client) {
     const config = await loadConfig(guild.id).catch(() => ({}));
     const userRanks = config.ranks?.userRanks || {};
 
-    // 待機中の利用者リスト読み込み
-    const userWaitDir = paths.waitingUsersDir(guild.id);
-    const userWaitFiles = await store.listKeys(userWaitDir).catch(() => []);
-    const waitingUsers = [];
-    for (const f of userWaitFiles) {
-        if (!f.endsWith('.json')) continue;
-        const data = await store.readJson(f).catch(() => null);
-        if (data) waitingUsers.push(data);
-    }
-    // timestamp 順にソート (古い順)
-    waitingUsers.sort((a, b) => new Date(a.timestamp || 0) - new Date(b.timestamp || 0));
+
 
     const activeDispatchDir = paths.activeDispatchDir(guild.id);
     const activeFiles = await store.listKeys(activeDispatchDir).catch(() => []);
@@ -88,7 +84,17 @@ async function buildRideListPanelMessage(guild, client) {
             .filter((f) => f.endsWith('.json'))
             .map((f) => store.readJson(f).catch(() => null))
     );
-    const validDispatches = activeDispatches.filter((d) => d);
+    const { RideStatus } = require('../../utils/constants');
+    const validDispatches = activeDispatches.filter((d) => {
+        if (!d) return false;
+        // 厳格なステータスチェック (定数 + 文字列予備)
+        if (d.status === RideStatus.COMPLETED || d.status === 'COMPLETED') return false;
+        if (d.status === RideStatus.CANCELLED || d.status === 'CANCELLED') return false;
+        if (d.status === 'ENDED' || d.status === 'FORCED') return false;
+        // データ不整合対策: 完了時刻が入っているデータは強制除外
+        if (d.completedAt) return false;
+        return true;
+    });
 
     const allActiveDriverIds = validDispatches.map((d) => d.driverId).filter(Boolean);
     const activeDriverIds = [...new Set(allActiveDriverIds)];
@@ -123,24 +129,27 @@ async function buildRideListPanelMessage(guild, client) {
     if (validDispatches.length === 0) {
         onRouteLines.push('現在送迎中の車両はありません。');
     } else {
-        validDispatches.forEach((d) => {
-            const dest = d.destination || d.direction || '詳細不明';
+        const { RideStatus } = require('../../utils/constants');
+        const { calculateRemainingCapacity } = require('../../../utils/配車/相乗りマネージャ');
+
+        await Promise.all(validDispatches.map(async (d) => {
+            const driverPlace = d.driverPlace || '現在地';
+            const pickup = d.pickup || '不明';
+            const target = d.target || d.destination || d.direction || '方面';
+            const route = `【${driverPlace}】 ➔ 【${pickup}】 → 【${target}】`;
+
             const rank = userRanks[d.driverId] ? `[${userRanks[d.driverId]}] ` : '';
-            onRouteLines.push(`${rank}<@${d.driverId}>　**行先**：${dest}`);
-        });
+            const statusLabel = d.status === RideStatus.APPROACHING ? '🚗 向かっています' : '🚕 送迎中';
+
+            // 相乗り枠の計算 (v2.9.2)
+            const remaining = await calculateRemainingCapacity(guild.id, d).catch(() => 0);
+            const slotText = remaining > 0 ? ` [🔓 相乗り可: ${remaining}名]` : '';
+
+            onRouteLines.push(`${rank}<@${d.driverId}> | ${statusLabel}${slotText}\n└ ${route}`);
+        }));
     }
 
-    // 待機中の利用者リスト
-    const waitingUserLines = [];
-    if (waitingUsers.length === 0) {
-        waitingUserLines.push('待機中のユーザーはいません。');
-    } else {
-        waitingUsers.forEach((u) => {
-            const loc = u.destination || u.direction || '詳細不明';
-            const rank = userRanks[u.userId] ? `[${userRanks[u.userId]}] ` : '';
-            waitingUserLines.push(`${rank}<@${u.userId}> (${loc})`);
-        });
-    }
+
 
     // 利用者リスト (乗車中)
     const ridingUserLines = uniqueActiveUserIds.map((id) => `<@${id}>`);
@@ -152,7 +161,7 @@ async function buildRideListPanelMessage(guild, client) {
         client,
         fields: [
             { name: '🚗 待機中の送迎車（FIFO順）', value: waitingDriverLines.join('\n'), inline: false },
-            { name: '👤 待機中', value: waitingUserLines.join('\n'), inline: false },
+
             { name: '🚕 送迎中', value: onRouteLines.join('\n'), inline: false },
         ],
         color: 0x3498db,

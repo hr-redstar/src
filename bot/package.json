@@ -16,7 +16,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "jest",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "freeze:guard": "grep -r 'new EmbedBuilder' handler command --exclude-dir=共通 --exclude=Embedテンプレート.js || echo '✅ Freeze Compliance: No legacy EmbedBuilders found.'"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.12.0",

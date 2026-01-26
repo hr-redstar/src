@@ -8,12 +8,16 @@ require('dotenv').config();
 const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v10');
 const { createLogger } = require('../utils/logger');
-const { requireEnv } = require('../utils/env');
 const { loadCommands } = require('./commandLoader');
 
 const logger = createLogger('DeployGuild');
-requireEnv(['DISCORD_TOKEN', 'CLIENT_ID', 'GUILD_ID']);
+
+// 環境変数チェック
 const { DISCORD_TOKEN, CLIENT_ID, GUILD_ID } = process.env;
+if (!DISCORD_TOKEN || !CLIENT_ID || !GUILD_ID) {
+  logger.error('必要な環境変数が設定されていません: DISCORD_TOKEN, CLIENT_ID, GUILD_ID');
+  throw new Error('Missing required environment variables');
+}
 
 const commands = loadCommands('DeployGuild');
 
@@ -31,9 +35,13 @@ async function deployCommands() {
     const data = await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), {
       body: commands,
     });
-    logger.success(`ギルド(${GUILD_ID})に ${data.length}個のコマンドを登録しました。`);
+    logger.info(`✅ ギルド(${GUILD_ID})に ${data.length}個のコマンドを登録しました。`);
   } catch (error) {
-    logger.error(`ギルド(${GUILD_ID})へのコマンド登録に失敗しました:`, error);
+    logger.error(`ギルド(${GUILD_ID})へのコマンド登録に失敗しました:`, error.message || error);
+    if (error.rawError) {
+      logger.error('詳細エラー:', JSON.stringify(error.rawError, null, 2));
+    }
+    throw error;
   }
 }
 

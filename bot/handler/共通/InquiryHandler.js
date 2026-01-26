@@ -1,5 +1,6 @@
-const { EmbedBuilder, ThreadAutoArchiveDuration, PermissionFlagsBits } = require('discord.js');
+const { ThreadAutoArchiveDuration } = require('discord.js');
 const { loadConfig } = require('../../utils/設定/設定マネージャ');
+const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 
 /**
  * 問い合わせ送信時の処理（スレッド作成など）
@@ -31,22 +32,24 @@ async function handleInquirySubmit(interaction) {
             reason: `問い合わせによる自動作成 (User: ${user.id})`,
         });
 
-        // 2. スレッドの権限設定（プライベートスレッドの場合はメンバー追加）
-        // 通常のテキストチャンネル内の公開スレッドの場合、メンバー追加のみで制御可能（他ユーザーには通知されないが閲覧は可能）
-        // もしチャンネル自体が運営者用なら、スレッドもそれを見れる人＋本人に限定される。
+        // 2. スレッドの権限設定
         await thread.members.add(user.id);
 
         // 3. 初期メッセージの送信
-        const logEmbed = new EmbedBuilder()
-            .setTitle('📩 新規問い合わせ')
-            .setAuthor({ name: user.tag, iconURL: user.displayAvatarURL() })
-            .addFields(
-                { name: '送信者', value: `<@${user.id}> (${user.id})`, inline: true },
-                { name: '件名', value: title, inline: false },
-                { name: '内容', value: body }
-            )
-            .setColor(0x3498db)
-            .setTimestamp();
+        const logEmbed = buildPanelEmbed({
+            title: '📩 新規問い合わせ',
+            description: [
+                `**件名:** ${title}`,
+                '',
+                body
+            ].join('\n'),
+            fields: [
+                { name: '送信者', value: `<@${user.id}> (${user.id})`, inline: true }
+            ],
+            type: 'info',
+            client: interaction.client,
+            thumbnail: user.displayAvatarURL()
+        });
 
         await thread.send({
             content: `🔔 運営者各位：<@${user.id}> 様より問い合わせがありました。\nこのスレッドで対応を行ってください。\n\n<@&${config.operatorRoleId || ''}>`,
@@ -54,10 +57,12 @@ async function handleInquirySubmit(interaction) {
         });
 
         // 4. ユーザーへの完了通知
-        const successEmbed = new EmbedBuilder()
-            .setTitle('✅ 問い合わせを送信しました')
-            .setDescription(`専用スレッド <#${thread.id}> を作成しました。\n運営者が確認次第、こちらで返信いたします。`)
-            .setColor(0x2ecc71);
+        const successEmbed = buildPanelEmbed({
+            title: '問い合わせを送信しました',
+            description: `専用スレッド <#${thread.id}> を作成しました。\n運営者が確認次第、こちらで返信いたします。`,
+            type: 'success',
+            client: interaction.client
+        });
 
         return interaction.editReply({ embeds: [successEmbed] });
 

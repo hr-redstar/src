@@ -1,14 +1,16 @@
+// handler/配車システム/配車開始.js
 const {
   ChannelType,
   PermissionFlagsBits,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  EmbedBuilder,
 } = require('discord.js');
 const store = require('../../utils/ストレージ/ストア共通');
 const paths = require('../../utils/ストレージ/ストレージパス');
 const { loadConfig } = require('../../utils/設定/設定マネージャ');
+const buildPanelEmbed = require('../../utils/embed/embedTemplate');
+const { RideStatus } = require('../../utils/constants');
 
 /**
  * マッチング後の配車開始処理
@@ -84,7 +86,7 @@ async function startDispatch({ guild, driver, passenger, type, direction, count 
     count,
     channelId: channel.id,
     createdAt: new Date().toISOString(),
-    status: 'matched',
+    status: RideStatus.MATCHED,
   };
 
   const activePath = `${paths.activeDispatchDir(guild.id)}/${dispatchId}.json`;
@@ -95,7 +97,7 @@ async function startDispatch({ guild, driver, passenger, type, direction, count 
   await updateRideOperatorLog({
     guild,
     rideId: dispatchId,
-    status: 'MATCHED',
+    status: RideStatus.MATCHED,
     data: {
       driverId: driver.userId,
       driverNickname: driver.nickname,
@@ -108,17 +110,17 @@ async function startDispatch({ guild, driver, passenger, type, direction, count 
   }).catch(() => null);
 
   // チャンネル内メッセージ送信
-  const embed = new EmbedBuilder()
-    .setTitle('🚕 配車中（連絡用チャンネル）')
-    .setDescription(
-      `<@${passenger.id}> 様の配車が確定しました。\n担当ドライバー: <@${driver.userId}>`
-    )
-    .addFields(
+  const embed = buildPanelEmbed({
+    title: '🚕 配車中（連絡用チャンネル）',
+    description: `<@${passenger.id}> 様の配車が確定しました。\n担当ドライバー: <@${driver.userId}>`,
+    fields: [
       { name: '種別', value: type === 'cast' ? 'キャスト' : 'ゲスト', inline: true },
       { name: '方面', value: direction, inline: true },
       { name: '人数', value: `${count}人`, inline: true }
-    )
-    .setColor(0x00ff00);
+    ],
+    type: 'success',
+    client: client,
+  });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()

@@ -1,3 +1,4 @@
+// utils/設定/設定マネージャ.js
 const store = require('../ストレージ/ストア共通');
 const paths = require('../ストレージ/ストレージパス');
 const logger = require('../../utils/logger'); // Ensure logger is available

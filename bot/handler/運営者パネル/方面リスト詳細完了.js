@@ -2,7 +2,7 @@ const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 const store = require('../../utils/ストレージ/ストア共通');
 const paths = require('../../utils/ストレージ/ストレージパス');
-const { EmbedBuilder, Colors } = require('discord.js');
+const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 const updateOperatorPanel = require('./updatePanel');
 
 /**
@@ -46,11 +46,15 @@ module.exports = {
           thread = await interaction.guild.channels.fetch(detailObj.threadId).catch(() => null);
         }
 
+        const safeDetail = detailText.includes('```')
+          ? detailText.replace(/```/g, '` ` `') // バックチックを少し崩して表示崩れを防止
+          : detailText;
+
         const threadPayload = {
           content: [
             `**📍 ${directionName} 詳細（行先方向の町）**`,
             '```',
-            detailText,
+            safeDetail,
             '```',
             `※最終更新: <@${interaction.user.id}> (${new Date().toLocaleString('ja-JP')})`
           ].join('\n')
@@ -76,11 +80,12 @@ module.exports = {
         };
         await store.writeJson(detailsPath, directionDetails);
 
-        const embed = new EmbedBuilder()
-          .setTitle('✅ 方面詳細登録完了')
-          .setDescription(`**${directionName}** の情報を更新し、スレッド <#${thread.id}> へ投稿しました。`)
-          .setColor(Colors.Green)
-          .setTimestamp();
+        const embed = buildPanelEmbed({
+          title: '[管理] 方面詳細登録完了',
+          description: `**${directionName}** の情報を更新し、スレッド <#${thread.id}> へ投稿しました。`,
+          type: 'success',
+          client
+        });
 
         await interaction.editReply({
           embeds: [embed],

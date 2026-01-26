@@ -1,15 +1,17 @@
+// handler/配車システム/配車依頼フロー.js
 const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
   StringSelectMenuBuilder,
-  EmbedBuilder,
 } = require('discord.js');
 const { loadConfig } = require('../../utils/設定/設定マネージャ');
+const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 const store = require('../../utils/ストレージ/ストア共通');
 const paths = require('../../utils/ストレージ/ストレージパス');
 const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
+const { RideStatus } = require('../../utils/constants');
 
 /**
  * 配車依頼フロー (v2.8.0)
@@ -23,8 +25,15 @@ module.exports = {
     const direction = parsed?.params?.dir || '';
     const persons = parsed?.params?.p || '';
 
+    // 重複実行防止 (Critical Fix for Double-Click Issue)
+    if (interaction.replied || interaction.deferred) {
+      console.warn(`[DispatchFlow] Duplicate interaction detected: ${interaction.customId}`);
+      return;
+    }
+
     return autoInteractionTemplate(interaction, {
       ack: (sub === 'direction' ? ACK.REPLY : ACK.AUTO),
+      panelKey: 'userPanel',
       async run(interaction) {
         switch (sub) {
           case 'direction':
@@ -41,6 +50,8 @@ module.exports = {
             return handleDestModal(interaction, type, dirIdx, direction, persons);
           case 'execute':
             return executeDispatch(interaction, type, dirIdx, direction, persons);
+          case 'wait_start':
+            return handleWaitStart(interaction, type, dirIdx, direction, persons);
           case 'cancel':
             return interaction.editReply({ content: '❌ 配車依頼をキャンセルしました。', embeds: [], components: [] });
 
@@ -57,8 +68,7 @@ module.exports = {
             return handleCarpoolJoin(interaction, parsed?.params?.rid);
           case 'carpool_modal':
             return handleCarpoolModal(interaction, parsed?.params?.rid);
-          case 'wait_for_driver':
-            return handleWaitForDriver(interaction, type, dirIdx, direction, persons);
+
 
           default:
             return showDirectionSelection(interaction, type);
@@ -72,7 +82,6 @@ module.exports = {
  * STEP 1: 方面選択
  */
 async function showDirectionSelection(interaction, type) {
-  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 
   // 運営設定から方面リストを読み込む
   const dirListPath = paths.directionsListJson(interaction.guildId);
@@ -83,9 +92,35 @@ async function showDirectionSelection(interaction, type) {
     .filter((d) => d.enabled !== false)
     .map((d) => d.name.replace(/【|】/g, ''));
 
+  // 利用者の残高とプロファイルを取得 (v2.9.2)
+  const { loadUserFull } = require('../../utils/usersStore');
+  const fullData = await loadUserFull(interaction.guildId, interaction.user.id).catch(() => null);
+
+  if (!fullData || (!fullData.current && !fullData.nickname)) {
+    const config = await loadConfig(interaction.guildId);
+    const regChannelId = config.panels?.userRegister?.channelId;
+    const regLink = regChannelId ? `\n👉 <#${regChannelId}> から登録を行ってください。` : '\n管理者へお問い合わせください。';
+
+    const errorEmbed = buildPanelEmbed({
+      title: '⚠️ 利用者登録が必要です',
+      description: `配車依頼を出すには、先に利用者登録を完了する必要があります。${regLink}`,
+      type: 'danger',
+      client: interaction.client
+    });
+    return interaction.editReply({ embeds: [errorEmbed], components: [] });
+  }
+
+  const credits = fullData.credits ?? 0;
+  const creditText = credits < 0 ? `￥${credits.toLocaleString()}` : `￥${credits.toLocaleString()}`;
+
   const embed = buildPanelEmbed({
     title: '🗺️ 配車依頼 - 方面選択',
-    description: '目的地（方面）を選択してください。',
+    description: [
+      '目的地（方面）を選択してください。',
+      '',
+      `💰 **現在の残高**: \`${creditText}\``,
+      credits < 0 ? '⚠️ 残高がマイナスです。後ほど精算をお願いします。' : ''
+    ].filter(Boolean).join('\n'),
     fields: [
       { name: '👤 依頼種別', value: type === 'cast' ? 'キャスト' : 'ゲスト', inline: true }
     ],
@@ -129,7 +164,6 @@ async function showDirectionSelection(interaction, type) {
  * STEP 2: 人数選択
  */
 async function showPersonsSelection(interaction, type, dirIdx, direction) {
-  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 
   // インデックスから方面名を取得
   let displayDir = direction || '指定なし';
@@ -233,7 +267,6 @@ async function handleDestModal(interaction, type, direction, persons) {
  * STEP 4: 最終確認
  */
 async function showConfirmation(interaction, type, dirIdx, direction, persons, destination = '', note = '') {
-  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 
   // インデックスから方面名を取得
   let displayDir = direction || '指定なし';
@@ -309,29 +342,40 @@ async function executeDispatch(interaction, type, dirIdx, direction, persons) {
   // 1. マッチング処理
   const driverData = await popNextDriver(interaction.guildId);
   if (!driverData) {
-    const waitEmbed = new EmbedBuilder()
-      .setTitle('⚠️ 送迎車不在')
-      .setDescription('申し訳ありません、現在待機中の送迎車がいません。\n送迎車が空くまで「待機リスト」に登録して待ちますか？')
-      .setColor(0xf1c40f);
+    const { getRideQueuePosition } = require('../../utils/配車/配車待ちマネージャ');
+    const pos = await getRideQueuePosition(interaction.guildId, interaction.user.id);
 
-    const waitRow = new ActionRowBuilder().addComponents(
+    const desc = pos
+      ? `現在 **${pos}組目** で空きを待機しています。送迎車が出勤しだい、自動的にマッチングされます。`
+      : '申し訳ありません、現在待機中の送迎車がいません。\n「空きを待つ」を選択すると、送迎者が出勤した際に優先的にマッチングされます。';
+
+    const errorEmbed = buildPanelEmbed({
+      title: '🈳 送迎車不在',
+      description: desc,
+      color: 0xe67e22,
+      client: interaction.client
+    });
+
+    const errorRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId(`dispatch|order|sub=wait_for_driver&type=${type}&dir_idx=${dirIdx}&p=${persons}${dest ? `&dest=${dest}` : ''}${note ? `&nt=${note}` : ''}`)
-        .setLabel('待機リストに登録する')
-        .setStyle(ButtonStyle.Primary),
+        .setCustomId(`dispatch|order|sub=wait_start&type=${type}&dir_idx=${dirIdx}&p=${persons}${dest ? `&dest=${dest}` : ''}${note ? `&nt=${note}` : ''}`)
+        .setLabel('空きを待つ')
+        .setEmoji('⏳')
+        .setStyle(ButtonStyle.Primary)
+        .setDisabled(!!pos), // すでに待機中なら無効
       new ButtonBuilder()
         .setCustomId(`dispatch|order|sub=cancel`)
-        .setLabel('キャンセル')
+        .setLabel('今はやめる')
         .setStyle(ButtonStyle.Secondary)
     );
 
     return interaction.editReply({
-      embeds: [waitEmbed],
-      components: [waitRow]
+      embeds: [errorEmbed],
+      components: [errorRow]
     });
   }
 
-  const rideId = `${Date.now()}_${interaction.user.id}`;
+  const rideId = `${Date.now()}_${interaction.user.id}_${interaction.guildId}`;
   const dispatchData = {
     rideId,
     userId: interaction.user.id,
@@ -341,7 +385,7 @@ async function executeDispatch(interaction, type, dirIdx, direction, persons) {
     count: parseInt(persons),
     destination: dest || finalDirection, // モーダル入力があればそれを使用
     note: note, // ゲスト用の補足情報
-    status: 'dispatching',
+    status: RideStatus.MATCHED,
     startedAt: new Date().toISOString(),
     guest: type === 'guest',
   };
@@ -358,7 +402,6 @@ async function executeDispatch(interaction, type, dirIdx, direction, persons) {
 
   // 3. 完了応答は createDispatchVC 内で完結させることも可能だが、
   // editReply の最終的なメッセージをここで出す
-  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
   const successEmbed = buildPanelEmbed({
     title: '✅ 配車依頼完了',
     description: [
@@ -390,11 +433,10 @@ async function handleHeading(interaction, dispatchId) {
   const now = new Date();
   const timeStr = now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 
-  data.status = 'heading';
+  data.status = RideStatus.APPROACHING;
   data.headingAt = now.toISOString();
   await store.writeJson(activePath, data);
 
-  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
   const embed = buildPanelEmbed({
     title: '🚙 向かっています',
     description: '送迎者が現在地または合流場所へ向かっています。到着まで少々お待ちください。',
@@ -441,7 +483,7 @@ async function handleRideStart(interaction, dispatchId) {
   const now = new Date();
   const timeStr = now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 
-  data.status = 'riding';
+  data.status = RideStatus.STARTED;
   const rolePrefix = interaction.user.id === data.driverId ? '送迎者' : '利用者';
   if (rolePrefix === '送迎者') data.driverStartTime = timeStr;
   else data.userStartTime = timeStr;
@@ -453,7 +495,7 @@ async function handleRideStart(interaction, dispatchId) {
     await updateRideOperatorLog({
       guild: interaction.guild,
       rideId: dispatchId,
-      status: 'STARTED',
+      status: RideStatus.STARTED,
       data: {
         driverId: data.driverId,
         userId: data.userId,
@@ -462,7 +504,6 @@ async function handleRideStart(interaction, dispatchId) {
     }).catch(() => null);
   }
 
-  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
   const embed = buildPanelEmbed({
     title: '🚀 送迎開始',
     description: '送迎が正常に開始されました。安全運転でお願いいたします。',
@@ -516,13 +557,12 @@ async function handleComplete(interaction, dispatchId) {
 
   const isBothCompleted = data.driverEndTime && data.userEndTime;
   if (isBothCompleted) {
-    data.status = 'finished';
+    data.status = RideStatus.COMPLETED;
     data.completedAt = now.toISOString();
   }
 
   await store.writeJson(activePath, data);
 
-  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
   const embed = buildPanelEmbed({
     title: isBothCompleted ? '✅ 送迎完了' : '🏁 送迎終了（確認待機中）',
     description: isBothCompleted
@@ -565,7 +605,7 @@ async function handleComplete(interaction, dispatchId) {
     await updateRideOperatorLog({
       guild: interaction.guild,
       rideId: dispatchId,
-      status: 'ENDED',
+      status: RideStatus.COMPLETED,
       data: {
         driverId: data.driverId,
         userId: data.userId,
@@ -695,15 +735,18 @@ async function handleCarpoolModal(interaction, rideId) {
 }
 
 /**
- * 待機リストへの登録
+ * 空き待ち登録 (v2.9.4)
  */
-async function handleWaitForDriver(interaction, type, dirIdx, direction, persons) {
-  const store = require('../../utils/ストレージ/ストア共通');
-  const paths = require('../../utils/ストレージ/ストレージパス');
-  const { updateRideListPanel } = require('../送迎処理/一覧パネル更新');
-  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
+async function handleWaitStart(interaction, type, dirIdx, direction, persons) {
+  const { addToRideQueue, getRideQueuePosition } = require('../../utils/配車/配車待ちマネージャ');
 
-  // インデックスから方面名を取得
+  // interaction.customId から詳細を復元 (executeDispatchと同様)
+  const urlParts = interaction.customId.split('?')[1] || '';
+  const query = new URLSearchParams(urlParts);
+  const dest = query.get('dest') || '';
+  const note = query.get('nt') || '';
+
+  // 方面名の解決
   let finalDirection = direction || '指定なし';
   if (dirIdx >= 0) {
     const dirListPath = paths.directionsListJson(interaction.guildId);
@@ -714,40 +757,35 @@ async function handleWaitForDriver(interaction, type, dirIdx, direction, persons
     }
   }
 
-  const urlParts = interaction.customId.split('?')[1];
-  const query = urlParts ? new URLSearchParams(urlParts) : null;
-  const dest = query ? query.get('dest') : '';
-
-  const waitData = {
+  const rideRequest = {
     userId: interaction.user.id,
+    type,
+    dirIdx,
     direction: finalDirection,
+    persons,
     destination: dest || finalDirection,
-    count: parseInt(persons),
-    guest: type === 'guest',
-    timestamp: new Date().toISOString(),
+    note,
+    timestamp: new Date().toISOString()
   };
 
-  const waitDir = paths.waitingUsersDir(interaction.guildId);
-  const fileName = type === 'guest' ? `${interaction.user.id}_guest.json` : `${interaction.user.id}.json`;
-  await store.writeJson(`${waitDir}/${fileName}`, waitData);
+  await addToRideQueue(interaction.guildId, rideRequest);
+  const pos = await getRideQueuePosition(interaction.guildId, interaction.user.id);
 
   const embed = buildPanelEmbed({
-    title: '✅ 待機リスト登録完了',
-    description: '申し訳ありません、現在対応可能な送迎車がございません。待機リストに登録いたしましたので、車両が空き次第優先的にマッチング・通知が行われます。',
-    fields: [
-      { name: '📍 希望方面', value: finalDirection, inline: true },
-      { name: '👥 希望人数', value: `${persons}名`, inline: true }
-    ],
-    color: 0x2ecc71,
+    title: '⏳ 空き待ち登録完了',
+    description: [
+      '配車待ちリストに登録しました。',
+      `現在 **${pos}組目** です。`,
+      '',
+      '送迎車が出勤しだい、自動的にマッチングが成立し、通知が届きます。',
+      'そのままお待ちください。'
+    ].join('\n'),
+    color: 0x3498db,
     client: interaction.client
   });
 
-  await interaction.editReply({
-    embeds: [embed],
-    components: []
-  });
-
-  // 送迎一覧パネルを更新
-  await updateRideListPanel(interaction.guild, interaction.client).catch(() => null);
+  await interaction.editReply({ embeds: [embed], components: [] });
 }
+
+
 

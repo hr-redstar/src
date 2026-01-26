@@ -1,63 +1,49 @@
-const { loadVcState, updateVcState } = require('../../utils/vcStateStore');
+const buildPanelEmbed = require('../../utils/embed/embedTemplate');
+const { updateVcState } = require('../../utils/vcStateStore');
 
-const DAY = 1000 * 60 * 60 * 24;
+/**
+ * 送迎チャンネル保存期間延長
+ */
+module.exports = {
+  customId: 'ride|control|sub=extend',
+  async execute(interaction, client, parsed) {
+    const channelId = interaction.channelId;
+    const guildId = interaction.guildId;
 
-module.exports = async (interaction) => {
-  // ボタンが押されたチャンネル（メモチャンネル or VC）から対象のRideを探す
-  // vcState: { [vcId]: { memoChannelId: "...", expiresAt: ... } }
+    try {
+      await interaction.deferUpdate();
 
-  const vcState = await loadVcState(interaction.guildId);
-  const channelId = interaction.channelId;
+      // ステートを更新
+      await updateVcState(guildId, channelId, { expiresAt: null });
 
-  // VC ID で検索, MemoChannelID で検索, または LogThreadID で検索
-  let vcId = Object.keys(vcState).find(
-    (key) =>
-      key === channelId ||
-      vcState[key].memoChannelId === channelId ||
-      vcState[key].logThreadId === channelId
-  );
-  let ride = vcId ? vcState[vcId] : null;
+      const embed = buildPanelEmbed({
+        title: '保存期間延長',
+        description: 'この送迎チャンネルの自動削除を解除しました（無期限保存）。\n作業完了後は手動で削除してください。',
+        type: 'success',
+        client
+      });
 
-  if (!ride) {
-    return interaction.reply({
-      content: '⚠️ このチャンネルまたはスレッドは期間延長の対象外です。',
-      flags: 64,
-    });
+      await interaction.editReply({ embeds: [embed], components: [] });
+
+      // 管理者ログ
+      const { loadConfig } = require('../../utils/設定/設定マネージャ');
+      const config = await loadConfig(guildId);
+      const logThreadId = config.logs?.adminLogThread;
+      if (logThreadId) {
+        const thread = await interaction.guild.channels.fetch(logThreadId).catch(() => null);
+        if (thread) {
+          const logEmbed = buildPanelEmbed({
+            title: '[管理] 保存期間延長',
+            description: `送迎チャンネルの保存期間が無期限に延長されました。\n\n**実行者:** <@${interaction.user.id}>\n**チャンネル:** <#${channelId}>`,
+            type: 'info',
+            client
+          });
+          await thread.send({ embeds: [logEmbed] });
+        }
+      }
+    } catch (error) {
+      console.error('削除延長エラー:', error);
+      await interaction.followUp({ content: '⚠️ エラーが発生しました。', flags: 64 }).catch(() => null);
+    }
   }
-
-  // すでに無期限なら何もしない
-  if (ride.expiresAt === null) {
-    return interaction.reply({
-      content: 'ℹ️ このログはすでに無期限保存されています。',
-      flags: 64,
-    });
-  }
-
-  // 無期限化
-  await updateVcState(interaction.guildId, vcId, { expiresAt: null });
-
-  // Operator Log
-  const { EmbedBuilder } = require('discord.js');
-  const { postOperatorLog } = require('../../utils/ログ/運営者ログ');
-
-  await postOperatorLog({
-    guild: interaction.guild,
-    embeds: [
-      new EmbedBuilder()
-        .setTitle('送迎ログ操作ログ')
-        .setDescription(
-          `**操作：保存期間を無期限に変更**\n` +
-            `実行者：${interaction.user.tag}\n` +
-            `対象：<#${channelId}>\n` +
-            `ルート：${ride.route || '不明'}`
-        )
-        .setColor(0x5865f2)
-        .setTimestamp(),
-    ],
-  });
-
-  await interaction.reply({
-    content: '✅ 保存期間を **無期限** に変更しました。',
-    flags: 64,
-  });
 };

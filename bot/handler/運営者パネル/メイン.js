@@ -14,6 +14,23 @@ async function sendOperatorPanel(interaction) {
     const guild = interaction.guild;
     const config = await loadConfig(guild.id);
     const client = interaction.client;
+    const { action, params } = await require('../../utils/parseCustomId').parseCustomId(interaction.customId) || {};
+
+    // 月次レポート出力処理
+    if (action === 'report' && params?.sub === 'export') {
+      const { exportMonthlyReport } = require('./売上集計');
+      const now = new Date();
+      const reportText = await exportMonthlyReport(guild, now.getFullYear(), now.getMonth() + 1);
+
+      const { AttachmentBuilder } = require('discord.js');
+      const buffer = Buffer.from(reportText, 'utf-8');
+      const attachment = new AttachmentBuilder(buffer, { name: `稼働レポート_${now.getFullYear()}_${now.getMonth() + 1}.txt` });
+
+      return interaction.editReply({
+        content: `📊 **${now.getFullYear()}年${now.getMonth() + 1}月** の詳細稼働レポートを生成しました。`,
+        files: [attachment]
+      });
+    }
 
     // 埋め込みを作成
     const embed = await buildOperatorPanelEmbed(config, guild.id, client);
@@ -77,6 +94,7 @@ async function sendOperatorPanel(interaction) {
   return autoInteractionTemplate(interaction, {
     ack: ACK.AUTO,
     adminOnly: true,
+    panelKey: 'operatorPanel',
     run: handlerRun,
   });
 }
@@ -101,15 +119,24 @@ async function buildOperatorPanelEmbed(config, guildId, client) {
   // 利用料読み込み
   const usageFee = config.usageFee || '未設定';
 
+  // 今月の売上（回収利用料）の集計
+  const { aggregateMonthlyRevenue } = require('./売上集計');
+  const now = new Date();
+  const revenueData = await aggregateMonthlyRevenue(guildId, now.getFullYear(), now.getMonth() + 1);
+
   // 共通の埋め込みテンプレートを使用するように修正 (v2.9.2)
   const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 
   const fields = [
     {
-      name: '📋 基本設定情報', value: [
-        `**方面リスト**:`,
-        `\`\`\`\n${directionNames}\n\`\`\``,
+      name: '📋 運営・実績サマリー', value: [
         `**一律利用料**: \`${usageFee}\``,
+        `**今月の回収合計**: **￥${revenueData.totalRevenue.toLocaleString()}** (${revenueData.rideCount} 件)`,
+      ].join('\n'), inline: false
+    },
+    {
+      name: '🗺️ 方面リスト情報', value: [
+        `\`\`\`\n${directionNames}\n\`\`\``,
       ].join('\n'), inline: false
     },
   ];
@@ -162,7 +189,7 @@ function buildOperatorPanelComponents() {
       .setStyle(ButtonStyle.Primary)
   );
 
-  // Row 2: 利用料、クレジット
+  // Row 2: 利用料、クレジット、レポート
   const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('op|fee|sub=setting')
@@ -173,7 +200,12 @@ function buildOperatorPanelComponents() {
       .setCustomId('op|credits|sub=start')
       .setLabel('残高チャージ')
       .setEmoji('💳')
-      .setStyle(ButtonStyle.Success)
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId('op|report|sub=export')
+      .setLabel('月次レポート')
+      .setEmoji('📊')
+      .setStyle(ButtonStyle.Secondary)
   );
 
   return [row1, row2];

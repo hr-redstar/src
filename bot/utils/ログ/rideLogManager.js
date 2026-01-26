@@ -1,4 +1,6 @@
 // src/bot/utils/ログ/rideLogManager.js
+// utils/ログ/rideLogManager.js
+const { MessageFlags, ChannelType } = require('discord.js');
 const { loadConfig } = require('../設定/設定マネージャ');
 const { getRideLog, saveRideLog, removeRideLog } = require('./rideLogStore');
 const { buildRideEmbed } = require('./buildRideEmbed');
@@ -53,7 +55,7 @@ async function updateRideOperatorLog({ guild, rideId, status, data }) {
             'ENDED': '送迎終了',
             'FORCED': '送迎終了 (強制)'
         };
-        const content = statusTextMap[status] || '進行中';
+        const content = statusTextMap[status] || '送迎中';
 
         const embed = buildRideEmbed({ status, data: combinedData });
 

@@ -1,4 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
+// utils/ログ/グローバルログ.js
 const { loadConfig } = require('../設定/設定マネージャ');
 
 /**

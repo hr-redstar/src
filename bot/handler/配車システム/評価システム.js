@@ -68,7 +68,7 @@ async function sendRatingDM(guild, dispatchData) {
     await user
       .send(buildPanelMessage({
         embed,
-        components: buildRatingButtons('driver', dispatchId)
+        components: buildRatingButtons('driver', dispatchId, guild.id)
       }))
       .catch(() => null);
   };
@@ -81,7 +81,18 @@ async function sendRatingDM(guild, dispatchData) {
     for (const cp of carpoolUsers) {
       if (cp.userId === passengerId) continue; // メイン利用者と重複防止
       const cpUser = await guild.client.users.fetch(cp.userId).catch(() => null);
-      await sendToPassenger(cpUser);
+      if (cpUser) {
+        const embed = buildPanelEmbed({
+          title: '送迎者・利用者口コミ評価',
+          description: `今回の相乗りはいかがでしたか？\n評価をお願いいたします。\n\n📅 **${dateStr}**\n🗺️ **経路**: ${routeDisplay}\n⏱️ **状況**: ${timeline}`,
+          color: 0xffd700,
+          client: guild.client
+        });
+        await cpUser.send(buildPanelMessage({
+          embed,
+          components: buildRatingButtons('driver', dispatchId, guild.id)
+        })).catch(() => null);
+      }
     }
   }
 
@@ -97,7 +108,7 @@ async function sendRatingDM(guild, dispatchData) {
     await driver
       .send(buildPanelMessage({
         embed,
-        components: buildRatingButtons('user', dispatchId)
+        components: buildRatingButtons('user', dispatchId, guild.id)
       }))
       .catch(() => null);
   }
@@ -106,37 +117,38 @@ async function sendRatingDM(guild, dispatchData) {
 /**
  * 評価用ボタンの構築
  */
-function buildRatingButtons(targetType, dispatchId) {
+function buildRatingButtons(targetType, dispatchId, guildId) {
+  const gidParam = guildId ? `&gid=${guildId}` : '';
   // 1行目: ⭐5, ⭐4
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=5`)
+      .setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=5${gidParam}`)
       .setLabel('⭐ 5')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
-      .setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=4`)
+      .setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=4${gidParam}`)
       .setLabel('⭐ 4')
       .setStyle(ButtonStyle.Primary)
   );
   // 2行目: ⭐3, ⭐2, ⭐1
   const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=3`)
+      .setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=3${gidParam}`)
       .setLabel('⭐ 3')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
-      .setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=2`)
+      .setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=2${gidParam}`)
       .setLabel('⭐ 2')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
-      .setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=1`)
+      .setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=1${gidParam}`)
       .setLabel('⭐ 1')
       .setStyle(ButtonStyle.Secondary)
   );
   // 3行目: コメント
   const row3 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=comment`)
+      .setCustomId(`dispatch|rating|type=${targetType}&did=${dispatchId}&val=comment${gidParam}`)
       .setLabel('💬 コメントも書きたい')
       .setStyle(ButtonStyle.Success)
   );
@@ -152,12 +164,13 @@ async function execute(interaction, client, parsed) {
   const dispatchId = parsed?.params?.did;
   const value = parsed?.params?.val;
 
-  const guildId = interaction.guildId || (await findGuildIdByDispatchId(dispatchId));
+  const guildId = interaction.guildId || (await findGuildIdByDispatchId(dispatchId, parsed));
   if (!guildId) return;
 
   if (value === 'comment') {
+    const gidParam = guildId ? `&gid=${guildId}` : '';
     const modal = new ModalBuilder()
-      .setCustomId(`dispatch|rating|sub=modal&type=${targetType}&did=${dispatchId}`)
+      .setCustomId(`dispatch|rating|sub=modal&type=${targetType}&did=${dispatchId}${gidParam}`)
       .setTitle('評価コメント入力');
 
     const input = new TextInputBuilder()
@@ -208,7 +221,7 @@ async function handleModalSubmit(interaction, client, parsed) {
   const dispatchId = parsed?.params?.did;
   const comment = interaction.fields.getTextInputValue('comment');
 
-  const guildId = interaction.guildId || (await findGuildIdByDispatchId(dispatchId));
+  const guildId = interaction.guildId || (await findGuildIdByDispatchId(dispatchId, parsed));
   if (!guildId) return;
 
   return autoInteractionTemplate(interaction, {
@@ -232,7 +245,7 @@ async function handleModalSubmit(interaction, client, parsed) {
       });
       if (interaction.message) {
         await interaction.message
-          .edit({ components: buildRatingButtons(targetType, dispatchId) })
+          .edit({ components: buildRatingButtons(targetType, dispatchId, guildId) })
           .catch(() => null);
       }
     },
@@ -347,7 +360,11 @@ async function postRatingToMemo(guild, targetType, dispatchId, ratingData) {
   } else {
     // フォールバック (dispatchId から推測)
     const parts = dispatchId.split('_');
-    if (parts[0] === 'manual') {
+    if (parts.length >= 3) {
+      // timestamp_userId_guildId 形式 (v2.9.2)
+      targetUserId = targetType === 'driver' ? null : parts[1]; // ドライバーIDはIDに含まれない（マッチング相手）
+      // ただし dispatchId だけで相手を特定するのは難しいので本来は dispatchData が必要
+    } else if (parts[0] === 'manual') {
       targetUserId = targetType === 'driver' ? parts[1] : parts[2];
     }
   }
@@ -400,9 +417,11 @@ async function postRatingToMemo(guild, targetType, dispatchId, ratingData) {
   await target.send({ embeds: [embed] }).catch(() => null);
 }
 
-async function findGuildIdByDispatchId(dispatchId) {
+async function findGuildIdByDispatchId(dispatchId, parsed = null) {
+  if (parsed?.params?.gid) return parsed.params.gid;
   const parts = dispatchId.split('_');
-  return parts[parts.length - 1];
+  if (parts.length >= 3) return parts[parts.length - 1]; // timestamp_user_guild 形式
+  return null;
 }
 
 module.exports = {

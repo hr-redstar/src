@@ -10,6 +10,7 @@ const {
     globalRideHistoryJson,
 } = require('../../utils/ストレージ/ストレージパス');
 const { loadUser } = require('../../utils/usersStore');
+const { RideStatus } = require('../../utils/constants');
 
 const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
@@ -17,21 +18,47 @@ const { ACK } = autoInteractionTemplate;
 module.exports = {
     execute: async function (interaction, client, parsed) {
         // carpool|approve|rid={rideId}&uid={userId}&cnt={count}
-        const rideId = parsed?.params?.rid;
-        const userId = parsed?.params?.uid; // 相乗り希望者
-        const guild = interaction.guild;
+        // v2.9.2: shortened keys carpool|approve|r={rideId}&u={userId}
+        const rideId = parsed?.params?.r || parsed?.params?.rid;
+        const userId = parsed?.params?.u || parsed?.params?.uid; // 相乗り希望者
+
+        // rideId が timestamp_userId_guildId 形式ならそこから抽出
+        const guildIdFromRideId = rideId?.split('_')?.[2];
+        const guildId = interaction.guildId || parsed?.params?.gid || guildIdFromRideId;
+        const guild = interaction.guild || (guildId ? await client.guilds.fetch(guildId).catch(() => null) : null);
+
+        if (!guild) return interaction.editReply('❌ サーバー情報が見つかりませんでした。');
 
         return autoInteractionTemplate(interaction, {
             ack: ACK.AUTO, // メッセージ更新 (deferReplyされるためeditReplyを使用)
             async run(interaction) {
-                const count = parseInt(parsed?.params?.cnt) || 1;
-                const segment = parseInt(parsed?.params?.seg) || 1;
-                const carpoolLoc = parsed?.params?.loc || '不明';
-
                 const activePath = `${paths.activeDispatchDir(guild.id)}/${rideId}.json`;
                 const rideData = await store.readJson(activePath).catch(() => null);
 
-                if (!rideData) return interaction.editReply('❌ データが見つかりません。');
+                if (!rideData) return interaction.editReply('❌ 送迎データが見つかりません。');
+
+                // 保留中のリクエストからデータを取得 (ID文字数制限対策の読み込み)
+                const request = rideData.pendingCarpoolRequests?.[userId];
+                if (!request) return interaction.editReply('⚠️ 相乗りリクエストの有効期限が切れたか、既に行き先が変更されています。');
+
+                const count = request.count || 1;
+                const segment = parseInt(parsed?.params?.seg) || 1;
+                const carpoolLoc = request.location || '不明';
+
+                // --- NEW: 定員超過チェック (v2.9.2) ---
+                const { calculateRemainingCapacity } = require('../../utils/配車/相乗りマネージャ');
+                const { buildPanelEmbed } = require('../../utils/embed/panelEmbedBuilder');
+                const remaining = await calculateRemainingCapacity(guild.id, rideData);
+
+                if (remaining < count) {
+                    const failEmbed = buildPanelEmbed({
+                        title: '⚠️ 定員オーバー',
+                        description: `この送迎車の空き枠（${remaining}名）が不足しているため、承認できません（リクエスト：${count}名）。`,
+                        color: 0xe74c3c,
+                        client
+                    });
+                    return interaction.editReply({ embeds: [failEmbed], components: [] });
+                }
 
                 // ルート更新ロジック (A -> B -> C -> D)
                 const A = rideData.driverPlace || '現在地';
@@ -61,12 +88,15 @@ module.exports = {
                     approvedAt: new Date().toISOString(),
                 });
 
+                // 保留中のリクエストを削除 (クリーンアップ)
+                delete rideData.pendingCarpoolRequests[userId];
+
                 // 運営者ログの同期 (v1.7.0: 相乗り追加による更新)
                 const { updateRideOperatorLog } = require('../../utils/ログ/rideLogManager');
                 await updateRideOperatorLog({
                     guild: interaction.guild,
                     rideId: rideId,
-                    status: rideData.status === 'in-progress' ? 'STARTED' : 'DEPARTED',
+                    status: rideData.status === RideStatus.STARTED ? RideStatus.STARTED : RideStatus.MATCHED,
                     data: {
                         area: newRoute,
                     }
@@ -251,6 +281,10 @@ module.exports = {
                     guild,
                     embeds: [logEmbed],
                 }).catch(() => null);
+
+                // 統計カウント (v2.9.2)
+                const { incrementStat } = require('../../utils/ストレージ/統計ストア');
+                await incrementStat(guild.id, 'carpool_matched', 1).catch(() => null);
 
                 // ボタン無効化orメッセージ変更
                 const successEmbed = buildPanelEmbed({

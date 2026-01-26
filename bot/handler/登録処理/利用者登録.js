@@ -3,7 +3,6 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  EmbedBuilder,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
@@ -60,11 +59,11 @@ const nowIso = () => new Date().toISOString();
 function buildUserRegPanelMessage(guild, client) {
   const botClient = client || guild.client;
   const embed = buildPanelEmbed({
-    title: '利用者登録パネル',
+    title: '利用者登録',
     description: `
-利用者登録
-・店舗名 または ニックネーム
-・方面
+・店舗名・ニックネーム
+・店舗住所
+・駐車目印
     `,
     client: botClient,
   });
@@ -124,6 +123,7 @@ async function execute(interaction, client, parsed) {
   if (interaction.isButton() && sub === 'check') {
     return autoInteractionTemplate(interaction, {
       ack: ACK.REPLY,
+      panelKey: 'userRegister',
       async run(interaction) {
         const userId = interaction.user.id;
         const guildId = interaction.guildId;
@@ -328,15 +328,18 @@ async function execute(interaction, client, parsed) {
         if (logChId) {
           const ch = await interaction.guild.channels.fetch(logChId).catch(() => null);
           if (ch) {
-            const logEmbed = new EmbedBuilder()
-              .setTitle('👤 利用者登録')
-              .setColor(0x3498db)
-              .addFields(
-                { name: 'ユーザー', value: `<@${userId}>`, inline: true },
-                { name: 'お名前', value: name, inline: true },
-                { name: '方面', value: address, inline: false }
-              )
-              .setTimestamp();
+            const logEmbed = buildPanelEmbed({
+              title: '[管理] 利用者登録受付',
+              description: [
+                `利用者の登録申請を受理しました。`,
+                '',
+                `👤 ユーザー: <@${userId}>`,
+                `🏠 お名前: **${name}**`,
+                `📍 住所/方面: **${address}**`
+              ].join('\n'),
+              type: 'info',
+              client: interaction.client
+            });
             await ch.send({ embeds: [logEmbed] }).catch(() => null);
           }
         }

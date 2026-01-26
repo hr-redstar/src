@@ -30,28 +30,29 @@ module.exports = async (interaction) => {
   }
 
   // Operator Log (Send before deletion)
-  const { EmbedBuilder } = require('discord.js');
+  const buildPanelEmbed = require('../../utils/embed/embedTemplate');
   const { postOperatorLog } = require('../../utils/ログ/運営者ログ');
+
+  const logEmbed = buildPanelEmbed({
+    title: '[管理] 送迎ログ操作ログ',
+    description: [
+      `**操作：即時削除**`,
+      `実行者：<@${interaction.user.id}>`,
+      `対象：<#${channelId}>`,
+      `ルート：${ride.route || '不明'}`
+    ].join('\n'),
+    type: 'error',
+    client: interaction.client
+  });
 
   await postOperatorLog({
     guild: interaction.guild,
-    embeds: [
-      new EmbedBuilder()
-        .setTitle('送迎ログ操作ログ')
-        .setDescription(
-          `**操作：即時削除**\n` +
-            `実行者：${interaction.user.tag}\n` +
-            `対象：<#${channelId}>\n` +
-            `ルート：${ride.route || '不明'}`
-        )
-        .setColor(0xed4245)
-        .setTimestamp(),
-    ],
+    embeds: [logEmbed],
   });
 
   // 削除実行
   const targetCh = await interaction.guild.channels.fetch(channelId).catch(() => null);
-  if (targetCh) await targetCh.delete('送迎ログ即時削除（管理者）').catch(() => {});
+  if (targetCh) await targetCh.delete('送迎ログ即時削除（管理者）').catch(() => { });
 
   // Stateから削除
   delete vcState[vcId];

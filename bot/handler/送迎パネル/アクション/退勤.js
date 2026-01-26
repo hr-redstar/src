@@ -1,4 +1,4 @@
-﻿﻿﻿﻿// handler/送迎パネル/アクション/退勤.js
+﻿﻿// handler/送迎パネル/アクション/退勤.js
 const store = require('../../../utils/ストレージ/ストア共通');
 const paths = require('../../../utils/ストレージ/ストレージパス');
 
@@ -8,6 +8,7 @@ const { ACK } = autoInteractionTemplate;
 module.exports = async function (interaction, client, parsed) {
   return autoInteractionTemplate(interaction, {
     ack: ACK.REPLY, // Ephemeral reply
+    panelKey: 'driverPanel',
     async run(interaction) {
       const guildId = interaction.guildId;
       const userId = interaction.user.id;

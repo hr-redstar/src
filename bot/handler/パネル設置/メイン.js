@@ -28,21 +28,28 @@ async function sendPanelSetupPanel(interaction) {
     // 既存パネルがあれば更新を試みる
     const panel = config.panels?.panelSetup;
     const channel = interaction.channel;
+
+    // 権限チェック (v2.9.5)
+    const permissions = channel.permissionsFor(client.user);
+    if (!permissions || !permissions.has(['ViewChannel', 'SendMessages', 'EmbedLinks'])) {
+      return interaction.editReply({
+        content: '❌ ボットの権限が不足しています。\nこのチャンネルで「チャンネルを見る」「メッセージを送信」「埋め込みリンク」の権限をボットに付与してください。'
+      });
+    }
+
     let updateSuccess = false;
 
     if (panel && panel.messageId) {
-      const msg = await channel.messages.fetch(panel.messageId).catch(() => null);
-      if (msg) {
-        try {
+      try {
+        const msg = await channel.messages.fetch(panel.messageId).catch(() => null);
+        if (msg) {
           await msg.edit(payload);
           updateSuccess = true;
-        } catch (error) {
-          console.error('パネル更新エラー:', error);
-          if (error.code !== 10008) {
-            return interaction.editReply({
-              content: '❌ パネルの更新に失敗しました。\n' + error.message,
-            });
-          }
+        }
+      } catch (error) {
+        console.error('パネル更新エラー:', error);
+        if (error.code === 50001) {
+          return interaction.editReply({ content: '❌ 既存パネルの更新に失敗しました（アクセス権限がありません）。' });
         }
       }
     }
@@ -52,17 +59,25 @@ async function sendPanelSetupPanel(interaction) {
     }
 
     // 新規送信
-    const panelMsg = await channel.send(payload);
-    if (panelMsg) {
-      config.panels ??= {};
-      config.panels.panelSetup = {
-        channelId: interaction.channelId,
-        messageId: panelMsg.id,
-      };
-      await saveConfig(guild.id, config);
-      await interaction.editReply({ content: '✅ パネル設置パネルを設置しました。' });
-    } else {
-      await interaction.editReply({ content: '❌ パネルの送信に失敗しました。' });
+    try {
+      const panelMsg = await channel.send(payload);
+      if (panelMsg) {
+        config.panels ??= {};
+        config.panels.panelSetup = {
+          channelId: interaction.channelId,
+          messageId: panelMsg.id,
+        };
+        await saveConfig(guild.id, config);
+        await interaction.editReply({ content: '✅ パネル設置パネルを設置しました。' });
+      } else {
+        await interaction.editReply({ content: '❌ パネルの送信に失敗しました。' });
+      }
+    } catch (error) {
+      console.error('パネル送信エラー:', error);
+      if (error.code === 50001) {
+        return interaction.editReply({ content: '❌ パネルの設置に失敗しました。\nボットにこのチャンネルでのメッセージ送信・埋め込み権限があるか確認してください。' });
+      }
+      return interaction.editReply({ content: '❌ エラーが発生しました: ' + error.message });
     }
   };
 

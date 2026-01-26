@@ -19,8 +19,9 @@ module.exports = {
   async handleMenu(interaction, client) {
     return autoInteractionTemplate(interaction, {
       ack: ACK.REPLY_EPHEMERAL,
+      panelKey: 'rideListPanel',
       async run(interaction) {
-        const guildId = interaction.guildId;
+        const guildId = interaction.guildId || parsed?.params?.gid;
         const activeDir = paths.activeDispatchDir(guildId);
 
         // 配車中一覧を取得
@@ -28,7 +29,7 @@ module.exports = {
         const jsonFiles = files.filter((f) => f.endsWith('.json'));
 
         if (jsonFiles.length === 0) {
-          return interaction.editReply({ content: '現在、進行中の送迎はありません。' });
+          return interaction.editReply({ content: '現在、送迎中の案件はありません。' });
         }
 
         const options = [];
@@ -46,16 +47,12 @@ module.exports = {
 
           const label = `送迎ID: ${data.rideId} | ${data.status}`;
           // 方面情報が data.route にあるか確認 (標準的には route: { from, to } )
-          const from = data.route?.from || '不明';
-          const to = data.route?.to || '不明';
+          // 3点移動情報 (DriverPlace -> Pickup -> Target/Direction)
+          const driverPlace = data.driverPlace || data.route?.from || '不明';
+          const pickup = data.pickup || '不明';
+          const target = data.target || data.direction || data.route?.to || '不明';
 
-          // description に詳細を入れる
-          // 【現在地】→【方面】→【目的地】 というフォーマット指定だが、
-          // "現在地"はドライバーの動的な位置だが、rideデータには "出発地(from)" があるはず。
-          // 利用者登録情報(方面)はここには含まれていない可能性が高いので、
-          // シンプルに from -> to を表示する。
-
-          const desc = `D:<@${data.driverId}> P:<@${data.passengerId}> | ${from} ➔ ${to}`;
+          const desc = `【${driverPlace}】 ➔ 【${pickup}】 → 【${target}】`;
 
           options.push({
             label: label.substring(0, 100),
@@ -71,7 +68,7 @@ module.exports = {
         const buildPanelEmbed = require('../../utils/embed/embedTemplate');
         const embed = buildPanelEmbed({
           title: '🛑 管理者：送迎強制終了実行',
-          description: '進行中の送迎を強制的に終了させ、VCやデータをクリーンアップします。\n対象の送迎を選択してください。',
+          description: '送迎中の案件を強制的に終了させ、VCやデータをクリーンアップします。\n対象の送迎を選択してください。',
           color: 0xe74c3c,
           client: interaction.client
         });
@@ -95,6 +92,7 @@ module.exports = {
   async handleExecute(interaction, client) {
     return autoInteractionTemplate(interaction, {
       ack: ACK.UPDATE, // SelectMenu選択後はメッセージ更新で閉じるか、ephemeralならeditReply
+      panelKey: 'rideListPanel',
       async run(interaction) {
         const rideId = interaction.values[0];
         const guildId = interaction.guildId;
@@ -132,10 +130,11 @@ module.exports = {
 
         // 3. ログ出力 (運営者ログ v1.7.0)
         const { updateRideOperatorLog } = require('../../utils/ログ/rideLogManager');
+        const { RideStatus } = require('../../utils/constants');
         await updateRideOperatorLog({
           guild: interaction.guild,
           rideId: rideId,
-          status: 'FORCED',
+          status: RideStatus.FORCED,
           data: {
             driverId: rideData.driverId,
             userId: rideData.passengerId,

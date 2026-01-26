@@ -1,4 +1,5 @@
-﻿const logger = require('../../utils/logger');
+﻿// handler/共通/パネル送信.js
+const logger = require('../../utils/logger');
 
 /**
  * パネルを送信 or 更新する共通関数
@@ -14,11 +15,11 @@ async function sendOrUpdatePanel({ channel, messageId, buildMessage, suppressFal
 
   // 既存パネルがある場合 → 更新
   if (messageId) {
-    logger.debug(`[パネル送信] 既存メッセージを更新します`, { messageId, channelId: channel.id });
+    // logger.debug(`[パネル送信] 既存メッセージを更新します`, { messageId, channelId: channel.id });
     try {
       const msg = await channel.messages.fetch(messageId);
       await msg.edit(payload);
-      logger.info(`[パネル送信] 既存メッセージを更新しました`, { messageId });
+      // logger.info(`[パネル送信] 既存メッセージを更新しました`, { messageId });
       return msg.id;
     } catch (err) {
       // メッセージが消えているなど
@@ -33,13 +34,13 @@ async function sendOrUpdatePanel({ channel, messageId, buildMessage, suppressFal
       }
     }
   } else {
-    logger.debug(`[パネル送信] messageIdがnullのため、新規送信します`, { channelId: channel.id });
+    // logger.debug(`[パネル送信] messageIdがnullのため、新規送信します`, { channelId: channel.id });
   }
 
   // 新規送信
   try {
     const sent = await channel.send(payload);
-    logger.info(`[パネル送信] 新規メッセージを送信しました`, { messageId: sent.id, channelId: channel.id });
+    // logger.info(`[パネル送信] 新規メッセージを送信しました`, { messageId: sent.id, channelId: channel.id });
     return sent.id;
   } catch (err) {
     logger.error('❌ パネルの新規送信に失敗しました:', { error: err.message });

@@ -1,9 +1,8 @@
 const {
   ActionRowBuilder,
   StringSelectMenuBuilder,
-  EmbedBuilder,
-  Colors,
 } = require('discord.js');
+const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 const store = require('../../utils/ストレージ/ストア共通');
@@ -32,19 +31,20 @@ module.exports = {
           });
         }
 
-        const embed = new EmbedBuilder()
-          .setTitle('📍 方面詳細の登録・更新')
-          .setDescription('詳細を登録（または更新）したい方向を選んでください。')
-          .setColor(Colors.Blue)
-          .setTimestamp();
+        const embed = buildPanelEmbed({
+          title: '📍 方面詳細の登録・更新',
+          description: '詳細を登録（または更新）したい方向を選んでください。',
+          type: 'info',
+          client,
+        });
 
         const selectMenu = new StringSelectMenuBuilder()
-          .setCustomId('op|directions|sub=detail_input')
+          .setCustomId('op|directions|sub=detail_select') // 修正: 次のステップへ正しくルーティング
           .setPlaceholder('方面を選択してください')
           .addOptions(
             directionsList.map((d, index) => ({
               label: `${index + 1}. ${d.name}`,
-              value: `${index + 1}行目`, // 内部的には「行目」で正規化
+              value: `${index + 1}行目`,
               description: d.name,
             }))
           );

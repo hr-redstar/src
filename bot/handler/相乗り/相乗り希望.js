@@ -1,5 +1,6 @@
 // handler/相乗り/相乗り希望.js
-const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 
@@ -12,8 +13,8 @@ module.exports = {
       ack: ACK.AUTO,
       async run(interaction) {
         const sub = parsed?.params?.sub || 'direction';
-        const rideId = parsed?.params?.rid;
-        const dir = parsed?.params?.dir;
+        const rideId = parsed?.params?.r || parsed?.params?.rid;
+        const dir = parsed?.params?.d || parsed?.params?.dir;
 
         if (sub === 'direction') {
           return showDirectionSelection(interaction, rideId);
@@ -24,7 +25,7 @@ module.exports = {
         if (sub === 'dest_modal_trigger') {
           return handleDestModalTrigger(interaction, rideId, dir);
         }
-        if (sub === 'segment_select') {
+        if (sub === 'segment_select' || sub === 'ss') {
           return showSegmentSelection(interaction, parsed);
         }
       },
@@ -36,37 +37,56 @@ module.exports = {
  * 送迎者用: 区間選択ボタン表示
  */
 async function showSegmentSelection(interaction, parsed) {
-  const { rid: rideId, uid: userId, cnt: count, dir: direction, dest: location } = parsed.params;
+  const rideId = parsed?.params?.r || parsed?.params?.rid;
+  const userId = parsed?.params?.u || parsed?.params?.uid;
+
   const store = require('../../utils/ストレージ/ストア共通');
   const paths = require('../../utils/ストレージ/ストレージパス');
-  const activePath = `${paths.activeDispatchDir(interaction.guildId)}/${rideId}.json`;
+
+  // rideId が timestamp_userId_guildId 形式ならそこから抽出
+  const guildIdFromRideId = rideId?.split('_')?.[2];
+  const guildId = interaction.guildId || parsed?.params?.gid || guildIdFromRideId;
+
+  const activePath = `${paths.activeDispatchDir(guildId)}/${rideId}.json`;
   const rideData = await store.readJson(activePath).catch(() => null);
 
   if (!rideData) return interaction.editReply('⚠️ 元の送迎データが見つかりません。');
 
-  const embed = new EmbedBuilder()
-    .setTitle('🤝 相乗り区間の選択')
-    .setDescription(
-      `相乗り希望者: <@${userId}> (${count}名)\n目的地: **${direction} / ${location}**\n\n現在のルートのどの区間で乗車しますか？`
-    )
-    .setColor(0x3498db);
+  // 保留中のリクエストからデータを取得
+  const request = rideData.pendingCarpoolRequests?.[userId];
+  if (!request) return interaction.editReply('⚠️ 相乗りリクエストの有効期限が切れたか、見つかりません。');
+
+  const { direction, location, count } = request;
+
+  const embed = buildPanelEmbed({
+    title: '🤝 相乗り区間の選択',
+    description: [
+      `👤 希望者: <@${userId}> (${count}名)`,
+      `📍 目的地: **${direction} / ${location}**`,
+      '',
+      '現在設定されているルートのどの区間から乗車を開始しますか？'
+    ].join('\n'),
+    type: 'info',
+    client: interaction.client
+  });
 
   const loc1 = rideData.driverPlace || '現在地';
   const loc2 = rideData.mark || '不明';
-  const loc3 = rideData.destination;
+  const loc3 = rideData.destination || '不明';
   const loc4 = `${direction} / ${location}`;
 
+  const gidSuffix = rideId.split('_').length < 3 ? `&gid=${guildId}` : '';
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId(`carpool|approve|rid=${rideId}&uid=${userId}&cnt=${count}&seg=1&loc=${loc4}`)
+      .setCustomId(`carpool|approve|r=${rideId}&u=${userId}&seg=1${gidSuffix}`)
       .setLabel(`【${loc1}】→【${loc2}】`)
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
-      .setCustomId(`carpool|approve|rid=${rideId}&uid=${userId}&cnt=${count}&seg=2&loc=${loc4}`)
+      .setCustomId(`carpool|approve|r=${rideId}&u=${userId}&seg=2${gidSuffix}`)
       .setLabel(`【${loc2}】→【${loc3}】`)
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
-      .setCustomId(`carpool|approve|rid=${rideId}&uid=${userId}&cnt=${count}&seg=3&loc=${loc4}`)
+      .setCustomId(`carpool|approve|r=${rideId}&u=${userId}&seg=3${gidSuffix}`)
       .setLabel(`【${loc3}】→【${loc4}】`)
       .setStyle(ButtonStyle.Primary)
   );
@@ -90,6 +110,25 @@ async function showDirectionSelection(interaction, rideId) {
   const directions = directionsList
     .filter((d) => d.enabled !== false)
     .map((d) => d.name.replace(/【|】/g, ''));
+
+  // 利用者登録チェック (v2.9.2)
+  const { loadUserFull } = require('../../utils/usersStore');
+  const fullData = await loadUserFull(interaction.guildId, interaction.user.id).catch(() => null);
+
+  if (!fullData || (!fullData.current && !fullData.nickname)) {
+    const { loadConfig } = require('../../utils/設定/設定マネージャ');
+    const config = await loadConfig(interaction.guildId);
+    const regChannelId = config.panels?.userRegister?.channelId;
+    const regLink = regChannelId ? `\n👉 <#${regChannelId}> から登録を行ってください。` : '\n管理者へお問い合わせください。';
+
+    const errorEmbed = buildPanelEmbed({
+      title: '⚠️ 利用者登録が必要です',
+      description: `相乗り希望を出すには、先に利用者登録を完了する必要があります。${regLink}`,
+      type: 'danger',
+      client: interaction.client
+    });
+    return interaction.editReply({ embeds: [errorEmbed], components: [] });
+  }
 
   const embed = buildPanelEmbed({
     title: '🤝 相乗り希望 - 方面選択',
@@ -162,8 +201,51 @@ async function showDestInput(interaction, rideId, direction) {
 /**
  * STEP 2.5: 目的地モーダル表示
  */
+/**
+ * STEP 2.5: 目的地モーダル表示 または 自動送信 (v2.9.2)
+ */
 async function handleDestModalTrigger(interaction, rideId, direction) {
-  const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+  const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
+
+  // スキップして次へ (dest= が存在する場合)
+  const isSkip = interaction.customId?.includes('dest=');
+
+  if (isSkip) {
+    const { loadUser } = require('../../utils/usersStore');
+    const { sendCarpoolRequestToDriver } = require('./carpoolNotifyDriver');
+
+    await interaction.deferUpdate();
+
+    // 利用者プロフィールの取得
+    const profile = await loadUser(interaction.guildId, interaction.user.id);
+    const location = profile?.mark || profile?.landmark || profile?.address || '(登録情報なし)';
+    const count = 1; // スキップ時はデフォルト 1名
+
+    try {
+      await sendCarpoolRequestToDriver({
+        guild: interaction.guild,
+        client: interaction.client,
+        rideId,
+        direction,
+        location,
+        userId: interaction.user.id,
+        count
+      });
+
+      await interaction.followUp({
+        content: `✅ 登録情報を利用してドライバーに相乗りリクエストを送信しました。\n📍 目的地: **${location}**\n承認されるまでしばらくお待ちください。`,
+        flags: 64
+      });
+    } catch (e) {
+      console.error('相乗りオートリクエスト送信失敗', e);
+      await interaction.followUp({
+        content: `❌ ${e.message || 'ドライバーへのリクエスト送信に失敗しました。'}`,
+        flags: 64
+      });
+    }
+    return;
+  }
+
   const modal = new ModalBuilder()
     .setCustomId(`carpool|join|sub=modal&rid=${rideId}&dir=${direction}`)
     .setTitle('目的地・場所入力');

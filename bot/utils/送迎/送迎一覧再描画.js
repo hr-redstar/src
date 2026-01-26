@@ -1,27 +1,14 @@
-// src/bot/utils/rideListRefresher.js
-const { EmbedBuilder } = require('discord.js');
-const rideStore = require('./送迎データ');
-const panelRegistry = require('../パネル/パネル登録');
+// utils/送迎/送迎一覧再描画.js
+const buildPanelEmbed = require('../embed/embedTemplate');
 
-function formatRow(x) {
-  const status = x.status || 'open';
-  const head = x.type === 'offer' ? '🚗 登録' : '🧑‍🦽 依頼';
-
-  const match =
-    status === 'matched'
-      ? x.type === 'offer'
-        ? ` | 申込:${x.matchedUserTag || x.matchedUserId || '?'}`
-        : ` | 対応:${x.matchedDriverTag || x.matchedDriverId || '?'}`
-      : '';
-
-  return `${head} #${x.id} [${status}] | ${x.date} | ${x.area} | ${x.stop}${x.note ? ` | ${x.note}` : ''}${match}`;
-}
-
-async function buildListEmbed(title, list, noteLine = '') {
+async function buildListEmbed(client, title, list, noteLine = '') {
   const desc = list.length === 0 ? '（該当なし）' : list.map(formatRow).join('\n');
-  return new EmbedBuilder()
-    .setTitle(title)
-    .setDescription(desc + (noteLine ? `\n\n${noteLine}` : ''));
+  return buildPanelEmbed({
+    title,
+    description: desc + (noteLine ? `\n\n${noteLine}` : ''),
+    type: 'info',
+    client
+  });
 }
 
 /**
@@ -50,7 +37,7 @@ async function refreshRideListPanel(client, guildId, mode = 'all', noteLine = ''
   }
 
   // 期限切れ反映（必要なら）
-  await rideStore.expirePast(new Date()).catch(() => {});
+  await rideStore.expirePast(new Date()).catch(() => { });
 
   let title;
   let list;
@@ -66,7 +53,7 @@ async function refreshRideListPanel(client, guildId, mode = 'all', noteLine = ''
     list = await rideStore.listByStatus(mode, 10);
   }
 
-  const embed = await buildListEmbed(title, list, noteLine);
+  const embed = await buildListEmbed(client, title, list, noteLine);
 
   try {
     await msg.edit({ embeds: [embed], components: msg.components });

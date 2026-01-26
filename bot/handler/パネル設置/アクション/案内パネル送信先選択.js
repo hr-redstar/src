@@ -54,7 +54,7 @@ module.exports = {
           panelName: '案内パネル',
           channel,
           buildMessage: async () => {
-            const { EmbedBuilder } = require('discord.js');
+            const buildPanelEmbed = require('../../../utils/embed/embedTemplate');
 
             // リンク生成関数
             const makeLink = (p) =>
@@ -66,14 +66,19 @@ module.exports = {
 
             // メイン案内
             embeds.push(
-              new EmbedBuilder().setTitle(title).setDescription(finalDescription).setColor(0x3498db)
+              buildPanelEmbed({
+                title,
+                description: finalDescription,
+                type: 'info',
+                client: interaction.client
+              })
             );
 
             // 各種パネル一覧
             embeds.push(
-              new EmbedBuilder()
-                .setTitle('📋 各種パネル一覧')
-                .addFields(
+              buildPanelEmbed({
+                title: '📋 各種パネル一覧',
+                fields: [
                   {
                     name: '👤 ユーザー登録はこちら',
                     value: `・利用者：${makeLink(config.panels?.userRegister)}\n・送迎者：${makeLink(config.panels?.driverRegister)}`,
@@ -82,29 +87,33 @@ module.exports = {
                     name: '🚗 送迎のご利用はこちら',
                     value: `・利用者：${makeLink(config.panels?.userPanel)}\n・送迎者：${makeLink(config.panels?.driverPanel)}`,
                   }
-                )
-                .setColor(0x2ecc71)
+                ],
+                type: 'info',
+                client: interaction.client
+              })
             );
 
             // プライベートVCガイド
             const helpChId = config.logs?.guideChannel || config.logs?.operatorChannel;
             if (helpChId) {
               embeds.push(
-                new EmbedBuilder()
-                  .setTitle('📝 プライベートVCの使い方')
-                  .setDescription(
-                    `送迎がマッチングされた際に、カテゴリーに送迎者と利用者専用の**プライベートVCチャンネル**が自動で作成されます。
-待ち合わせや、落とし物のやり取りなどにご利用ください。
-
-**■ ご利用にあたって**
-・送迎終了後、**7日間保存**されます
-・必要に応じて **「期間延長」ボタン** で保存期間を延長できます
-
-※内容を管理者が無断で閲覧・公開することはありません。
-
-使い方がわからない場合は運営まで：<#${helpChId}>`
-                  )
-                  .setColor(0x9b59b6)
+                buildPanelEmbed({
+                  title: '📝 プライベートVCの使い方',
+                  description: [
+                    '送迎がマッチングされた際に、カテゴリーに送迎者と利用者専用の**プライベートVCチャンネル**が自動で作成されます。',
+                    '待ち合わせや、落とし物のやり取りなどにご利用ください。',
+                    '',
+                    '**■ ご利用にあたって**',
+                    '・送迎終了後、**7日間保存**されます',
+                    '・必要に応じて **「期間延長」ボタン** で保存期間を延長できます',
+                    '',
+                    '※内容を管理者が無断で閲覧・公開することはありません。',
+                    '',
+                    `使い方がわからない場合は運営まで：<#${helpChId}>`
+                  ].join('\n'),
+                  type: 'info',
+                  client: interaction.client
+                })
               );
             }
 

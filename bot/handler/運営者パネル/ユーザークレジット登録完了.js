@@ -1,4 +1,4 @@
-const { EmbedBuilder, Colors } = require('discord.js');
+const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 const store = require('../../utils/ストレージ/ストア共通');
@@ -36,16 +36,26 @@ module.exports = {
                 // 保存
                 await store.writeJson(userPath, userData);
 
-                const embed = new EmbedBuilder()
-                    .setTitle('✅ ユーザークレジット登録完了')
-                    .setDescription(`<@${targetUserId}> に **${amount} クレジット** を追加しました。`)
-                    .addFields(
+                // 取引履歴の記録 (v2.9.2)
+                const { logCreditTransaction } = require('../../utils/creditHistoryStore');
+                await logCreditTransaction(interaction.guildId, targetUserId, {
+                    amount: amount,
+                    type: 'charge',
+                    reason: 'クレジットチャージ（管理者操作）',
+                    balance: userData.credits
+                }).catch(err => console.error('履歴記録エラー:', err));
+
+                const embed = buildPanelEmbed({
+                    title: '[管理] ユーザークレジット登録完了',
+                    description: `<@${targetUserId}> に **${amount} クレジット** を追加しました。`,
+                    fields: [
                         { name: '以前の残高', value: `${oldCredits}`, inline: true },
                         { name: '追加量', value: `+${amount}`, inline: true },
                         { name: '現在の残高', value: `${userData.credits}`, inline: true }
-                    )
-                    .setColor(Colors.Green)
-                    .setTimestamp();
+                    ],
+                    type: 'success',
+                    client
+                });
 
                 await interaction.editReply({ embeds: [embed] });
             },

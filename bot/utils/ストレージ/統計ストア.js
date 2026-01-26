@@ -17,11 +17,14 @@ async function incrementStat(guildId, type, delta = 1) {
         const d = String(now.getDate()).padStart(2, '0');
         const ym = `${y}-${m}`;
         const ymd = `${y}-${m}-${d}`;
+        const h = String(now.getHours()).padStart(2, '0');
+        const hKey = `${ymd} ${h}:00`;
 
         const stats = data || {
             cumulative: {},
             monthly: {},
             daily: {},
+            hourly: {},
         };
 
         // 1. 累計
@@ -35,6 +38,11 @@ async function incrementStat(guildId, type, delta = 1) {
         if (!stats.daily[ymd]) stats.daily[ymd] = {};
         stats.daily[ymd][type] = (stats.daily[ymd][type] || 0) + delta;
 
+        // 4. 時次 (v2.9.2)
+        if (!stats.hourly) stats.hourly = {};
+        if (!stats.hourly[hKey]) stats.hourly[hKey] = {};
+        stats.hourly[hKey][type] = (stats.hourly[hKey][type] || 0) + delta;
+
         // 古いデータの掃除（任意：直近3ヶ月分だけ残すなど）
         const months = Object.keys(stats.monthly).sort();
         if (months.length > 24) { // 2年分
@@ -43,6 +51,10 @@ async function incrementStat(guildId, type, delta = 1) {
         const days = Object.keys(stats.daily).sort();
         if (days.length > 90) { // 3ヶ月分
             delete stats.daily[days[0]];
+        }
+        const hours = Object.keys(stats.hourly).sort();
+        if (hours.length > 168) { // 1週間分 (24 * 7)
+            delete stats.hourly[hours[0]];
         }
 
         return stats;

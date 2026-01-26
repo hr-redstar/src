@@ -1,4 +1,4 @@
-// src/bot/utils/stateStore.js
+// utils/共通/状態ストア.js
 // guildごとの状態をJSONに保存（再起動しても維持）
 
 const store = require('../ストレージ/ストア共通');

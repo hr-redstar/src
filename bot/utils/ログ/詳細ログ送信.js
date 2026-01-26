@@ -1,3 +1,4 @@
+// utils/ログ/詳細ログ送信.js
 const buildPanelEmbed = require('../embed/embedTemplate');
 
 /**

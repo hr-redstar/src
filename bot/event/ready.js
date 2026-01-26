@@ -23,8 +23,18 @@ module.exports = {
   once: true,
 
   async execute(client) {
-    // 起動ログ（日本語）
-    logger.info(`起動しました：${client.user.tag}`);
+    // ===== 開発ギルドへのコマンド自動登録 =====
+    const guildId = process.env.GUILD_ID;
+    if (guildId) {
+      try {
+        const { deployCommands } = require('../script/deployGuildCommands');
+        await deployCommands();
+      } catch (error) {
+        logger.error('開発ギルドへのコマンド登録に失敗しました', {
+          error: logger.formatError ? logger.formatError(error).split('\n')[0] : String(error)
+        });
+      }
+    }
 
     // ステータス表示
     try {
@@ -32,41 +42,16 @@ module.exports = {
         status: 'online',
         activities: [{ name: '送迎パネル', type: ActivityType.Watching }],
       });
-      logger.debug('プレゼンスを設定しました', {
-        status: 'online',
-        activity: '送迎パネル',
-        type: 'Watching',
-      });
     } catch (e) {
       logger.warn('プレゼンス設定に失敗しました', {
         error: logger.formatError ? logger.formatError(e).split('\n')[0] : String(e),
       });
-      // 詳細はデバッグに回す（長いstackをerrorに混ぜない）
       logger.debug('プレゼンス設定エラー詳細', logger.formatError ? logger.formatError(e) : e);
     }
 
-    // 全ギルドの出勤状態をGCSと同期 (Legacy logic removed temporarily)
-    /*
-    try {
-      const guilds = [...client.guilds.cache.values()];
-      logger.info("出勤状態の同期を開始します", { guildCount: guilds.length });
 
-      for (const guild of guilds) {
-        // await cleanupAvailabilityAgainstRegistry(client, guild.id);
-        logger.debug("ギルドの同期が完了しました", { guildId: guild.id, guildName: guild.name });
-      }
-
-      logger.info("全ギルドの出勤状態の同期が完了しました");
-    } catch (e) {
-      logger.error("出勤状態の同期に失敗しました", {
-        error: logger.formatError ? logger.formatError(e).split("\n")[0] : String(e),
-      });
-      logger.debug("同期エラー詳細", logger.formatError ? logger.formatError(e) : e);
-    }
-    */
 
     // ===== パネル自動復旧処理 =====
-    logger.info('パネルの自動復旧を開始します...');
     for (const guild of client.guilds.cache.values()) {
       try {
         const config = await loadConfig(guild.id);
@@ -84,7 +69,7 @@ module.exports = {
               channel,
               messageId: data.messageId,
               buildMessage: async () => {
-                logger.debug(`[パネル復旧] メッセージ構築中: ${key}`);
+                // logger.debug(`[パネル復旧] メッセージ構築中: ${key}`);
                 switch (key) {
                   case 'admin':
                     return buildAdminPanelMessage(guild, config, client);
@@ -137,11 +122,11 @@ module.exports = {
             });
 
             if (newMessageId && newMessageId !== data.messageId) {
-              logger.info(`[パネル復旧] ID更新: ${key} (${data.messageId} -> ${newMessageId})`);
+              // logger.info(`[パネル復旧] ID更新: ${key} (${data.messageId} -> ${newMessageId})`);
               config.panels[key].messageId = newMessageId;
               needsSave = true;
             } else if (newMessageId) {
-              logger.debug(`[パネル復旧] 更新完了: ${key}`);
+              // logger.debug(`[パネル復旧] 更新完了: ${key}`);
             }
           } catch (err) {
             logger.warn(`ギルド(${guild.id}) のパネル復旧失敗 [${key}]: ${err.message}`);
@@ -160,10 +145,10 @@ module.exports = {
         );
       }
     }
-    logger.info('パネルの自動復旧が完了しました。');
+    logger.info('✅ パネル更新しました');
 
     // ===== ガイドチャンネルの自動チェック・復旧 =====
-    logger.info('ガイドチャンネルのチェックを開始します...');
+    // logger.info('ガイドチャンネルのチェックを開始します...');
     for (const guild of client.guilds.cache.values()) {
       try {
         const config = await loadConfig(guild.id);
@@ -192,7 +177,7 @@ module.exports = {
         logger.warn(`ギルド(${guild.id}) のガイドチャンネルチェック失敗: ${err.message}`);
       }
     }
-    logger.info('ガイドチャンネルのチェックが完了しました。');
+    // logger.info('ガイドチャンネルのチェックが完了しました。');
 
     // ===== 全ユーザー登録情報メッセージの一括更新 (Embed化対応) =====
     const { batchUpdateRegistrationMessages } = require('../utils/batchUpdateRegistrationMessages');
@@ -200,5 +185,29 @@ module.exports = {
     batchUpdateRegistrationMessages(client).catch((err) => {
       logger.error(`一括更新バッチ起動失敗: ${err.message}`);
     });
+
+    logger.info(`✅ 起動しました：${client.user.tag} (Startup Complete)`);
+
+    // ===== 障害耐性・自律バックグラウンド監査 (v2.9.4) =====
+    const { runHandoverCheck } = require('../utils/配車/handoverProtocol');
+    const { runRetentionAuditor } = require('../utils/メンテナンス/retentionAgent');
+
+    // 10分ごとにマッチングループをチェック
+    setInterval(async () => {
+      for (const guild of client.guilds.cache.values()) {
+        await runHandoverCheck(guild).catch((err) => {
+          logger.error(`[ResilienceAuditor] ギルド(${guild.id}) の監査失敗: ${err.message}`);
+        });
+      }
+    }, 10 * 60 * 1000);
+
+    // 1時間ごとに保持期限（VC削除等）をチェック (v2.9.5)
+    setInterval(async () => {
+      for (const guild of client.guilds.cache.values()) {
+        await runRetentionAuditor(guild).catch((err) => {
+          logger.error(`[RetentionAuditor] ギルド(${guild.id}) の監査失敗: ${err.message}`);
+        });
+      }
+    }, 60 * 60 * 1000);
   },
 };

@@ -16,7 +16,7 @@ function walkJsFiles(dir) {
 }
 
 function loadCommands(logPrefix = '') {
-  const commandsRoot = path.join(process.cwd(), COMMANDS_DIR);
+  const commandsRoot = path.join(__dirname, '../command');
   if (!fs.existsSync(commandsRoot)) {
     logger.error(`${logPrefix} COMMANDS_DIR が存在しません: ${commandsRoot}`);
     return [];

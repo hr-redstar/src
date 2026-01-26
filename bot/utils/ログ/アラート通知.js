@@ -1,3 +1,5 @@
+// utils/ログ/アラート通知.js
+const { MessageFlags } = require('discord.js');
 const { EmbedBuilder } = require('discord.js');
 const { loadConfig } = require('../設定/設定マネージャ');
 const { postOperatorLog } = require('./運営者ログ');

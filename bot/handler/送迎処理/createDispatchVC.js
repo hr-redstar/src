@@ -1,5 +1,6 @@
 // src/bot/handler/送迎処理/createDispatchVC.js
 const { ChannelType, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 const store = require('../../utils/ストレージ/ストア共通');
 const paths = require('../../utils/ストレージ/ストレージパス');
 const { updateVcState } = require('../../utils/vcStateStore');
@@ -31,18 +32,21 @@ module.exports = async function createDispatchVC({ guild, requester, driverId, d
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     const dateStr = `${now.getMonth() + 1}/${now.getDate()}`;
 
+    dispatchData.driverPlace = driverPlace || '不明';
     dispatchData.pickup = pickup;
     dispatchData.target = direction;
     dispatchData.date = dateStr;
     dispatchData.matchTime = timeStr;
-    dispatchData.status = 'MATCHED';
+    const { RideStatus } = require('../../utils/constants');
+    dispatchData.status = RideStatus.MATCHED;
 
     // 1. プライベートVC作成
     const parentId = config.categories?.privateVc;
     let vcChannel = null;
 
-    // VCタイトル: MM/DD HH:mm~--:-- 【方面】→【方面】
-    const standardizedTitle = `${dateStr} ${timeStr}~--:-- 【${pickup}】→【${direction}】`;
+    // VCタイトル: MM/DD HH:mm~--:-- 【DriverPlace】→【Pickup】→【Target】
+    const startPlace = driverPlace || '不明';
+    const standardizedTitle = `${dateStr} ${timeStr}~--:-- 【${startPlace}】→【${pickup}】→【${direction}】`;
 
     if (parentId) {
         try {
@@ -103,7 +107,7 @@ module.exports = async function createDispatchVC({ guild, requester, driverId, d
                 let userMemoChannel = await findUserMemoChannel({ guild, userId, categoryId: memoCategoryId, role: 'user' });
                 if (!userMemoChannel) {
                     const { buildUserRegistrationEmbed } = require('../../utils/buildRegistrationInfoEmbed');
-                    const userFull = await loadUser(guild.id, userId); // Full load if needed
+                    const userFull = await loadUser(guild.id, userId);
                     const registrationEmbed = buildUserRegistrationEmbed(userFull, requester);
                     const createResult = await createUserMemoChannel({ guild, user: requester, categoryId: memoCategoryId, role: 'user', registrationEmbed });
                     if (createResult) userMemoChannel = createResult.channel;
@@ -112,11 +116,10 @@ module.exports = async function createDispatchVC({ guild, requester, driverId, d
                 if (userMemoChannel) {
                     dispatchData.userMemoChannelId = userMemoChannel.id;
 
-                    // スレッドポリシーの取得とスレッド特定 (v2.9.1)
                     const { loadUserFull } = require('../../utils/usersStore');
                     const { getOrCreateHistoryThread } = require('../../utils/getOrCreateHistoryThread');
                     const userFull = await loadUserFull(guild.id, userId).catch(() => null);
-                    const threadPolicy = userFull?.threadPolicy || { enabled: true, period: '1w' }; // デフォルト週次
+                    const threadPolicy = userFull?.threadPolicy || { enabled: true, period: '1w' };
 
                     const thread = await getOrCreateHistoryThread(userMemoChannel, threadPolicy, now);
                     const target = thread || userMemoChannel;
@@ -129,7 +132,6 @@ module.exports = async function createDispatchVC({ guild, requester, driverId, d
                     const memoMsg = await target.send({ embeds: [controlEmbed] });
                     dispatchData.userMemoMessageId = memoMsg.id;
 
-                    // VCステート保存 (後で進捗更新時にスレッドも更新できるように)
                     await updateVcState(guild.id, vcChannel.id, {
                         userId,
                         driverId,
@@ -185,43 +187,53 @@ module.exports = async function createDispatchVC({ guild, requester, driverId, d
     // 7. 個人DM通知
     const vcLink = vcChannel ? `[プライベートVCはこちら](https://discord.com/channels/${guild.id}/${vcChannel.id})` : 'VC作成失敗';
 
-    // 利用者DM
+    // 依頼者への通知
     try {
-        const { EmbedBuilder } = require('discord.js');
-        const driverMember = await guild.members.fetch(driverId).catch(() => null);
-        const uEmbed = new EmbedBuilder()
-            .setTitle('✅ マッチングしました！')
-            .setDescription([
-                `送迎者は **${driverMember?.displayName || '送迎者'}** です。`,
+        const uEmbed = buildPanelEmbed({
+            title: '🚕 送迎マッチング',
+            description: [
+                `担当ドライバー: ${driverProfile?.nickname || '送迎者'} <@${driverId}>`,
+                `合流場所: ${driverPlace}`,
                 '',
-                `【${pickup}】→【${direction}】`,
+                'マッチングが成立しました。',
+                '上記場所に向かってください。',
                 '',
                 '🔊 **ボイスチャンネル**',
-                vcLink
-            ].join('\n'))
-            .setColor(0x00ff00).setTimestamp();
-        await requester.send({ embeds: [uEmbed] });
+                vcLink,
+                '専用の連絡チャンネルが作成されましたので、',
+                'そちらで詳細を確認してください。'
+            ].join('\n'),
+            type: 'success',
+            client: guild.client
+        });
+
+        const requesterMember = await guild.members.fetch(userId).catch(() => null);
+        if (requesterMember) {
+            await requesterMember.send({ embeds: [uEmbed] }).catch(() => null);
+        }
     } catch (e) {
         console.warn(`[createDispatchVC] 利用者へのDM送信失敗: ${e.message}`);
     }
 
-    // 送迎者DM
+    // ドライバーへの通知
     try {
+        const dEmbed = buildPanelEmbed({
+            title: '🚕 配車依頼',
+            description: [
+                `依頼者: ${userProfile?.storeName || userProfile?.name || '利用者'} <@${userId}>`,
+                `方面: ${dispatchData.direction}`,
+                '',
+                '🔊 **ボイスチャンネル**',
+                vcLink,
+                `専用の連絡チャンネル（<#${vcChannel?.id}>）が作成されました。`,
+            ].join('\n'),
+            type: 'info',
+            client: guild.client
+        });
+
         const driverMember = await guild.members.fetch(driverId).catch(() => null);
         if (driverMember) {
-            const { EmbedBuilder } = require('discord.js');
-            const dEmbed = new EmbedBuilder()
-                .setTitle('🚗 新しい依頼が入りました！')
-                .setDescription([
-                    `利用者は **${requester.globalName || requester.username}** です。`,
-                    '',
-                    `【${pickup}】→【口頭で伝える】`,
-                    '',
-                    '🔊 **ボイスチャンネル**',
-                    vcLink
-                ].join('\n'))
-                .setColor(0xffa500).setTimestamp();
-            await driverMember.send({ embeds: [dEmbed] });
+            await driverMember.send({ embeds: [dEmbed] }).catch(() => null);
         }
     } catch (e) {
         console.warn(`[createDispatchVC] 送迎者へのDM送信失敗: ${e.message}`);

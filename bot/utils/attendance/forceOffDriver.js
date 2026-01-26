@@ -15,11 +15,13 @@ async function forceOffDriver({ guild, driverId, executor }) {
   const profilePath = paths.driverProfileJson(guildId, driverId);
   const profile = await store.readJson(profilePath).catch(() => null);
 
-  // 2. 待機列から削除
-  const waitPath = `${paths.waitingDriversDir(guildId)}/${driverId}.json`;
-  const wasWaiting = (await store.readJson(waitPath).catch(() => null)) !== null;
+  // 2. 待機列から削除 (Atomic v2.9.3)
+  const { getQueue, removeFromQueue } = require('../配車/待機列マネージャ');
+  const queue = await getQueue(guildId);
+  const wasWaiting = queue.some(d => d.userId === driverId);
+
   if (wasWaiting) {
-    await store.deleteFile(waitPath).catch(() => { });
+    await removeFromQueue(guildId, driverId);
   }
 
   // 3. 配車中の送迎をクリーンアップ

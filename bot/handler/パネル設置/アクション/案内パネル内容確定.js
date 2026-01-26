@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+const buildPanelEmbed = require('../../../utils/embed/embedTemplate');
 const { installPanel } = require('../共通/設置テンプレ');
 const { updatePanelSetupPanel } = require('../メイン');
 const { loadConfig, saveConfig } = require('../../../utils/設定/設定マネージャ');
@@ -43,41 +43,54 @@ module.exports = {
             const embeds = [];
             // メインEmbed (カスタム入力)
             embeds.push(
-              new EmbedBuilder().setTitle(title).setDescription(description).setColor(0x3498db)
+              buildPanelEmbed({
+                title,
+                description,
+                type: 'info',
+                client: interaction.client
+              })
             );
 
             // 送迎者向け
             embeds.push(
-              new EmbedBuilder()
-                .setTitle('🚗 送迎者向け')
-                .addFields(
+              buildPanelEmbed({
+                title: '🚗 送迎者向け',
+                fields: [
                   { name: '送迎者登録パネル', value: makeLink(config.panels?.driverRegister) },
                   { name: '送迎者パネル', value: makeLink(config.panels?.driverPanel) }
-                )
-                .setColor(0x2ecc71)
+                ],
+                type: 'info',
+                client: interaction.client
+              })
             );
 
             // 利用者向け
             embeds.push(
-              new EmbedBuilder()
-                .setTitle('👤 利用者向け')
-                .addFields(
+              buildPanelEmbed({
+                title: '👤 利用者向け',
+                fields: [
                   { name: '利用者登録パネル', value: makeLink(config.panels?.userRegister) },
                   { name: '利用者パネル', value: makeLink(config.panels?.userPanel) }
-                )
-                .setColor(0xf1c40f)
+                ],
+                type: 'warning',
+                client: interaction.client
+              })
             );
 
             // 送迎マッチング後
             embeds.push(
-              new EmbedBuilder()
-                .setTitle('🔐 送迎マッチング後')
-                .setDescription(
-                  `送迎がマッチングされると、指定されたカテゴリー内に\n送迎者と利用者専用のプライベートVCチャンネルが作成されます。\n\n` +
-                  `📁 カテゴリー：${config.categories?.privateVc ? `<#${config.categories.privateVc}>` : '**未設定**'}\n` +
+              buildPanelEmbed({
+                title: '🔐 送迎マッチング後',
+                description: [
+                  `送迎がマッチングされると、指定されたカテゴリー内に`,
+                  `送迎者と利用者専用のプライベートVCチャンネルが作成されます。`,
+                  '',
+                  `📁 カテゴリー：${config.categories?.privateVc ? `<#${config.categories.privateVc}>` : '**未設定**'}`,
                   `📘 使い方：${config.logs?.operatorChannel ? `<#${config.logs.operatorChannel}>` : '**未設定**'}`
-                )
-                .setColor(0x9b59b6)
+                ].join('\n'),
+                type: 'info',
+                client: interaction.client
+              })
             );
 
             return { embeds };

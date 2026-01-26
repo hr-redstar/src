@@ -12,11 +12,15 @@ module.exports = {
     return autoInteractionTemplate(interaction, {
       ack: ACK.REPLY, // エフェメラルでメニューを出す
       async run(interaction) {
-        const rideId = parsed?.params?.rid;
-        const userId = parsed?.params?.uid;
+        const rideId = parsed?.params?.r || parsed?.params?.rid;
+        const userId = parsed?.params?.u || parsed?.params?.uid;
+
+        // rideId が timestamp_userId_guildId 形式ならそこから抽出
+        const guildIdFromRideId = rideId?.split('_')?.[2];
+        const guildId = interaction.guildId || parsed?.params?.gid || guildIdFromRideId;
 
         const select = new StringSelectMenuBuilder()
-          .setCustomId(`carpool|reject_reason|rid=${rideId}&uid=${userId}`)
+          .setCustomId(`carpool|reject_reason|r=${rideId}&u=${userId}`)
           .setPlaceholder('却下理由を選択してください')
           .addOptions(
             new StringSelectMenuOptionBuilder()

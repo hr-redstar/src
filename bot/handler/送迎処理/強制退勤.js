@@ -24,6 +24,7 @@ module.exports = {
         return autoInteractionTemplate(interaction, {
             adminOnly: true,
             ack: ACK.REPLY_EPHEMERAL,
+            panelKey: 'rideListPanel',
             async run(interaction) {
                 const guildId = interaction.guildId;
 
@@ -100,6 +101,7 @@ module.exports = {
         return autoInteractionTemplate(interaction, {
             adminOnly: true,
             ack: ACK.UPDATE,
+            panelKey: 'rideListPanel',
             async run(interaction) {
                 const driverId = interaction.values[0];
 

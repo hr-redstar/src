@@ -30,6 +30,21 @@ async function updateDispatchProgress({ guild, rideId, status, updates = {} }) {
         if (dispatchData.vcId && dispatchData.vcMessageId) {
             const vc = await guild.channels.fetch(dispatchData.vcId).catch(() => null);
             if (vc && vc.isTextBased()) {
+                // 完了時にチャンネル名を更新 (終了時刻を反映)
+                const { RideStatus } = require('../../utils/constants');
+                if (status === RideStatus.COMPLETED || status === 'completed') {
+                    const date = dispatchData.date || '--/--';
+                    const start = dispatchData.matchTime || '--:--';
+                    const end = dispatchData.endTime || '--:--';
+                    const dp = dispatchData.driverPlace || '不明';
+                    const pu = dispatchData.pickup || '不明';
+                    const tg = dispatchData.target || dispatchData.direction || '不明';
+                    const newName = `${date} ${start}~${end} 【${dp}】→【${pu}】→【${tg}】`;
+                    await vc.setName(newName.substring(0, 100)).catch(err => {
+                        logger.warn(`VC名更新失敗: ${err.message}`);
+                    });
+                }
+
                 const message = await vc.messages.fetch(dispatchData.vcMessageId).catch(() => null);
                 if (message) {
                     const embed = buildDispatchEmbed(dispatchData);

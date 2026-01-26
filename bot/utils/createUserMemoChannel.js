@@ -76,28 +76,31 @@ module.exports.createUserMemoChannel = async ({
 
   // スレッド作成オプションEmbedを送信
   const {
-    EmbedBuilder,
     ActionRowBuilder,
     StringSelectMenuBuilder,
     StringSelectMenuOptionBuilder,
   } = require('discord.js');
+  const buildPanelEmbed = require('./embed/embedTemplate');
 
-  const threadEmbed = new EmbedBuilder()
-    .setTitle('📁 履歴メモの整理（スレッド化）について')
-    .setDescription(
-      'メモ履歴が増えた場合、\n' +
-      'このメモチャンネルを見やすく保つため\n' +
-      '履歴をスレッドにまとめることができます。\n\n' +
-      '**■ 選択可能な期間**\n' +
-      '・1週間\n' +
-      '・2週間\n' +
-      '・1か月\n' +
-      '・半年\n\n' +
-      '※ 選択がない場合、スレッドは作成されません\n' +
+  const threadEmbed = buildPanelEmbed({
+    title: '📁 履歴メモの整理（スレッド化）について',
+    description: [
+      'メモ履歴が増えた場合、',
+      'このメモチャンネルを見やすく保つため',
+      '履歴をスレッドにまとめることができます。',
+      '',
+      '**■ 選択可能な期間**',
+      '・1週間',
+      '・2週間',
+      '・1か月',
+      '・半年',
+      '',
+      '※ 選択がない場合、スレッドは作成されません',
       '※ この設定は再登録時に変更可能です'
-    )
-    .setColor(0x95a5a6)
-    .setFooter({ text: '設定は登録時の選択内容に基づいて自動処理されます' });
+    ].join('\n'),
+    type: 'info',
+    client: guild.client
+  });
 
   // Select Menu作成
   const selectMenu = new StringSelectMenuBuilder()

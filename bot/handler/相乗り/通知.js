@@ -1,5 +1,6 @@
-const { EmbedBuilder } = require('discord.js');
+const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 const { loadConfig } = require('../../utils/設定/設定マネージャ');
+const { RideStatus } = require('../../utils/constants');
 const store = require('../../utils/ストレージ/ストア共通');
 const {
   buildCarpoolAnnouncementEmbed,
@@ -62,7 +63,7 @@ async function postCarpoolNotice({
     currentUsers,
     carpoolUsers: [], // { userId, pickup, count }
     departureTime,
-    status: 'active',
+    status: RideStatus.MATCHED,
   };
   const paths = require('../../utils/ストレージ/ストレージパス');
   await store.writeJson(`${paths.carpoolDir(guild.id)}/${rideId}.json`, rideData);
@@ -71,23 +72,21 @@ async function postCarpoolNotice({
   await postOperatorLog({
     guild,
     embeds: [
-      new EmbedBuilder()
-        .setTitle('🚗 相乗り受付開始')
-        .setDescription(
-          [
-            `👤 送迎者：${driverUser}`,
-            '',
-            `🛣 ルート`,
-            `【${driverLocation}】→【${userLandmark}】→【${destination}】`,
-            '',
-            `🪑 残り人数：${capacity - currentUsers}`,
-            '',
-            `🔗 相乗り案内メッセージ`,
-            message.url,
-          ].join('\n')
-        )
-        .setFooter({ text: guild.client.user.username })
-        .setTimestamp(),
+      buildPanelEmbed({
+        title: '[管理] 相乗り受付開始',
+        description: [
+          `👤 送迎者: ${driverUser}`,
+          '',
+          `🛣 ルート:`,
+          `【${driverLocation}】→【${userLandmark}】→【${destination}】`,
+          '',
+          `🪑 残り空席: **${capacity - currentUsers}名**`,
+          '',
+          `🔗 [募集メッセージへ移動](${message.url})`
+        ].join('\n'),
+        type: 'info',
+        client: guild.client
+      })
     ],
   });
 

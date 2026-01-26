@@ -21,10 +21,27 @@ async function updateUserPanel(guild, client) {
   const queue = await getQueue(guild.id);
   const waitingCount = queue ? queue.length : 0;
 
-  // 送迎中（実車中）の送迎車数をカウント
+  // 送迎中（実車中）の送迎車数をカウント (厳格なフィルタリング v2.9.2)
   const activeDispatchDir = paths.activeDispatchDir(guild.id);
   const activeFiles = await store.listKeys(activeDispatchDir).catch(() => []);
-  const workingCount = activeFiles.filter((f) => f.endsWith('.json')).length;
+  const activeDispatches = await Promise.all(
+    activeFiles
+      .filter((f) => f.endsWith('.json'))
+      .map((f) => store.readJson(f).catch(() => null))
+  );
+
+  const { RideStatus } = require('../../utils/constants');
+  const validWorkingDispatches = activeDispatches.filter((d) => {
+    if (!d || !d.driverId) return false;
+    if (d.status === RideStatus.COMPLETED || d.status === 'completed' || d.status === 'COMPLETED') return false;
+    if (d.status === RideStatus.CANCELLED || d.status === 'cancelled' || d.status === 'CANCELLED') return false;
+    if (d.status === 'finished' || d.status === 'FINISHED' || d.status === 'ENDED' || d.status === 'FORCED') return false;
+    if (d.completedAt) return false;
+    return true;
+  });
+
+  const workingDriverIds = [...new Set(validWorkingDispatches.map((d) => d.driverId))];
+  const workingCount = workingDriverIds.length;
 
   const activeCount = waitingCount + workingCount;
 
@@ -57,11 +74,8 @@ async function execute(interaction, client, parsed) {
   const sub = parsed?.params?.sub;
 
   if (action === 'ride') {
-    if (sub === 'request') return require('./アクション/送迎依頼')(interaction, client, parsed);
-    if (sub === 'guest') return require('./アクション/ゲスト送迎依頼')(interaction, client, parsed);
-    if (sub === 'request_modal' || sub === 'guest_modal') {
-      return require('./アクション/送迎依頼モーダル')(interaction, client, parsed);
-    }
+    const dispatchFlow = require('../配車システム/配車依頼フロー');
+    return dispatchFlow.execute(interaction, client, parsed);
   }
   // 状態確認
   if (action === 'check') return statusCheckAction.execute(interaction, client, parsed);

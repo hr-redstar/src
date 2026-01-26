@@ -45,9 +45,12 @@ module.exports = {
    * モーダル送信時：保存
    */
   async handleModal(interaction, client, parsed) {
+    // For modal submissions, isModal is always true.
+    const isModal = true;
     return autoInteractionTemplate(interaction, {
       adminOnly: true,
-      ack: ACK.AUTO,
+      ack: isModal ? ACK.NONE : ACK.REPLY,
+      panelKey: 'ratingRank',
       async run(interaction) {
         const raw = interaction.fields.getTextInputValue('tiers');
         const tiers = raw

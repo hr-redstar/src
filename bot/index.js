@@ -1,3 +1,4 @@
+// index.js
 const path = require('path');
 const fs = require('fs');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
@@ -26,7 +27,7 @@ client.commands = new Collection();
 // Discord Client が ready になったらグローバル登録
 client.once(Events.ClientReady, () => {
   global.discordClient = client;
-  logger.debug('🌐 discordClient を global に登録しました');
+  // logger.debug('🌐 discordClient を global に登録しました');
 });
 
 /**
@@ -56,7 +57,7 @@ async function loadCommands() {
       }
       client.commands.set(cmd.data.name, cmd);
     }
-    logger.info(`📦 Commands loaded: ${client.commands.size}`);
+    // logger.info(`📦 Commands loaded: ${client.commands.size}`);
   } catch (err) {
     logger.error('コマンド読み込みエラー', err);
   }
@@ -89,7 +90,7 @@ async function loadEvents() {
       if (evt.once) client.once(evt.name, (...args) => evt.execute(...args, client));
       else client.on(evt.name, (...args) => evt.execute(...args, client));
     }
-    logger.info(`🧩 Events loaded: ${jsFiles.length}`);
+    // logger.info(`🧩 Events loaded: ${jsFiles.length}`);
   } catch (err) {
     logger.error('イベント読み込みエラー', err);
   }

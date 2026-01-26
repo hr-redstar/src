@@ -1,5 +1,5 @@
-﻿const {
-  EmbedBuilder,
+﻿const buildPanelEmbed = require('../../../utils/embed/embedTemplate');
+const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
@@ -18,6 +18,7 @@ module.exports = {
   async execute(interaction, client, parsed) {
     return autoInteractionTemplate(interaction, {
       ack: ACK.REPLY, // Ephemeral status check should be a reply
+      panelKey: 'userCheckPanel',
       async run(interaction) {
         const guildId = interaction.guildId;
         const userId = interaction.user.id;
@@ -37,10 +38,11 @@ module.exports = {
         const isUserRegistered = userProfile && userProfile.name;
         const isDriverRegistered = driverProfile && driverProfile.nickname;
 
-        const embed = new EmbedBuilder()
-          .setTitle('🔍 登録状態確認')
-          .setColor(0x3498db)
-          .setTimestamp();
+        const embed = buildPanelEmbed({
+          title: '🔍 登録状態確認',
+          type: 'info',
+          client: interaction.client
+        });
 
         const components = [];
 

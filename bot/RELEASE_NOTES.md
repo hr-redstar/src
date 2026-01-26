@@ -12,6 +12,10 @@ Discord 上で送迎・配車管理を自動化する Bot です。
 
 | Version | Date | 主な更新内容 | 開発フェーズ |
 | :---: | :--- | :--- | :--- |
+| **v3.0.0** | 2026-01-26 | **Autonomous Ecosystem Release** <br>・**Auto-Setup Panel**: サーバー構築・カテゴリー作成・パネル自動配置の1クリック化。<br>・**Self-Healing UI**: 全ボタンにID同期プロトコルを適用。UIの削除・移動を自動修復。<br>・**Atomic Storage**: `queue.json` 排他制御による重複配車の物理的排除。 | Stable |
+| **v2.9.5** | 2026-01-26 | **Lifecycle & Fiscal Safeguards** <br>・**Retention Agent**: 期限切れVCの自動削除、ログの自動圧縮アーカイブ。<br>・**Fiscal Guard**: 残高不足アラートの安定化とクレジット履歴(Audit Trail)の実装。 | Maintenance |
+| **v2.9.4** | 2026-01-26 | **Resilience & Matching Intelligence** <br>・**Ride Queue**: ドライバー不在時の「空き待ち」リクエスト管理。<br>・**Handover Protocol**: ドライバー無反応時の自動再マッチング回路。 | Maintenance |
+| **v2.9.2** | 2026-01-26 | **Infrastructure Hardening** <br>・**Compact ID**: 100文字制限の完全回避。pendingRequests方式への移行。<br>・**Monthly Reports**: 詳細な売上・稼働状況のCSVエクスポート。 | Maintenance |
 | **v2.3.0** | 2026-01-21 | **Optimization & Maintenance** <br>・未使用レガシーファイルの完全削除。<br>・起動時設定整合性チェック（Config Integrity Guard）の導入。<br>・詳細なリリースノートの整備。 | Maintenance |
 | **v2.2.0** | 2026-01-21 | **Core Stability Audit: Final Integration** <br>・`状態確認.js` のクラッシュ不具合修正。<br>・レガシーな `interactionTemplate` の完全排除。 | Maintenance |
 | **v2.1.1** | 2026-01-20 | **Panel Setup Audit & Standardization** <br>・パネル設置アクションのインポート漏れ（`MessageFlags`等）を一斉修正。<br>・`CUSTOM_ID` 定数化による不整合防止。 | Maintenance |

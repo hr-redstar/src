@@ -1,3 +1,4 @@
+// utils/ログ/管理者ログ.js
 const buildPanelEmbed = require('../embed/embedTemplate');
 const store = require('../ストレージ/ストア共通');
 const paths = require('../ストレージ/ストレージパス');
@@ -14,9 +15,8 @@ async function postAdminActionLog({ guild, user, title, description }) {
   const configPath = paths.configJson(guild.id);
   const config = await store.readJson(configPath, {});
 
-  // 管理者ログのベースとなるチャンネル
-  const targetChannelId =
-    config.logs?.adminLogThread || config.logs?.operatorChannel || config.panels?.admin?.channelId;
+  // 管理者ログのスレッド（v2.9.3: スレッドがない場合は送信しないポリシー）
+  const targetChannelId = config.logs?.adminLogThread;
   if (!targetChannelId) return;
 
   const baseChannel =

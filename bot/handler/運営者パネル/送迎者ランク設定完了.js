@@ -1,4 +1,4 @@
-const { EmbedBuilder, Colors } = require('discord.js');
+const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 const store = require('../../utils/ストレージ/ストア共通');
@@ -37,15 +37,16 @@ module.exports = {
                 // 保存
                 await store.writeJson(userPath, userData);
 
-                const embed = new EmbedBuilder()
-                    .setTitle('✅ 送迎者ランク設定完了')
-                    .setDescription(`<@${targetUserId}> のランクを更新しました。`)
-                    .addFields(
+                const embed = buildPanelEmbed({
+                    title: '[管理] 送迎者ランク設定完了',
+                    description: `<@${targetUserId}> のランクを更新しました。`,
+                    fields: [
                         { name: '変更前', value: oldRank, inline: true },
                         { name: '変更後', value: newRank, inline: true }
-                    )
-                    .setColor(Colors.Green)
-                    .setTimestamp();
+                    ],
+                    type: 'success',
+                    client
+                });
 
                 await interaction.editReply({
                     embeds: [embed],

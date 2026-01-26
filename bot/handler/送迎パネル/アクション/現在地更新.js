@@ -12,6 +12,7 @@ module.exports = async function (interaction, client, parsed, onUpdate) {
 
   return autoInteractionTemplate(interaction, {
     ack: isModal ? ACK.REPLY : ACK.NONE,
+    panelKey: 'driverPanel',
     async run(interaction) {
       if (isModal) {
         // --- モーダル送信時 (Modal Submit) ---
@@ -27,13 +28,9 @@ module.exports = async function (interaction, client, parsed, onUpdate) {
           await store.writeJson(profilePath, profileData);
         }
 
-        // 待機中データも更新（もしあれば）
-        const waitPath = `${paths.waitingDriversDir(guildId)}/${userId}.json`;
-        const waitData = await store.readJson(waitPath).catch(() => null);
-        if (waitData) {
-          waitData.stopPlace = location;
-          await store.writeJson(waitPath, waitData);
-        }
+        // 待機中データも更新（もしあれば） (Atomic v2.9.3)
+        const { updateQueueItem } = require('../../../utils/配車/待機列マネージャ');
+        await updateQueueItem(guildId, userId, { stopPlace: location });
 
         if (onUpdate) {
           await onUpdate();
@@ -48,6 +45,31 @@ module.exports = async function (interaction, client, parsed, onUpdate) {
         });
       } else {
         // --- ボタン押下時 (Show Modal) ---
+        const guildId = interaction.guildId;
+        const userId = interaction.user.id;
+
+        // 0. 送迎者登録チェック (v2.9.2)
+        const { loadDriverFull } = require('../../../utils/driversStore');
+        const fullDriver = await loadDriverFull(guildId, userId).catch(() => null);
+
+        if (!fullDriver || (!fullDriver.current && !fullDriver.car)) {
+          return interaction.reply({
+            content: '⚠️ 送迎者登録が見つかりません。先に「送迎者登録」を行い、その後「出勤」してください。',
+            flags: 64,
+          });
+        }
+
+        // 待機中チェック: 待機中の送迎者のみ許可
+        const waitPath = `${paths.waitingDriversDir(guildId)}/${userId}.json`;
+        const isWaiting = (await store.readJson(waitPath).catch(() => null)) !== null;
+
+        if (!isWaiting) {
+          return interaction.reply({
+            content: '⚠️ 現在地更新は待機中の送迎者のみ実行できます。\n先に「出勤」ボタンから出勤してください。',
+            flags: 64
+          });
+        }
+
         const modal = new ModalBuilder()
           .setCustomId('driver|location|sub=modal')
           .setTitle('現在地の更新');

@@ -1,4 +1,5 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+// handler/送迎処理/VCコントロール/送迎終了.js
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const store = require('../../../utils/ストレージ/ストア共通');
 const paths = require('../../../utils/ストレージ/ストレージパス');
 const { loadConfig } = require('../../../utils/設定/設定マネージャ');
@@ -95,7 +96,8 @@ module.exports = {
       }
 
       // 3. ステータスガード (二重終了防止)
-      if (dispatchData.status === 'finished' || dispatchData.status === 'completed') {
+      const { RideStatus } = require('../../../utils/constants');
+      if (dispatchData.status === RideStatus.COMPLETED || dispatchData.status === 'finished' || dispatchData.status === 'completed') {
         return interaction.followUp({
           content: '⚠️ この送迎は既に終了しています。',
           flags: 64
@@ -125,39 +127,139 @@ module.exports = {
       userData.lastRideAt = now.toISOString();
       await store.writeJson(userPath, userData);
 
+      // 取引履歴の記録 (メイン利用者)
+      const { logCreditTransaction } = require('../../../utils/creditHistoryStore');
+      await logCreditTransaction(guildId, userId, {
+        amount: -usageFee,
+        type: 'ride_fee',
+        reason: `送迎利用料 (ID: ${rideId.substring(0, 8)})`,
+        balance: userData.credits
+      }).catch(() => null);
+
       // --- ステータス更新 & ログ記録 ---
-      // updatedData には精算情報を付与して保存
+      const totalPassengers = 1 + (dispatchData.carpoolUsers?.length || 0);
+      const totalRevenue = usageFee * totalPassengers;
+
+      // updatedData には精算情報を付与して保存 (メイン利用者分)
       const updatedData = await updateDispatchProgress({
         guild,
         rideId,
-        status: 'COMPLETED',
+        status: RideStatus.COMPLETED,
         updates: {
           endTime: timeStr,
           completedAt: now.toISOString(),
-          fee: usageFee,
+          fee: usageFee, // メイン利用者単体の料金
+          totalRevenue: totalRevenue, // 案件全体の売上
           settledCredit: newCredit,
           target: destinationInput // 目的地を更新
         }
       });
 
-      // --- DM送信 (利用者・送迎者) ---
+      // --- DM用共通Embedビルダー (v2.9.5) ---
       const buildPanelEmbed = require('../../../utils/embed/embedTemplate');
+      const createFinishDmEmbed = (title, fee, balance) => buildPanelEmbed({
+        title,
+        description: [
+          `今回の利用料: **￥${fee.toLocaleString()}**`,
+          `現在の残高: **￥${balance.toLocaleString()}**`,
+          '',
+          'ご利用ありがとうございました。',
+          'またのご利用をお待ちしております。'
+        ].join('\n'),
+        color: 0x2ecc71,
+        client: client
+      });
+
+      // --- 相乗り利用者の精算処理 ---
+      if (dispatchData.carpoolUsers && dispatchData.carpoolUsers.length > 0) {
+        for (const cpUser of dispatchData.carpoolUsers) {
+          try {
+            const cpUserId = cpUser.userId;
+            const cpUserPath = paths.userProfileJson(guildId, cpUserId);
+            const cpUserData = await store.readJson(cpUserPath, { userId: cpUserId }).catch(() => ({ userId: cpUserId }));
+
+            const oldCpCredit = cpUserData.credits || 0;
+            const newCpCredit = oldCpCredit - usageFee;
+
+            cpUserData.credits = newCpCredit;
+            cpUserData.lastUsageFee = usageFee;
+            cpUserData.lastRideAt = now.toISOString();
+            await store.writeJson(cpUserPath, cpUserData);
+
+            // 取引履歴の記録 (相乗り利用者)
+            await logCreditTransaction(guildId, cpUserId, {
+              amount: -usageFee,
+              type: 'carpool_fee',
+              reason: `相乗り利用料 (ID: ${rideId.substring(0, 8)})`,
+              balance: cpUserData.credits
+            }).catch(() => null);
+
+            // 相乗り者へのDM通知
+            const cpMember = await guild.members.fetch(cpUserId).catch(() => null);
+            if (cpMember) {
+              const cpDmEmbed = createFinishDmEmbed('✅ 相乗り完了・精算報告', usageFee, newCpCredit);
+              await cpMember.send({ embeds: [cpDmEmbed] }).catch(() => null);
+
+              // 残高不足アラート通知 (v2.9.2)
+              if (newCpCredit < 500) {
+                const alertEmbed = buildPanelEmbed({
+                  title: '⚠️ クレジット残高不足の警告',
+                  description: `現在の残高が **￥${newCpCredit.toLocaleString()}** となっています。\n残高が不足すると次回の配車依頼ができなくなりますので、早めのチャージをお願いいたします。`,
+                  color: 0xe67e22,
+                  client: client
+                });
+                await cpMember.send({ embeds: [alertEmbed] }).catch(() => null);
+              }
+            }
+          } catch (cpErr) {
+            console.error(`相乗り者(${cpUser.userId})の精算エラー:`, cpErr);
+          }
+        }
+      }
+
+      // --- 全体送迎履歴 (Global History) への記録 ---
+      try {
+        const { globalRideHistoryJson } = paths;
+        const y = now.getFullYear();
+        const m = now.getMonth() + 1;
+        const d = now.getDate();
+        const historyPath = globalRideHistoryJson(guildId, y, m, d);
+
+        const historyList = await store.readJson(historyPath, {}).catch(() => ({}));
+        historyList[rideId] = {
+          rideId,
+          userId,
+          driverId: dispatchData.driverId,
+          ...updatedData,
+          carpoolUsers: dispatchData.carpoolUsers || [],
+          totalRevenue: totalRevenue,
+          completedAt: now.toISOString(),
+          timestamp: dispatchData.startedAt || now.toISOString(), // 開始時刻ベースでの日付管理
+        };
+        await store.writeJson(historyPath, historyList);
+      } catch (e) {
+        console.error('全体履歴保存エラー:', e);
+      }
+
+      // --- DM送信 (利用者・送迎者) ---
       const driverId = dispatchData.driverId;
 
       try {
         const userMember = await guild.members.fetch(userId).catch(() => null);
         if (userMember) {
-          const userDmEmbed = buildPanelEmbed({
-            title: '🏁 送迎が完了しました',
-            description: 'ご利用ありがとうございました。利用料の精算が完了しました。\n\n**※ 次回ご利用時に合算・精算されます**',
-            color: 0x2ecc71,
-            client: client,
-            fields: [
-              { name: '利用料', value: `￥${usageFee.toLocaleString()}`, inline: true },
-              { name: '現在のクレジット残高', value: `￥${newCredit.toLocaleString()}`, inline: true }
-            ]
-          });
+          const userDmEmbed = createFinishDmEmbed('✅ 送迎完了・精算報告', usageFee, newCredit);
           await userMember.send({ embeds: [userDmEmbed] }).catch(() => null);
+
+          // 残高不足アラート通知 (v2.9.2)
+          if (newCredit < 500) {
+            const alertEmbed = buildPanelEmbed({
+              title: '⚠️ クレジット残高不足の警告',
+              description: `現在の残高が **￥${newCredit.toLocaleString()}** となっています。\n残高が不足すると次回の配車依頼ができなくなりますので、早めのチャージをお願いいたします。`,
+              color: 0xe67e22,
+              client: client
+            });
+            await userMember.send({ embeds: [alertEmbed] }).catch(() => null);
+          }
         }
       } catch (e) { console.error('DM送信失敗(User)', e); }
 
@@ -190,7 +292,7 @@ module.exports = {
             components: [
               new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
-                  .setCustomId('driver|return_queue') // v2.9.2 新フロー
+                  .setCustomId(`driver|return_queue|gid=${guildId}`) // v2.9.2 新フロー (ギルドID込)
                   .setLabel('待機列に戻る')
                   .setStyle(ButtonStyle.Success)
               )
@@ -200,27 +302,14 @@ module.exports = {
       } catch (e) { console.error('DM送信失敗(Driver)', e); }
 
       // --- 後処理 (表示更新) ---
-      const newComponents = interaction.message.components.map(row => {
-        const newRow = ActionRowBuilder.from(row);
-        newRow.components.forEach(c => {
-          c.setDisabled(true);
-          if (c.customId === interaction.customId) {
-            c.setLabel('送迎完了').setStyle(ButtonStyle.Secondary);
-          }
-        });
-        return newRow;
-      });
-
-      await interaction.editReply({ components: newComponents });
-
-      // 公開用 終了サマリー送信 (v2.9.2)
+      // v2.9.2: 1つのメッセージ（既存のEmbed更新）で完結させる
       const { buildRideEmbed } = require('../../../utils/ログ/buildRideEmbed');
       const finalEmbed = buildRideEmbed({ status: 'COMPLETED', data: updatedData.data || updatedData });
 
-      await interaction.channel.send({
+      await interaction.editReply({
         content: [
           '送迎が終了しました。',
-          '※１週間で削除されます。',
+          '※１週間でこのプライベートVCは削除されます。',
           '落とし物等の連絡で期間延長をしたい場合は、『期間延長』を押して下さい。'
         ].join('\n'),
         embeds: [finalEmbed],
@@ -241,11 +330,25 @@ module.exports = {
         expiresAt: new Date(now.getTime() + DAY * 7).toISOString(),
       });
 
-      // 送迎回数カウントアップ
-      const driverData = await loadDriver(guildId, driverId);
+      // 送迎回数カウントアップ & 最終降車地点保存 & 報酬記録
+      const driverProfilePath = paths.driverProfileJson(guildId, driverId);
+      const driverData = await store.readJson(driverProfilePath).catch(() => null);
       if (driverData) {
-        driverData.rideCount = (driverData.rideCount || 0) + 1;
-        await store.writeJson(paths.driverProfileJson(guildId, driverId), driverData);
+        // Double-nested current structure support
+        const d = driverData.current || driverData;
+        d.rideCount = (d.rideCount || 0) + 1;
+        d.totalEarnings = (d.totalEarnings || 0) + totalRevenue;
+        d.lastDropOffLocation = destinationInput;
+
+        await store.writeJson(driverProfilePath, driverData);
+      }
+
+      // 統計情報の更新 (Revenue)
+      const { incrementStat } = require('../../../utils/ストレージ/統計ストア');
+      await incrementStat(guildId, 'revenue', totalRevenue).catch(() => null);
+      await incrementStat(guildId, 'rides', 1).catch(() => null);
+      if (totalPassengers > 1) {
+        await incrementStat(guildId, 'carpool_rides', 1).catch(() => null);
       }
 
       // ファイル削除はすぐには行わない（ログ用に残す、あるいは定期クリーンアップに任せる）

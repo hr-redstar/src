@@ -1,9 +1,8 @@
 const {
     StringSelectMenuBuilder,
     ActionRowBuilder,
-    EmbedBuilder,
-    Colors,
 } = require('discord.js');
+const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 const { loadConfig } = require('../../utils/設定/設定マネージャ');
@@ -15,14 +14,14 @@ const paths = require('../../utils/ストレージ/ストレージパス');
  */
 module.exports = {
     customId: 'op|rank|sub=user_select',
-    type: 'userSelect',
+    type: 'stringSelect',
     async execute(interaction, client, parsed) {
         return autoInteractionTemplate(interaction, {
             ack: ACK.AUTO, // コンポーネント更新するので AUTO (REPLY でも可だが)
             adminOnly: true,
             async run(interaction) {
                 const targetUserId = interaction.values[0];
-                const targetUser = interaction.users.get(targetUserId);
+                const targetUser = await client.users.fetch(targetUserId).catch(() => null);
                 const userName = targetUser ? targetUser.username : targetUserId;
                 const guildId = interaction.guildId;
 
@@ -43,10 +42,12 @@ module.exports = {
                 const userData = await store.readJson(userPath, {}).catch(() => ({}));
                 const currentRank = userData.driverRank || '未設定';
 
-                const embed = new EmbedBuilder()
-                    .setTitle(`${userName} のランク設定`)
-                    .setDescription(`現在のランク: **${currentRank}**\n\n設定するランクを選択してください。`)
-                    .setColor(Colors.Blue);
+                const embed = buildPanelEmbed({
+                    title: `[管理] ${userName} のランク設定`,
+                    description: `現在のランク: **${currentRank}**\n\n設定するランクを選択してください。`,
+                    type: 'info',
+                    client
+                });
 
                 const options = availableRanks.map((rank) => ({
                     label: rank,

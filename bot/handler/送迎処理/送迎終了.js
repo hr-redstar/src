@@ -7,6 +7,7 @@ const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 const { loadVcState, updateVcState } = require('../../utils/vcStateStore');
 const { ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { RideStatus } = require('../../utils/constants');
 
 module.exports = async function (interaction, targetId) {
   return autoInteractionTemplate(interaction, {
@@ -25,7 +26,7 @@ module.exports = async function (interaction, targetId) {
         const jsonFiles = files.filter((f) => f.endsWith('.json'));
         for (const fileKey of jsonFiles) {
           const rideData = await store.readJson(fileKey).catch(() => null);
-          if (rideData && rideData.driverId === driverId && rideData.status === 'active') {
+          if (rideData && rideData.driverId === driverId && rideData.status === RideStatus.MATCHED) {
             // 新しい共通締切ロジックを適用 (v2.8.1)
             await stopCarpoolRecruitment(interaction.guild, rideData).catch(() => null);
 
@@ -89,7 +90,7 @@ module.exports = async function (interaction, targetId) {
             await updateRideOperatorLog({
               guild: interaction.guild,
               rideId: rideData.rideId || rideData.dispatchId,
-              status: 'ENDED',
+              status: RideStatus.COMPLETED,
               data: {
                 driverId: driverId,
                 userId: targetId,

@@ -140,8 +140,15 @@ async function sendPanelToCurrentChannel(interaction, messagePayload) {
   return true;
 }
 
-function buildInfoEmbed(title, description) {
-  return new EmbedBuilder().setTitle(title).setDescription(description);
+const buildPanelEmbed = require('../../../utils/embed/embedTemplate');
+
+function buildInfoEmbed(interaction, title, description) {
+  return buildPanelEmbed({
+    title,
+    description,
+    type: 'info',
+    client: interaction.client
+  });
 }
 
 module.exports = {

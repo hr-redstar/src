@@ -13,7 +13,7 @@ const { loadUserFull } = require('./usersStore');
  * @param {import('discord.js').Client} client
  */
 async function batchUpdateRegistrationMessages(client) {
-  logger.info('🔄 [一括更新] 登録情報メッセージの更新バッチを開始します...');
+  // logger.info('🔄 [一括更新] 登録情報メッセージの更新バッチを開始します...');
 
   for (const guild of client.guilds.cache.values()) {
     try {
@@ -42,7 +42,7 @@ async function batchUpdateRegistrationMessages(client) {
     }
   }
 
-  logger.info('✅ [一括更新] 登録情報メッセージの更新バッチが完了しました。');
+  // logger.info('✅ [一括更新] 登録情報メッセージの更新バッチが完了しました。');
 }
 
 /**

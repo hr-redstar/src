@@ -72,10 +72,7 @@ async function postOldHistoryToThread(channel, history, role) {
  * 履歴用Embedの生成
  */
 function buildHistoryEmbed(item, role, rangeText) {
-  const embed = new EmbedBuilder()
-    .setTitle('🕒 過去の登録情報')
-    .setColor(0x95a5a6) // Gray
-    .setTimestamp(new Date(item.changedAt)); // 変更日時をタイムスタンプに
+  const buildPanelEmbed = require('./embed/embedTemplate');
 
   let info = '';
   if (role === 'driver') {
@@ -93,8 +90,12 @@ function buildHistoryEmbed(item, role, rangeText) {
 
   info += `\n\n${rangeText}`;
 
-  embed.setDescription(info);
-  return embed;
+  return buildPanelEmbed({
+    title: '🕒 過去の登録情報',
+    description: info,
+    type: 'info',
+    // client is not easily available here, buildPanelEmbed will fallback to "Bot"
+  });
 }
 
 function formatDate(isoString) {

@@ -1,4 +1,5 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 
 /**
  * 送迎者へ相乗り希望のDMを送信する
@@ -11,22 +12,21 @@ async function sendDriverCarpoolRequestDM({
   route,
   rideId,
 }) {
-  const embed = new EmbedBuilder()
-    .setTitle('🚗 相乗り希望が届きました')
-    .setColor(0x0099ff)
-    .setDescription(
-      [
-        `👤 希望者：${requester}`,
-        `📍 相乗り希望位置：${pickup}`,
-        `👥 乗車人数：${passengerCount}人`,
-        '',
-        `🛣 現在のルート`,
-        route,
-        '',
-        '上記の内容で相乗りを承認しますか？',
-      ].join('\n')
-    )
-    .setTimestamp();
+  const embed = buildPanelEmbed({
+    title: '相乗り希望が届きました',
+    description: [
+      `👤 希望者：${requester}`,
+      `📍 相乗り希望位置：${pickup}`,
+      `👥 乗車人数：${passengerCount}人`,
+      '',
+      `🛣 現在のルート`,
+      route,
+      '',
+      '上記の内容で相乗りを承認しますか？',
+    ].join('\n'),
+    type: 'info',
+    client: client
+  });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()

@@ -37,10 +37,27 @@ async function autoInteractionTemplate(interaction, options) {
       });
     }
 
-    // ===== 2. 管理者権限 / 運営者権限 =====
+    // ===== 2. 管理者権限 / 運営者権限 / 自己修復 (v2.9.6) =====
+    const { loadConfig, saveConfig } = require('../../utils/設定/設定マネージャ');
+    const cfg = await loadConfig(interaction.guildId).catch(() => ({}));
+
+    // 自己修復 (Self-Healing ID Sync)
+    // ⚠️ セレクトメニュー（Ephemeral）の場合は同期しない
+    if (options.panelKey && interaction.isButton() && interaction.message) {
+      const isEphemeral = interaction.message.flags?.has(MessageFlags.Ephemeral);
+      if (!isEphemeral) {
+        cfg.panels ??= {};
+        cfg.panels[options.panelKey] ??= {};
+        if (cfg.panels[options.panelKey].messageId !== interaction.message.id) {
+          cfg.panels[options.panelKey].channelId = interaction.channelId;
+          cfg.panels[options.panelKey].messageId = interaction.message.id;
+          await saveConfig(interaction.guildId, cfg);
+          logger.info(`[Self-Healing] Updated panel ID for ${options.panelKey}: ${interaction.message.id}`);
+        }
+      }
+    }
+
     if (adminOnly) {
-      const { loadConfig } = require('../../utils/設定/設定マネージャ');
-      const cfg = await loadConfig(interaction.guildId).catch(() => ({}));
       const operatorRoleId = cfg.operatorRoleId;
 
       const isSytemAdmin = interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);

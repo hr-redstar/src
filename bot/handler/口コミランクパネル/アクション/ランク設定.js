@@ -19,6 +19,7 @@ module.exports = {
     return autoInteractionTemplate(interaction, {
       adminOnly: true,
       ack: ACK.REPLY,
+      panelKey: 'ratingRank',
       async run(interaction) {
         const row = new ActionRowBuilder().addComponents(
           new UserSelectMenuBuilder()
@@ -134,14 +135,12 @@ module.exports = {
           });
 
           if (memoChannel) {
-            const notifEmbed = new EmbedBuilder()
-              .setTitle('👑 ランク更新のお知らせ')
-              .setDescription(`管理者により、あなたのランクが更新されました。`)
-              .addFields(
-                { name: '新ランク', value: `**${tierName === 'None' ? 'なし' : tierName}**` }
-              )
-              .setColor(0xffd700) // Gold
-              .setTimestamp();
+            const notifEmbed = buildPanelEmbed({
+              title: '👑 ランク更新のお知らせ',
+              description: `管理者により、あなたのランクが更新されました。\n\n**新ランク:** **${tierName === 'None' ? 'なし' : tierName}**`,
+              type: 'info',
+              client: interaction.client
+            });
 
             await memoChannel.send({ embeds: [notifEmbed] });
           }

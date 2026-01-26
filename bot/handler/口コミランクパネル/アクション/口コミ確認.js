@@ -29,6 +29,7 @@ module.exports = {
     return autoInteractionTemplate(interaction, {
       adminOnly: true,
       ack: ACK.REPLY,
+      panelKey: 'ratingRank',
       async run(interaction) {
         const row = new ActionRowBuilder().addComponents(
           new UserSelectMenuBuilder()

@@ -1,4 +1,5 @@
-const { EmbedBuilder } = require('discord.js');
+// utils/ログ/差分ログ.js
+const buildPanelEmbed = require('../embed/embedTemplate');
 const { postAdminActionLog } = require('./管理者ログ');
 
 /**

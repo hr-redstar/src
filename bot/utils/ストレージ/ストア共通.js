@@ -137,6 +137,9 @@ async function updateJson(key, defaultValue, updaterFn) {
       // 3. 世代番号を指定して書き込み (楽観的ロック)
       await backend.writeJson(key, next, { ifGenerationMatch: meta.generation });
 
+      // 4. 書き込み成功後にキャッシュを無効化（最新値を次回ロードさせる）
+      invalidateCache(key);
+
       return next;
     } catch (error) {
       // GCS の 412 Precondition Failed は競合を意味する

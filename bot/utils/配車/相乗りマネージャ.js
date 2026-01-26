@@ -10,7 +10,7 @@ const { formatDateShort } = require('../共通/日付フォーマット');
  */
 async function getDriverCapacity(guildId, driverId) {
   // 待機中データに capacity があるはずだが、working になると消えている場合があるため
-  // ActiveDispatch または ПользовательProfile から取得
+  // ActiveDispatch または 利用者プロフィール から取得
   const { loadUser } = require('../usersStore');
   const user = await loadUser(guildId, driverId);
   return user?.capacity ? parseInt(user.capacity) : 4; // デフォルト4
@@ -80,15 +80,33 @@ async function postCarpoolRecruitment(guild, rideData, client) {
     `現在　${joinedCount}名`
   ].join('\n');
 
+  // 方面詳細の取得
+  let directionDetail = '';
+  try {
+    const dirListPath = paths.directionsListJson(guild.id);
+    const directionsList = await store.readJson(dirListPath, []).catch(() => []);
+    if (to !== '不明') {
+      const targetDir = directionsList.find(d => d.name.includes(to) || to.includes(d.name));
+      if (targetDir && targetDir.description) {
+        directionDetail = `\n※ **${to}**\n${targetDir.description}`;
+      }
+    }
+  } catch (e) {
+    // 読み込みエラー時は詳細表示なし
+  }
+
+  const pickup = rideData.pickup || '利用者所在地';
+
   // 埋め込み作成 (v2.9.2 Professional Layout)
   const buildPanelEmbed = require('../embed/embedTemplate');
   const embed = buildPanelEmbed({
-    title: '🚗 相乗りメンバー募集中',
+    title: `🚗 相乗りメンバー募集中　(${joinedCount}/${maxCapacity}人)`,
     description: [
       `**募集人数**: 最大 ${maxCapacity}名まで`,
       `**現在**: ${joinedCount}名が参加中`,
       '',
-      `【${from}】 ➔ 【${to}】`,
+      `【${from}】 ➔ 【${pickup}】 → 【${to}】`,
+      directionDetail
     ].join('\n'),
     fields: [
       { name: '🕒 出発予定時刻', value: `\`${timeStr}\` (送迎者現在地基準)`, inline: false },

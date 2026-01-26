@@ -62,7 +62,7 @@ async function findUserMemoChannel({ guild, userId, categoryId, role = 'driver' 
     const { buildUserMemoTopic } = require('./buildUserMemoTopic');
     const newTopic = buildUserMemoTopic(userId);
     if (channel.topic !== newTopic) {
-      await channel.setTopic(newTopic).catch(() => {});
+      await channel.setTopic(newTopic).catch(() => { });
     }
 
     return channel;
@@ -93,7 +93,7 @@ async function findUserMemoChannel({ guild, userId, categoryId, role = 'driver' 
   const { buildUserMemoTopic } = require('./buildUserMemoTopic');
   const newTopic = buildUserMemoTopic(userId);
   if (primaryChannel.topic !== newTopic) {
-    await primaryChannel.setTopic(newTopic).catch(() => {});
+    await primaryChannel.setTopic(newTopic).catch(() => { });
   }
 
   return primaryChannel;
@@ -143,54 +143,52 @@ async function notifyDuplicateChannels({
   const user = await guild.members.fetch(userId).catch(() => null);
   if (!user) return;
 
-  const roleLabel = role === 'driver' ? '送迎者' : '利用者';
-  const archivedList = foundChannels
-    .filter((ch) => ch.id !== primaryChannel.id)
-    .map((ch) => ch.name)
-    .join(', ');
-
-  const embed = new EmbedBuilder()
-    .setTitle('🔁 再登録検出ログ')
-    .setDescription('ℹ️ 再登録は常に許可されています。これは情報ログです。')
-    .addFields(
-      { name: 'ユーザー', value: `${user.user.tag} (${userId})` },
-      { name: '登録区分', value: roleLabel }
-    )
-    .setTimestamp()
-    .setColor(0x3498db); // 情報カラー（青）
+  const buildPanelEmbed = require('./embed/embedTemplate');
+  const fields = [
+    { name: 'ユーザー', value: `${user.user.tag} (${userId})` },
+    { name: '登録区分', value: roleLabel }
+  ];
 
   // 変更項目がある場合は表示
   if (changedFields && changedFields.length > 0) {
-    embed.addFields({
+    fields.push({
       name: '変更項目',
       value: changedFields.join(', '),
       inline: true,
     });
   } else {
-    embed.addFields({
+    fields.push({
       name: '変更可能性',
       value: '車種／区域／入力修正 等',
       inline: true,
     });
   }
 
-  embed.addFields({
+  fields.push({
     name: '詳細確認',
     value: `メモチャンネル <#${primaryChannel.id}> を参照`,
     inline: true,
   });
 
   if (foundChannels.length > 1) {
-    embed.addFields({
+    fields.push({
       name: '検出メモ数',
       value: String(foundChannels.length),
       inline: true,
     });
 
     if (archivedList) {
-      embed.addFields({ name: '整理対象', value: archivedList });
+      fields.push({ name: '整理対象', value: archivedList });
     }
   }
+
+  const embed = buildPanelEmbed({
+    title: '🔁 再登録検出ログ',
+    description: 'ℹ️ 再登録は常に許可されています。これは情報ログです。',
+    fields,
+    type: 'info',
+    client: guild.client
+  });
 
   await postOperatorLog({
     guild,

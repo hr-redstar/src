@@ -66,10 +66,11 @@ module.exports = {
       }
 
       const { updateRideOperatorLog } = require('../../../utils/ログ/rideLogManager');
+      const { RideStatus } = require('../../../utils/constants');
       await updateRideOperatorLog({
         guild: interaction.guild,
         rideId: rideId,
-        status: 'CANCELLED',
+        status: RideStatus.CANCELLED,
         data: {
           driverId: dispatchData.driverId,
           userId: dispatchData.userId,

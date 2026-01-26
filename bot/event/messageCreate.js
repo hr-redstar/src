@@ -51,35 +51,37 @@ module.exports = {
     }
 
     // 転送処理
+    const buildPanelEmbed = require('../utils/embed/embedTemplate');
     for (const targetCh of targets) {
       // Embed生成（テキスト用）
       if (message.content || (images.length === 0 && files.length > 0)) {
-        const embed = new EmbedBuilder()
-          .setAuthor({
-            name: message.author.tag,
-            iconURL: message.author.displayAvatarURL(),
-          })
-          .setDescription(message.content || (files.length ? '（添付ファイル）' : '内容なし'))
-          .setFooter({
-            text: `${message.channel.name} ｜ ${new Date().toLocaleString('ja-JP')}`,
-          })
-          .setColor(0x3498db) // ログ用カラー
-          .setTimestamp();
+        const embed = buildPanelEmbed({
+          title: message.author.tag,
+          description: message.content || (files.length ? '（添付ファイル）' : '内容なし'),
+          type: 'info',
+          client
+        });
+        // Footer override for message origin
+        embed.setFooter({
+          text: `${message.channel.name} ｜ ${new Date().toLocaleString('ja-JP')}`,
+        });
 
         await targetCh.send({ embeds: [embed] }).catch(() => null);
       }
 
       // 画像の転送（1枚ずつ個別Embed）
       for (let i = 0; i < images.length; i++) {
-        const imgEmbed = new EmbedBuilder()
-          .setTitle(message.author.username)
-          .setDescription(`画像${i + 1}`)
-          .setImage(images[i].url)
-          .setFooter({
-            text: `${message.channel.name} ｜ ${new Date().toLocaleString('ja-JP')}`,
-          })
-          .setColor(0x3498db)
-          .setTimestamp();
+        const imgEmbed = buildPanelEmbed({
+          title: message.author.username,
+          description: `画像${i + 1}`,
+          thumbnail: message.author.displayAvatarURL(),
+          type: 'info',
+          client
+        });
+        imgEmbed.setImage(images[i].url);
+        imgEmbed.setFooter({
+          text: `${message.channel.name} ｜ ${new Date().toLocaleString('ja-JP')}`,
+        });
 
         await targetCh.send({ embeds: [imgEmbed] }).catch(() => null);
       }

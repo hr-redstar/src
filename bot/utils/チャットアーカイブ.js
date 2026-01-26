@@ -47,12 +47,13 @@ async function archiveChatToMemo({ guild, channel, userId, dispatchId, title }) 
 
     if (!logContent) return;
 
-    const embed = new EmbedBuilder()
-        .setTitle(`📝 チャットログ: ${title || '配車連絡'}`)
-        .setDescription(logContent.slice(0, 4000))
-        .setFooter({ text: `送迎ID: ${dispatchId}` })
-        .setTimestamp()
-        .setColor(0xcccccc);
+    const buildPanelEmbed = require('./embed/embedTemplate');
+    const embed = buildPanelEmbed({
+        title: `📝 チャットログ: ${title || '配車連絡'}`,
+        description: logContent.slice(0, 4000) + `\n\n**送迎ID**: \`${dispatchId}\``,
+        type: 'info',
+        client: guild.client
+    });
 
     await thread.send({ embeds: [embed] }).catch(() => null);
 }

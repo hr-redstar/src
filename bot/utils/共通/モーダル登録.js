@@ -1,3 +1,4 @@
+// utils/共通/モーダル登録.js
 const { EmbedBuilder, MessageFlags } = require('discord.js');
 const { sendAdminLog } = require('../ログ/管理者ログ');
 const { isRegisteredUser, upsertUserRegistration } = require('../ユーザー/ユーザー管理');
@@ -31,16 +32,17 @@ module.exports = async function userRegisterModal(interaction) {
   });
 
   // 管理者ログ
-  const logEmbed = new EmbedBuilder()
-    .setTitle('利用者登録')
-    .setDescription(
-      `
+  const buildPanelEmbed = require('../embed/embedTemplate');
+  const logEmbed = buildPanelEmbed({
+    title: '利用者登録',
+    description: `
 **ユーザー** <@${userId}>
 **店舗名 / ニックネーム** ${name}
 **方面** ${mark}
-    `
-    )
-    .setTimestamp();
+    `,
+    type: 'success',
+    client: interaction.client
+  });
 
   await sendAdminLog(interaction.guild, logEmbed);
 };

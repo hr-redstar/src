@@ -14,14 +14,14 @@ const paths = require('../../utils/ストレージ/ストレージパス');
  */
 module.exports = {
     customId: 'op|credits|sub=user_select',
-    type: 'userSelect',
+    type: 'stringSelect',
     async execute(interaction, client, parsed) {
         return autoInteractionTemplate(interaction, {
             ack: 'none',
             adminOnly: true,
             async run(interaction) {
                 const targetUserId = interaction.values[0];
-                const targetUser = interaction.users.get(targetUserId);
+                const targetUser = await client.users.fetch(targetUserId).catch(() => null);
                 const userName = targetUser ? targetUser.username : targetUserId;
 
                 // 既存のクレジット情報を取得（もしあれば）

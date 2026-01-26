@@ -28,16 +28,20 @@ function parseCustomId(customId) {
     // 残りのセグメント (|key=value など) をパースして params に追加
     for (let i = 2; i < parts.length; i++) {
         const segment = parts[i];
-        if (segment.includes('=')) {
-            // パラメータ形式であれば追加
-            const [k, ...vParts] = segment.split('=');
-            if (k) params[k] = vParts.join('='); // 値に = が含まれる可能性を考慮
-        } else if (segment.includes('&')) {
-            // セグメント内に & が含まれる場合 (レガシー/混在対応)
+
+        // セグメント内に & が含まれる場合 (複数のパラメータがある場合)
+        if (segment.includes('&')) {
             segment.split('&').forEach(p => {
-                const [k, v] = p.split('=');
-                if (k) params[k] = v;
+                if (p.includes('=')) {
+                    const [k, ...vParts] = p.split('=');
+                    if (k) params[k] = vParts.join('=');
+                }
             });
+        }
+        // 単一のパラメータの場合
+        else if (segment.includes('=')) {
+            const [k, ...vParts] = segment.split('=');
+            if (k) params[k] = vParts.join('=');
         }
     }
 

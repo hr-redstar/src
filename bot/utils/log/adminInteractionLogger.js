@@ -50,7 +50,7 @@ async function logAdminInteraction(interaction, phase = 'START', extra = {}) {
         const label = interaction.component?.label || '名前なしボタン';
         embed.addFields({
             name: 'ボタン',
-            value: `『${label}』\n(ID: \`${interaction.customId}\`)`,
+            value: `『${label}』`,
             inline: false,
         });
     }
@@ -61,45 +61,57 @@ async function logAdminInteraction(interaction, phase = 'START', extra = {}) {
             ?.map(opt => opt.label) || [];
 
         embed.addFields({
-            name: 'セレクトメニュー',
-            value: `ID: \`${interaction.customId}\`\n選択: ${labels.join(', ') || interaction.values.join(', ')}`,
+            name: 'ℹ️ リスト選択',
+            value: `対象: \`${interaction.customId}\`\n選択: **${labels.join(', ') || interaction.values.join(', ')}**`,
             inline: false,
         });
     }
 
     if (interaction.isModalSubmit?.()) {
-        // IDからラベルへのマッピング (v2.9.2)
+        // IDからラベルへのマッピング (v2.9.3 Professional Edition)
         const labelMap = {
-            // モーダルID
+            // モーダルID (Prefix対応)
             'reg|user|sub=modal': '『利用者登録』',
             'reg|driver|sub=modal': '『送迎者登録』',
             'driver|return_queue|sub=submit': '『待機復帰入力』',
             'ride|end|sub=submit': '『送迎終了入力』',
             'op|credits|sub=modal': '『ユーザークレジット登録』',
             'op|fee|sub=modal': '『利用料設定』',
+            'op|directions|sub=detail_modal': '『方面・方角詳細編集』',
+            'driver|on|sub=modal': '『出勤登録』',
             // フィールドID
             'reg|user|input=name': '店舗名・ニックネーム',
             'reg|user|input=address': '店舗住所',
             'reg|user|input=mark': '駐車目印',
             'reg|driver|input=nickname': 'ニックネーム',
             'reg|driver|input=car': '車種/カラー/ナンバー',
+            'input|driver|car': '車種/カラー/ナンバー',
             'reg|driver|input=capacity': '乗車人数',
+            'input|driver|capacity': '乗車定員',
             'reg|driver|input=whoo': 'whooアカウントID',
+            'direction_detail': '詳細テキスト',
             'location': '現在地',
+            'input|driver|location': '現在地',
             'destination': '最終目的地',
             'credit_amount': '登録クレジット額',
             'fee_amount': '利用料設定額',
         };
 
-        const modalLabel = labelMap[interaction.customId] || interaction.customId;
+        // Prefix一致を考慮したカスタムID解決
+        const fullId = interaction.customId;
+        const baseId = Object.keys(labelMap).find(prefix => fullId.startsWith(prefix)) || fullId;
+        const modalLabel = labelMap[baseId] || fullId;
+
         const inputs = [];
         interaction.fields.fields.forEach((field) => {
             const fieldLabel = labelMap[field.customId] || field.customId;
-            inputs.push(`**${fieldLabel}**: ${field.value.slice(0, 100)}`);
+            // バックネスト防止措置: バックチックが含まれる場合はエスケープ
+            const safeValue = field.value.replace(/`/g, '`\u200b');
+            inputs.push(`**${fieldLabel}**: ${safeValue.slice(0, 500)}`);
         });
 
         embed.addFields({
-            name: 'モーダル送信',
+            name: 'ℹ️ モーダル送信',
             value: `対象: ${modalLabel}\n${inputs.join('\n')}`,
             inline: false,
         });

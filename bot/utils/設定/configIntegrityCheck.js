@@ -1,3 +1,4 @@
+// utils/設定/configIntegrityCheck.js
 const logger = require('../logger');
 
 /**
@@ -6,7 +7,7 @@ const logger = require('../logger');
  * @param {Object} config - 設定データ
  */
 async function checkConfigIntegrity(guild, config) {
-    logger.info(`🔍 設定整合性チェックを開始: Guild=${guild.id} (${guild.name})`);
+    // logger.info(`🔍 設定整合性チェックを開始: Guild=${guild.id} (${guild.name})`);
 
     const results = {
         valid: 0,
@@ -78,7 +79,7 @@ async function checkConfigIntegrity(guild, config) {
         results.missing.forEach((msg) => logger.warn(`  - ${msg}`));
         logger.warn('※ これらのリソースが削除されている場合、一部の機能が正常に動作しない可能性があります。');
     } else {
-        logger.info(`✅ 設定整合性チェック完了: ${results.valid}件のリソースを確認済み。`);
+        // logger.info(`✅ 設定整合性チェック完了: ${results.valid}件のリソースを確認済み。`);
     }
 
     return results;

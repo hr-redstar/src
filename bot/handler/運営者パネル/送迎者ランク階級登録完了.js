@@ -1,7 +1,7 @@
 const autoInteractionTemplate = require('../共通/autoInteractionTemplate');
 const { ACK } = autoInteractionTemplate;
 const { loadConfig, saveConfig } = require('../../utils/設定/設定マネージャ');
-const { EmbedBuilder, Colors } = require('discord.js');
+const buildPanelEmbed = require('../../utils/embed/embedTemplate');
 const updateOperatorPanel = require('./updatePanel');
 
 /**
@@ -33,22 +33,21 @@ module.exports = {
                 // 保存
                 await saveConfig(guildId, config);
 
-                const embed = new EmbedBuilder()
-                    .setTitle('✅ 送迎者ランク階級登録完了')
-                    .setDescription(`以下のランク階級を登録しました（${ranksList.length}件）。`)
-                    .setColor(Colors.Green)
-                    .setTimestamp();
-
-                if (ranksList.length > 0) {
-                    embed.addFields({
-                        name: '登録ランク',
-                        value: ranksList.map((r, i) => `${i + 1}. ${r}`).join('\n'),
-                    });
-                }
+                const embed = buildPanelEmbed({
+                    title: '✅ 送迎者ランク階級登録完了',
+                    description: `以下のランク階級を登録しました（${ranksList.length}件）。`,
+                    fields: ranksList.length > 0 ? [
+                        {
+                            name: '登録ランク',
+                            value: ranksList.map((r, i) => `${i + 1}. ${r}`).join('\n'),
+                        },
+                    ] : [],
+                    type: 'success',
+                    client,
+                });
 
                 await interaction.editReply({
                     embeds: [embed],
-                    components: [],
                 });
 
                 // パネルを更新（ランク情報はパネルには直接出ないかもしれないが、データ更新として呼び出す）
